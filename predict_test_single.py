@@ -48,7 +48,7 @@ def load_model(args, config_path, checkpoint):
     conf = load_config(config_path)
     model = zoo.__dict__[conf['network']](**conf["encoder_params"])
     model = model.cpu()
-    load_checkpoint(model, checkpoint, strict=True)
+    load_checkpoint(model, checkpoint, strict=True, verbose=False)
     model = model.float().cuda()
     channels_last = conf["encoder_params"].get("channels_last", False)
     if channels_last:

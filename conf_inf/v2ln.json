@@ -4,7 +4,6 @@
     "encoder": "tf_efficientnetv2_l_in21k",
     "in_chans": 2,
     "drop_path_rate": 0.2,
-    "confidence_classes": 3,
     "pretrained": false,
     "channels_last": true
   }

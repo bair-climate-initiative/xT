@@ -170,8 +170,9 @@ def all_gather(data):
     return data_list
 
 
-def load_checkpoint(model, checkpoint_path, strict=False):
-    print("=> loading checkpoint '{}'".format(checkpoint_path))
+def load_checkpoint(model, checkpoint_path, strict=False, verbose=True):
+    if verbose:
+        print("=> loading checkpoint '{}'".format(checkpoint_path))
     checkpoint = torch.load(checkpoint_path, map_location='cpu')
     if 'state_dict' in checkpoint:
         state_dict = checkpoint['state_dict']
@@ -181,7 +182,8 @@ def load_checkpoint(model, checkpoint_path, strict=False):
         for k, v in state_dict.items():
             ori_size = orig_state_dict[k].size() if k in orig_state_dict else None
             if v.size() != ori_size:
-                print("SKIPPING!!! Shape of {} changed from {} to {}".format(k, v.size(), ori_size))
+                if verbose:
+                    print("SKIPPING!!! Shape of {} changed from {} to {}".format(k, v.size(), ori_size))
                 mismatched_keys.append(k)
         for k in mismatched_keys:
             del state_dict[k]

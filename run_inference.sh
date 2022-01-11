@@ -11,6 +11,6 @@ if [ $# -lt 3 ]; then
 else
 
     python predict_test_single.py --data-dir "$1" --scene_id "$2" --out-csv "$3" \
-    --checkpoints val_only_TimmUnet_nfnet_l0_99_xview val_only_TimmUnet_tf_efficientnetv2_l_in21k_99_last val_only_TimmUnet_tf_efficientnetv2_l_in21k_77_xview val_only_TimmUnet_tf_efficientnetv2_m_in21k_99_last val_only_TimmUnet_tf_efficientnet_b7_ns_77_xview \
-    --configs nf0 v2ln v2ln v2m b7
+    --checkpoints val_only_TimmUnet_nfnet_l0_99_xview val_only_TimmUnet_tf_efficientnetv2_l_in21k_99_last val_only_TimmUnet_tf_efficientnetv2_l_in21k_77_xview val_only_TimmUnet_tf_efficientnetv2_m_in21k_99_last val_only_TimmUnet_tf_efficientnet_b7_ns_77_xview val_only_TimmUnet_resnet34_77_xview val_only_TimmUnet_resnet34_77_xview \
+    --configs nf0 v2ln v2ln v2m b7 r34
 fi
