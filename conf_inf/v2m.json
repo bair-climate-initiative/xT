@@ -1,0 +1,10 @@
+{
+  "network": "TimmUnet",
+  "encoder_params": {
+    "encoder": "tf_efficientnetv2_m_in21k",
+    "in_chans": 2,
+    "drop_path_rate": 0.2,
+    "pretrained": false,
+    "channels_last": true
+  }
+}

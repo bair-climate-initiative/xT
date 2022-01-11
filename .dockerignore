@@ -1,0 +1,4 @@
+venv/
+logs/
+all_weights/
+.git/
