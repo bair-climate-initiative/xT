@@ -1,0 +1,7 @@
+Wed Apr  5 10:50:56 2023 Epoch 1, lr: 0.0000300, train loss: 0.46562, val loss: 0.43611, acc: 29.61394, qwk: 0.66449
+Wed Apr  5 20:30:30 2023 Epoch 1, lr: 0.0000300, train loss: 0.41592, val loss: 0.30726, acc: 48.91714, qwk: 0.75434
+Wed Apr  5 21:11:53 2023 Epoch 2, lr: 0.0003000, train loss: 0.33772, val loss: 0.33217, acc: 58.05085, qwk: 0.74384
+Wed Apr  5 21:56:49 2023 Epoch 3, lr: 0.0003000, train loss: 0.28487, val loss: 0.26032, acc: 59.18079, qwk: 0.80708
+Wed Apr  5 22:44:13 2023 Epoch 4, lr: 0.0002965, train loss: 0.26255, val loss: 0.23151, acc: 62.28814, qwk: 0.84907
+Wed Apr  5 23:30:49 2023 Epoch 5, lr: 0.0002921, train loss: 0.23950, val loss: 0.25621, acc: 53.24859, qwk: 0.79620
+Thu Apr  6 00:16:40 2023 Epoch 6, lr: 0.0002861, train loss: 0.22604, val loss: 0.23317, acc: 64.45386, qwk: 0.83124

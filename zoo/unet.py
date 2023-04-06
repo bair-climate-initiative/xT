@@ -176,6 +176,88 @@ class TimmUnet(AbstractModel):
 
 
 
+class TimmUnetPANDA(AbstractModel):
+    def __init__(self, encoder='resnet34', in_chans=3, pretrained=True, channels_last=False,
+                 **kwargs):
+        if not hasattr(self, 'first_layer_stride_two'):
+            self.first_layer_stride_two = True
+        if not hasattr(self, 'decoder_block'):
+            self.decoder_block = UnetDecoderBlock
+        if not hasattr(self, 'bottleneck_type'):
+            self.bottleneck_type = ConvBottleneck
+
+        backbone_arch = encoder
+        self.channels_last = channels_last
+        backbone = timm.create_model(backbone_arch, features_only=True, in_chans=in_chans, pretrained=pretrained,
+                                     **kwargs)
+        self.filters = [f["num_chs"] for f in backbone.feature_info]
+        self.decoder_filters = default_decoder_filters
+        self.last_upsample_filters = default_last
+        if encoder in encoder_params:
+            self.decoder_filters = encoder_params[encoder].get('decoder_filters', self.filters[:-1])
+            self.last_upsample_filters = encoder_params[encoder].get('last_upsample', self.decoder_filters[0] // 2)
+
+        super().__init__()
+        self.bottlenecks = nn.ModuleList([self.bottleneck_type(self.filters[-i - 2] + f, f) for i, f in
+                                          enumerate(reversed(self.decoder_filters[:]))])
+
+        self.decoder_stages = nn.ModuleList([self.get_decoder(idx) for idx in range(0, len(self.decoder_filters))])
+        self.out_mask = UnetDecoderLastConv(self.decoder_filters[0], self.last_upsample_filters, 6)
+        self.cls_head = MLP(self.filters[-1],10,2.0)
+        # self.fishing_mask = UnetDecoderLastConv(self.decoder_filters[0], self.last_upsample_filters, 1)
+        # self.center_mask = UnetDecoderLastConv(self.decoder_filters[0], self.last_upsample_filters, 1)
+        # self.length_mask = UnetDecoderLastConv(self.decoder_filters[0], self.last_upsample_filters, 1)
+
+        self.name = "u-{}".format(encoder)
+
+        self._initialize_weights()
+        self.dropout = Dropout2d(p=0.0)
+        self.encoder = backbone
+
+    def forward(self, x):
+        # Encoder
+        if self.channels_last:
+            x = x.contiguous(memory_format=torch.channels_last) # N X C X H X W
+        enc_results = self.encoder(x)
+        x = enc_results[-1] # N X C X H X W
+
+        gap_x = x.mean((2,3)) # N X C
+        out_cls = self.cls_head(gap_x)
+        bottlenecks = self.bottlenecks
+        for idx, bottleneck in enumerate(bottlenecks):
+            rev_idx = - (idx + 1)
+            x = self.decoder_stages[rev_idx](x)
+            x = bottleneck(x, enc_results[rev_idx - 1])
+
+        out_mask = self.out_mask(x).contiguous(memory_format=torch.contiguous_format)
+        
+        return {
+            "mask": out_mask,
+            "local_score":  out_cls,
+        }
+
+    def get_decoder(self, layer):
+        in_channels = self.filters[layer + 1] if layer + 1 == len(self.decoder_filters) else self.decoder_filters[
+            layer + 1]
+        return self.decoder_block(in_channels, self.decoder_filters[layer], self.decoder_filters[max(layer, 0)])
+
+class MLP(nn.Module):
+
+    def __init__(self, in_channels, out_channels,mlp_ratio) -> None:
+        super().__init__()
+        self.hidden_channels = int(mlp_ratio*in_channels)
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.layers = nn.Sequential(
+            nn.Linear(in_channels,self.hidden_channels),
+            nn.BatchNorm1d(self.hidden_channels),
+            nn.SiLU(),
+            nn.Linear(self.hidden_channels,out_channels)
+        )
+
+    def forward(self, x):
+        return self.layers(x)
+
 class ConvBottleneck(nn.Module):
     def __init__(self, in_channels, out_channels):
         super().__init__()

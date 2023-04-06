@@ -44,13 +44,13 @@ def process_distributed(models: List[torch.nn.Module], args):
 
     sampler = torch.utils.data.distributed.DistributedSampler(test_dataset, shuffle=False)
     test_loader = DataLoader(
-        test_dataset, batch_size=1, sampler=sampler, shuffle=False, num_workers=1, pin_memory=False
+        test_dataset, batch_size=1, sampler=sampler, shuffle=False, num_workers=0, pin_memory=False
     )
 
     for sample in tqdm(test_loader):
         scene_id = sample[0]
         mask_dict = predict_scene_and_return_mm(models, scene_id=scene_id, dataset_dir=test_dataset_dir, use_fp16=True,
-                                                rotate=True)
+                                                rotate=True,num_workers=0)
         data = process_confidence(scene_id, None, mask_dict)
         pd.DataFrame(data, columns=["detect_scene_row", "detect_scene_column", "scene_id", "is_vessel", "is_fishing",
                                     "vessel_length_m", "confidence", "mean_obj", "mean_vessel", "mean_fishing",
@@ -65,8 +65,9 @@ def load_model(args, config_path, checkpoint):
     channels_last = conf["encoder_params"].get("channels_last", False)
     if channels_last:
         model = model.to(memory_format=torch.channels_last)
-    model = DistributedDataParallel(model, device_ids=[args.local_rank], output_device=args.local_rank,
-                                    find_unused_parameters=True)
+    if args.distributed:
+        model = DistributedDataParallel(model, device_ids=[args.local_rank], output_device=args.local_rank,
+                                        find_unused_parameters=True)
     return model.eval()
 
 

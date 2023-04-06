@@ -7,7 +7,7 @@
     "pretrained": true,
     "channels_last": true
   },
-  "crop_size": 1888,
+  "crop_size": 1024,
   "multiplier": 64,
   "optimizer": {
     "train_bs": 2,
@@ -20,7 +20,7 @@
     "schedule": {
       "type": "cosine",
       "mode": "step",
-      "epochs": 150,
+      "epochs": 20,
       "params": {
         "eta_min": 4e-4
       }

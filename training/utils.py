@@ -13,8 +13,10 @@ from torch.optim import lr_scheduler
 from torch.optim.adamw import AdamW
 from torch.optim.lr_scheduler import MultiStepLR, CyclicLR, CosineAnnealingLR
 from torch.optim.rmsprop import RMSprop
+from torch.utils.data import Subset
 
 from training.schedulers import ExponentialLRScheduler, PolyLR, LRStepScheduler
+import numpy as np
 
 cv2.ocl.setUseOpenCL(False)
 cv2.setNumThreads(0)
@@ -195,3 +197,10 @@ def load_checkpoint(model, checkpoint_path, strict=False, verbose=True):
     else:
         model.load_state_dict(checkpoint)
     del checkpoint
+
+
+def get_random_subset(dataset,count=5):
+    #n = len(dataset)
+    indices = np.arange(count).tolist()
+    #indices = np.random.choice(indices,count,replace=False)
+    return Subset(dataset,indices)

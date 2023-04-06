@@ -36,7 +36,7 @@ def process_scene(models: List[torch.nn.Module], args):
                                      "vessel_length_m", "confidence", "mean_obj", "mean_vessel","mean_fishing",
                                      "mean_length", "mean_center"])
     df = df.reset_index()
-
+    print(data)
     df["is_vessel"] = (df.is_vessel) | (df.mean_vessel > 90)
     df["is_fishing"] = (df.is_fishing) | (df.mean_fishing > 80)
     df = df[["detect_scene_row", "detect_scene_column", "scene_id", "is_vessel", "is_fishing", "vessel_length_m", ]]
@@ -60,7 +60,7 @@ def main():
     args = parse_args()
     os.environ['CUDA_DEVICE_ORDER'] = 'PCI_BUS_ID'
     os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
-    config_paths = [os.path.join("conf_inf", f"{config}.json") for config in args.configs]
+    config_paths = [os.path.join("configs", f"{config}.json") for config in args.configs]
     checkpoint_paths = [os.path.join(args.weights_path, checkpoint) for checkpoint in args.checkpoints]
     models = [load_model(args, conf, checkpoint) for conf, checkpoint in zip(config_paths, checkpoint_paths)]
     process_scene(models, args)

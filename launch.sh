@@ -1,0 +1,1 @@
+CUDA_VISIBLE_DEVICES=2,3 ./train.sh  2 /shared/ritwik/data/xview3 /shared/ritwik/data/xview3/shoreline/validation ./output/ 77 v2l

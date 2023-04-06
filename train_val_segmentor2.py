@@ -24,6 +24,19 @@ from metrics import xview_metric
 from metrics.xview_metric import create_metric_arg_parser
 from training.config import load_config
 from training.val_dataset import XviewValDataset
+from torch.utils.data import Dataset
+
+class TestDataset(Dataset):
+
+    def __init__(self, root_dir):
+        super().__init__()
+        self.names = os.listdir(root_dir)
+
+    def __getitem__(self, index):
+        return dict(name=self.names[index])
+
+    def __len__(self):
+        return len(self.names)
 
 warnings.filterwarnings("ignore")
 import argparse
@@ -50,7 +63,7 @@ class XviewEvaluator(Evaluator):
         conf_name = os.path.splitext(os.path.basename(self.args.config))[0]
         val_dir = os.path.join(self.args.val_dir, conf_name, str(self.args.fold))
         os.makedirs(val_dir, exist_ok=True)
-        dataset_dir = os.path.join(self.args.data_dir, "images/validation")
+        dataset_dir = os.path.join(self.args.data_dir, "images/public")
         for sample in tqdm(dataloader):
             scene_id = sample["name"][0]
             mask_dict = predict_scene_and_return_mm([model], scene_id=scene_id, dataset_dir=dataset_dir,
@@ -76,7 +89,7 @@ class XviewEvaluator(Evaluator):
             df[["detect_scene_row", "detect_scene_column", "scene_id", "is_vessel", "is_fishing",
                  "vessel_length_m"]].to_csv(pred_csv, index=False)
             metric_args.inference_file = pred_csv
-            metric_args.label_file = os.path.join(self.args.data_dir, "labels/validation.csv")
+            metric_args.label_file = os.path.join(self.args.data_dir, "labels/public.csv")
             metric_args.shore_root = self.args.shoreline_dir
             metric_args.shore_tolerance = 2
             metric_args.costly_dist = True
@@ -137,14 +150,13 @@ def parse_args():
 def create_data_datasets(args):
     conf = load_config(args.config)
     conf['crop_size'] = args.crop_size
-    train_annotations = os.path.join(args.data_dir, "labels/validation.csv")
-    train_dataset = XviewValDataset(mode="train", dataset_dir=args.data_dir, fold=args.fold, folds_csv=args.folds_csv,
+    train_annotations = os.path.join(args.data_dir, "labels/public.csv")
+    train_dataset = XviewValDataset(mode="train", dataset_dir=args.data_dir, fold=12345, folds_csv=args.folds_csv,
                                     annotation_csv=train_annotations,
                                     crop_size=conf["crop_size"],
                                     multiplier=conf["multiplier"],
                                     )
-    val_dataset = XviewValDataset(mode="val", dataset_dir=args.data_dir, fold=args.fold, folds_csv=args.folds_csv,
-                                  annotation_csv=train_annotations, crop_size=conf["crop_size"])
+    val_dataset =    TestDataset( os.path.join(args.data_dir, "images/public"))
     return train_dataset, val_dataset
 
 
@@ -172,11 +184,17 @@ def main():
     )
 
     data_train, data_val = create_data_datasets(args)
+    
+
     seg_evaluator = XviewEvaluator(args)
     trainer = PytorchTrainer(train_config=trainer_config, evaluator=seg_evaluator, fold=args.fold,
                              train_data=data_train, val_data=data_val)
+    sampler = torch.utils.data.distributed.DistributedSampler(data_val, shuffle=False)
+    test_loader = DataLoader(
+        data_val, batch_size=1, sampler=sampler, shuffle=False, num_workers=0, pin_memory=False
+    )
     if args.val:
-        trainer.validate()
+        trainer.validate(test_loader)
         return
     trainer.fit()
 

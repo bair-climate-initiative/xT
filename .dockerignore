@@ -2,3 +2,10 @@ venv/
 logs/
 all_weights/
 .git/
+**.pth
+**/**.pth
+output**
+pred**
+**.png
+logs/
+weights

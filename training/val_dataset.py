@@ -82,8 +82,8 @@ class XviewValDataset(Dataset):
         name = self.names[i]
         crop_size = self.crop_size
 
-        vv_full = tifffile.memmap(os.path.join(self.dataset_dir, "validation", name, "VV_dB.tif"), mode="r")
-        vh_full = tifffile.memmap(os.path.join(self.dataset_dir, "validation", name, "VH_dB.tif"), mode="r")
+        vv_full = tifffile.imread(os.path.join(self.dataset_dir, "images/validation", name, "VV_dB.tif"))
+        vh_full = tifffile.imread(os.path.join(self.dataset_dir, "images/validation", name, "VH_dB.tif"))
 
         h, w = vv_full.shape
 

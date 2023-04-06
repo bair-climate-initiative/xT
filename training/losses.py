@@ -425,3 +425,16 @@ class CropCenterLossCalculator(LossCalculator):
         k = int(len(all_crops) * self.ohem_fraction)
         mse_loss = topk(self.mse(out_crops.flatten(1), all_crops.flatten(1)).mean(1), k=k, sorted=False)[0].mean()
         return mse_loss
+
+
+class CrossEntrophy(LossCalculator):
+
+    def __init__(self, field):
+        super().__init__()
+        self.field = field
+        self.ce = nn.CrossEntropyLoss()
+
+    def calculate_loss(self, outputs, sample):
+        targets = sample[self.field].cuda().long() # Label map
+        pred = outputs[self.field]
+        return self.ce(pred,targets)
