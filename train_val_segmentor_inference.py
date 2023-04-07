@@ -193,6 +193,7 @@ def main():
     test_loader = DataLoader(
         data_val, batch_size=1, sampler=sampler, shuffle=False, num_workers=0, pin_memory=False
     )
+    args.val = True # Always eval
     if args.val:
         trainer.validate(test_loader)
         return

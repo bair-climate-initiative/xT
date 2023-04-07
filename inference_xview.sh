@@ -1,15 +1,16 @@
-CUDA_VISIBLE_DEVICES=4,5,6,7 \
-python -u -m torch.distributed.launch  --nproc_per_node=4  --master_port 9987 \
- predict_test.py  --distributed \
- --world-size 4 \
- --data-dir /shared/ritwik/data/xview3/images/public \
- --out-dir  pred_1024 \
- --checkpoints /home/jacklishufan/xView3_second_place/weights/val_only_TimmUnet_tf_efficientnetv2_l_in21k_77_xview \
- --configs v2l
+#!/bin/bash
 
- python  \
- predict_test.py  --gpu 5 \
- --data-dir /shared/ritwik/data/xview3/images/public \
- --out-dir  pred_1024 \
- --checkpoints /home/jacklishufan/xView3_second_place/weights/val_only_TimmUnet_tf_efficientnetv2_l_in21k_77_xview \
- --configs v2l
+NUM_GPUS=$1
+DATA_DIR=$2
+SHORE_DIR=$3
+VAL_OUT_DIR=$4
+FOLD=$5
+CONFIG=$6
+PORT=$7
+NAME=$8
+CROP=$9
+
+PYTHONPATH=.  python -u -m torch.distributed.launch  --nproc_per_node=$NUM_GPUS  --master_port $PORT  train_val_segmentor_inference.py \
+ --world-size $NUM_GPUS   --distributed  --config configs/${CONFIG}.json  --workers 4  --data-dir=$DATA_DIR  --test_every 1 \
+--shoreline-dir $SHORE_DIR --val-dir $VAL_OUT_DIR --folds-csv folds.csv --val --prefix val_only_  --fold $FOLD    --freeze-epochs 0 --fp16 --name $NAME \
+--crop_size $CROP ${@:10}

@@ -138,4 +138,5 @@ pred**
 **.png
 logs/
 weights
+weights**
 wandb/
