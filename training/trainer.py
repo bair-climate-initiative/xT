@@ -99,6 +99,7 @@ class PytorchTrainer(ABC):
         self.current_metrics = evaluator.init_metrics()
         self.current_epoch = 0
         self.model = self._init_model()
+        
         self.losses = self._init_loss_functions()
         self.optimizer, self.scheduler = create_optimizer(self.conf['optimizer'], self.model, len(train_data),
                                                           train_config.world_size)
@@ -106,6 +107,7 @@ class PytorchTrainer(ABC):
         self.train_data = train_data
         self.val_data = val_data
         if self.train_config.local_rank == 0:
+            print(self.model)
             self.summary_writer = SummaryWriter(os.path.join(train_config.log_dir, self.snapshot_name))
 
     def validate(self,test_loader=None):
