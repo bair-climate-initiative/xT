@@ -10,6 +10,7 @@ from typing import Dict, List
 import torch
 import torch.distributed
 import torch.distributed as dist
+import torch.nn as nn
 from tensorboardX import SummaryWriter
 from timm.utils import AverageMeter
 from torch.nn import DataParallel, SyncBatchNorm
@@ -26,7 +27,7 @@ from training.sampler import DistributedWeightedRandomSampler
 from training.utils import create_optimizer
 import wandb
 
-from torch.profiler import profile, record_function, ProfilerActivity
+from fvcore.nn import FlopCountAnalysis
 
 
 @dataclasses.dataclass
@@ -177,12 +178,8 @@ class PytorchTrainer(ABC):
 
     def _profile_model(self, shape):
         input = torch.randn(shape).cuda()
-        with profile(
-            activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], record_shapes=True
-        ) as prof:
-            self.model(input)
-
-        print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=25))
+        flops = FlopCountAnalysis(self.model, input)
+        print(flops.by_operator())
 
     def _save_last(self):
         self.model = self.model.eval()
