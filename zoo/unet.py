@@ -4,6 +4,7 @@ import timm
 import torch.hub
 from torch.nn import Dropout2d
 from torch.utils import model_zoo
+from .swin import SWIN_CFG
 
 encoder_params = {
     "resnet34": {"decoder_filters": [48, 96, 176, 192], "last_upsample": 32}
@@ -167,6 +168,7 @@ class TimmUnet(AbstractModel):
         in_chans=2,
         pretrained=True,
         channels_last=False,
+        crop_size = 256,
         **kwargs
     ):
         if not hasattr(self, "first_layer_stride_two"):
@@ -178,13 +180,18 @@ class TimmUnet(AbstractModel):
 
         backbone_arch = encoder
         self.channels_last = channels_last
-        backbone = timm.create_model(
-            backbone_arch,
-            features_only=True,
-            in_chans=in_chans,
-            pretrained=pretrained,
-            **kwargs
-        )
+        if 'swin' in backbone_arch:
+            backbone = SWIN_CFG[backbone_arch](img_size=crop_size,pretrained=pretrained,
+                                               input_dim=in_chans,
+                                               **kwargs)
+        else:
+            backbone = timm.create_model(
+                backbone_arch,
+                features_only=True,
+                in_chans=in_chans,
+                pretrained=pretrained,
+                **kwargs
+            )
         self.filters = [f["num_chs"] for f in backbone.feature_info]
         self.decoder_filters = default_decoder_filters
         self.last_upsample_filters = default_last

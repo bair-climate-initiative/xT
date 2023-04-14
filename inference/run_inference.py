@@ -54,12 +54,13 @@ class SliceDatasetPanda(Dataset):
 
 
 def predict_scene_and_return_mm(models: List[nn.Module], dataset_dir, scene_id: str, use_fp16: bool = False,
-                                rotate=False, output_dir=None,num_workers=8):
+                                rotate=False, output_dir=None,num_workers=8,
+                                crop_size = 3584,overlap=704):
     vh_full = tifffile.imread(os.path.join(dataset_dir, scene_id, "VH_dB.tif"))
 
     height, width = vh_full.shape
 
-    tiler = Tiler(height, width, 3584, overlap=704)
+    tiler = Tiler(height, width, crop_size, overlap)
     vessel_preds = np.zeros_like(vh_full, dtype=np.uint8)
     fishing_preds = np.zeros_like(vh_full, dtype=np.uint8)
     length_preds = np.zeros_like(vh_full, dtype=np.float16)

@@ -423,7 +423,7 @@ class PytorchTrainer(ABC):
     def _init_model(self):
         print(self.train_config)
 
-        model = zoo.__dict__[self.conf["network"]](**self.conf["encoder_params"])
+        model = zoo.__dict__[self.conf["network"]](**self.conf["encoder_params"],crop_size=self.conf['crop_size'])
         model = model.cuda()
         self._load_checkpoint(model)
 

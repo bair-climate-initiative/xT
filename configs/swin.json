@@ -1,10 +1,10 @@
 {
   "network": "TimmUnet",
   "encoder_params": {
-    "encoder": "tf_efficientnetv2_l_in21k",
+    "encoder": "swinv2_tiny_window16_256_xview",
     "in_chans": 2,
     "drop_path_rate": 0.2,
-    "pretrained": true,
+    "pretrained": "/shared/jacklishufan/large-image-models/swin_tiny_w16_256_pretrained.pth",
     "channels_last": true
   },
   "crop_size": 1024,
