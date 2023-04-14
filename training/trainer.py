@@ -97,6 +97,7 @@ class PytorchTrainer(ABC):
         self.fold = fold
         self.train_config = train_config
         self.conf = load_config(train_config.config_path)
+        self.wandb_id = None
         if self.train_config.local_rank == 0:
             wandb_args = dict(
                 project="xview3 detection unet",
@@ -106,6 +107,7 @@ class PytorchTrainer(ABC):
                 config=self.conf,
             )
             wandb.init(**wandb_args)
+            self.wandb_id = wandb.run.id
 
         if train_config.crop_size is not None:
             self.conf["crop_size"] = train_config.crop_size
@@ -128,8 +130,8 @@ class PytorchTrainer(ABC):
                 os.path.join(train_config.log_dir, self.snapshot_name)
             )
 
-        if self.train_config.local_rank == 0:
-            self._profile_model((1, 2, 256, 256))
+        
+        self._profile_model((1, 2, 256, 256))
 
     def validate(self, test_loader=None):
         self.model.eval()
@@ -189,7 +191,7 @@ class PytorchTrainer(ABC):
                 "state_dict": self.model.state_dict(),
                 "metrics": self.current_metrics,
             },
-            os.path.join(self.train_config.output_dir, self.snapshot_name + "_last"),
+            os.path.join(self.train_config.output_dir, self.snapshot_name + '_'  + str(self.wandb_id) + '_' "_last"),
         )
 
     def _save_best(self, improved_metrics: Dict):
@@ -202,7 +204,7 @@ class PytorchTrainer(ABC):
                     "metrics": self.current_metrics,
                 },
                 os.path.join(
-                    self.train_config.output_dir, self.snapshot_name + "_" + metric_name
+                    self.train_config.output_dir, self.snapshot_name + "_" + str(self.wandb_id) + '_' + metric_name
                 ),
             )
 
