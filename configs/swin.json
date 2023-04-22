@@ -20,7 +20,7 @@
     "schedule": {
       "type": "cosine",
       "mode": "step",
-      "epochs": 120,
+      "epochs": 20,
       "params": {
         "eta_min": 4e-4
       }

@@ -131,7 +131,7 @@ class PytorchTrainer(ABC):
             )
 
         
-        self._profile_model((1, 2, 256, 256))
+        self._profile_model((1, 2, self.conf["crop_size"], self.conf["crop_size"]))
 
     def validate(self, test_loader=None):
         self.model.eval()
@@ -181,7 +181,9 @@ class PytorchTrainer(ABC):
     def _profile_model(self, shape):
         input = torch.randn(shape).cuda()
         flops = FlopCountAnalysis(self.model, input)
-        print(flops.by_operator())
+        r = flops.by_operator()
+        print(r)
+        print(dict(total_flops=sum(r.values())))
 
     def _save_last(self):
         self.model = self.model.eval()

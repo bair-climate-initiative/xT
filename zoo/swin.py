@@ -194,7 +194,15 @@ def swinv2_tiny_window16_256_xview(pretrained=False, **kwargs):
         window_size=16, embed_dim=96, depths=(2, 2, 6, 2), num_heads=(3, 6, 12, 24), **kwargs)
     model =  SwinTransformerV2Xview(**model_kwargs)
     if pretrained:
-        model.load_state_dict(torch.load(pretrained,map_location='cpu'),strict=False)
+        ckpt = torch.load(pretrained,map_location='cpu')
+        state_dict = model.state_dict()
+        filtered = {}
+        for k,v in ckpt.items():
+            if k in state_dict and state_dict[k].shape != v.shape:
+                print(f"SKipped {k} for size mismatch")
+                continue
+            filtered[k]=v
+        model.load_state_dict(filtered,strict=False)
     return model
 
 

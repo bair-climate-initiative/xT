@@ -54,6 +54,8 @@ class XviewEvaluator(Evaluator):
     def __init__(self, args) -> None:
         super().__init__()
         self.args = args
+        self.crop_size = args.crop_size_val
+        self.overlap = args.overlap_val
 
     def init_metrics(self) -> Dict:
         return {"xview": 0}
@@ -67,7 +69,8 @@ class XviewEvaluator(Evaluator):
         for sample in tqdm(dataloader):
             scene_id = sample["name"][0]
             mask_dict = predict_scene_and_return_mm([model], scene_id=scene_id, dataset_dir=dataset_dir,
-                                                    use_fp16=self.args.fp16, rotate=True)
+                                                    use_fp16=self.args.fp16, rotate=True,
+                                                    crop_size = self.crop_size,overlap=self.overlap)
             data = process_confidence(scene_id, None, mask_dict)
             pd.DataFrame(data,
                          columns=["detect_scene_row", "detect_scene_column", "scene_id", "is_vessel", "is_fishing",
@@ -127,6 +130,8 @@ def parse_args():
     arg('--shoreline-dir', type=str, default="/mnt/viper/xview3/shore/validation")
     arg('--val-dir', type=str, default="/mnt/viper/xview3/oof")
     arg('--folds-csv', type=str, default='folds4val.csv')
+    arg('--crop_size_val', type=int, default=3584)
+    arg('--overlap_val', type=int, default=704)
     arg('--logdir', type=str, default='logs')
     arg('--zero-score', action='store_true', default=False)
     arg('--from-zero', action='store_true', default=False)
