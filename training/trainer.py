@@ -131,7 +131,7 @@ class PytorchTrainer(ABC):
             )
 
         
-        self._profile_model((1, 2, self.conf["crop_size"], self.conf["crop_size"]))
+        # self._profile_model((1, 2, self.conf["crop_size"], self.conf["crop_size"]))
 
     def validate(self, test_loader=None):
         self.model.eval()
@@ -358,6 +358,7 @@ class PytorchTrainer(ABC):
                 device_ids=[self.train_config.local_rank],
                 output_device=self.train_config.local_rank,
                 find_unused_parameters=True,
+                # static_graph=True
             )
         else:
             self.model = DataParallel(self.model).cuda()

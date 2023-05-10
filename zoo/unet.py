@@ -5,6 +5,9 @@ import torch.hub
 from torch.nn import Dropout2d
 from torch.utils import model_zoo
 from .swin import SWIN_CFG
+from .revswin import REVSWIN_CFG 
+
+SWIN_CFG = SWIN_CFG | REVSWIN_CFG
 
 encoder_params = {
     "resnet34": {"decoder_filters": [48, 96, 176, 192], "last_upsample": 32}

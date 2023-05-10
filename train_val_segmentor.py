@@ -155,6 +155,7 @@ def create_data_datasets(args):
 
 def main():
     args = parse_args()
+    args.fp16 = False
     trainer_config = TrainConfiguration(
         config_path=args.config,
         crop_size=args.crop_size,
