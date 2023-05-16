@@ -53,7 +53,8 @@ class XviewValDataset(Dataset):
             crop_size: int = 1024,
             sigma: int = 2,
             radius: int = 4,
-            transforms: A.Compose = train_transforms
+            transforms: A.Compose = train_transforms,
+            positive_ratio=0.5
     ):
         df = pd.read_csv(folds_csv)
         self.radius = radius
@@ -90,7 +91,7 @@ class XviewValDataset(Dataset):
         df = self.df
         df = df[df.scene_id == name]
         points = [row for _, row in df.iterrows()]
-        if len(points) > 1 and random.random() > 0.5:
+        if len(points) > 1 and random.random() > (1.0-positive_ratio):
             point_idx = rm.randint(0, len(points) - 1)
             point = points[point_idx]
             y, x = point.detect_scene_row, point.detect_scene_column
