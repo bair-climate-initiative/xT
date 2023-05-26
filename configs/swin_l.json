@@ -1,19 +1,19 @@
 {
   "network": "TimmUnet",
   "encoder_params": {
-    "encoder": "swinv2_tiny_window16_256_xview",
+    "encoder": "swinv2_large_window16_256_xview",
     "in_chans": 2,
     "drop_path_rate": 0.2,
-    "pretrained": "/shared/jacklishufan/large-image-models/swin_tiny_w16_256_pretrained.pth",
+    "pretrained": "/shared/jacklishufan/large-image-models/swin_large_w16_256_pretrained.pth",
     "channels_last": true
   },
   "crop_size": 1024,
   "multiplier": 64,
   "optimizer": {
-    "train_bs": 2,
+    "train_bs": 1,
     "val_bs": 1,
     "type": "SGD",
-    "learning_rate": 0.003,
+    "learning_rate": 0.001,
     "weight_decay": 1e-4,
     "nesterov": true,
     "momentum": 0.9,

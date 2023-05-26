@@ -14,14 +14,22 @@ from training.val_dataset import normalize_band
 
 
 class SliceDataset(Dataset):
+    file_cache = {
 
-    def __init__(self, scene_dir: str, tiler: Tiler) -> None:
+    }
+    def __init__(self, scene_dir: str, tiler: Tiler,cache=True) -> None:
         super().__init__()
         self.scene_dir = scene_dir
         self.tiler = tiler
         self.slices = tiler.generate_slices()
-        self.vv_full = tifffile.imread(os.path.join(self.scene_dir, "VV_dB.tif"))
-        self.vh_full = tifffile.imread(os.path.join(self.scene_dir, "VH_dB.tif"))
+        if scene_dir in SliceDataset.file_cache:
+            self.vv_full,self.vh_full = SliceDataset.file_cache[scene_dir]
+            self.vv_full = self.vv_full.copy()
+            self.vh_full = self.vh_full.copy()
+        else:
+            self.vv_full = tifffile.imread(os.path.join(self.scene_dir, "VV_dB.tif"))
+            self.vh_full = tifffile.imread(os.path.join(self.scene_dir, "VH_dB.tif"))
+            SliceDataset.file_cache[scene_dir] = (self.vv_full.copy(),self.vh_full.copy())
 
     def __getitem__(self, index):
         slice = self.slices[index]
@@ -51,15 +59,16 @@ class SliceDatasetPanda(Dataset):
 
     def __len__(self):
         return len(self.slices)
-
+import rasterio
 
 def predict_scene_and_return_mm(models: List[nn.Module], dataset_dir, scene_id: str, use_fp16: bool = False,
                                 rotate=False, output_dir=None,num_workers=8,
                                 crop_size = 3584,overlap=704):
-    vh_full = tifffile.imread(os.path.join(dataset_dir, scene_id, "VH_dB.tif"))
+    vh_full = rasterio.open(os.path.join(dataset_dir, scene_id, "VH_dB.tif"))
 
     height, width = vh_full.shape
-
+    vh_full.close()
+    vh_full = np.zeros((height, width),dtype=np.uint8)
     tiler = Tiler(height, width, crop_size, overlap)
     vessel_preds = np.zeros_like(vh_full, dtype=np.uint8)
     fishing_preds = np.zeros_like(vh_full, dtype=np.uint8)

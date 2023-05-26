@@ -47,6 +47,7 @@ class XviewEvaluator(Evaluator):
     def init_metrics(self) -> Dict:
         return {"xview": 0}
 
+    @torch.no_grad()
     def validate(self, dataloader: DataLoader, model: torch.nn.Module, distributed: bool = False, local_rank: int = 0,
                  snapshot_name: str = "") -> Dict:
         conf_name = os.path.splitext(os.path.basename(self.args.config))[0]
@@ -161,8 +162,9 @@ def make_folder(p):
         os.mkdir(p)
 def main():
     args = parse_args()
-    make_folder(args.output_dir)
-    make_folder(args.logdir)
+    if args.local_rank == 0:
+        make_folder(args.output_dir)
+        make_folder(args.logdir)
     trainer_config = TrainConfiguration(
         config_path=args.config,
         crop_size=args.crop_size,
