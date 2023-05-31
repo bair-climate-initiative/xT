@@ -47,6 +47,7 @@ class XviewEvaluator(Evaluator):
     def init_metrics(self) -> Dict:
         return {"xview": 0}
 
+    @torch.no_grad()
     def validate(self, dataloader: DataLoader, model: torch.nn.Module, distributed: bool = False, local_rank: int = 0,
                  snapshot_name: str = "") -> Dict:
         conf_name = os.path.splitext(os.path.basename(self.args.config))[0]
@@ -133,6 +134,8 @@ def parse_args():
     arg("--name", type=str, default='')
     arg("--freeze-bn", action='store_true', default=False)
     arg('--crop_size', type=int, default=1024)
+    arg('--positive_ratio', type=float, default=0.5)
+    
 
     args = parser.parse_args()
 
@@ -147,15 +150,22 @@ def create_data_datasets(args):
                                     annotation_csv=train_annotations,
                                     crop_size=conf["crop_size"],
                                     multiplier=conf["multiplier"],
+                                    positive_ratio=args.positive_ratio
                                     )
     val_dataset = XviewValDataset(mode="val", dataset_dir=args.data_dir, fold=args.fold, folds_csv=args.folds_csv,
                                   annotation_csv=train_annotations, crop_size=conf["crop_size"])
     return train_dataset, val_dataset
 
 
+def make_folder(p):
+    if not os.path.exists(p):
+        os.mkdir(p)
 def main():
     args = parse_args()
     args.fp16 = False
+    if args.local_rank == 0:
+        make_folder(args.output_dir)
+        make_folder(args.logdir)
     trainer_config = TrainConfiguration(
         config_path=args.config,
         crop_size=args.crop_size,

@@ -10,8 +10,8 @@ import pandas as pd
 import tifffile
 import torch
 from torch.utils.data import Dataset
-
-
+import rasterio
+from rasterio.windows import Window
 # VV mean: -15.830463789539426
 # VV std:  6.510123043441801
 
@@ -53,7 +53,8 @@ class XviewValDataset(Dataset):
             crop_size: int = 1024,
             sigma: int = 2,
             radius: int = 4,
-            transforms: A.Compose = train_transforms
+            transforms: A.Compose = train_transforms,
+            positive_ratio=0.5
     ):
         df = pd.read_csv(folds_csv)
         self.radius = radius
@@ -69,6 +70,7 @@ class XviewValDataset(Dataset):
         self.crop_size = crop_size
         self.sigma = sigma
         self.names = multiplier * self.names
+        self.positive_ratio = positive_ratio
         if self.mode == "train":
             random.shuffle(self.names)
 
@@ -82,15 +84,14 @@ class XviewValDataset(Dataset):
         name = self.names[i]
         crop_size = self.crop_size
 
-        vv_full = tifffile.imread(os.path.join(self.dataset_dir, "images/validation", name, "VV_dB.tif"))
-        vh_full = tifffile.imread(os.path.join(self.dataset_dir, "images/validation", name, "VH_dB.tif"))
-
+        vv_full = rasterio.open(os.path.join(self.dataset_dir, "images/validation", name, "VV_dB.tif"))
+        vh_full = rasterio.open(os.path.join(self.dataset_dir, "images/validation", name, "VH_dB.tif"))
         h, w = vv_full.shape
 
         df = self.df
         df = df[df.scene_id == name]
         points = [row for _, row in df.iterrows()]
-        if len(points) > 1 and random.random() > 0.5:
+        if len(points) > 1 and random.random() > (1.0-self.positive_ratio):
             point_idx = rm.randint(0, len(points) - 1)
             point = points[point_idx]
             y, x = point.detect_scene_row, point.detect_scene_column
@@ -108,8 +109,10 @@ class XviewValDataset(Dataset):
             w_start = rm.randint(int(min_x_start), int(max_x_start))
             h_end = h_start + crop_size
             w_end = w_start + crop_size
-            vh = vh_full[h_start: h_end, w_start: w_end].astype(np.float32)
-            vv = vv_full[h_start: h_end, w_start: w_end].astype(np.float32)
+            #vh = vh_full[h_start: h_end, w_start: w_end].astype(np.float32)
+            #vv = vv_full[h_start: h_end, w_start: w_end].astype(np.float32)
+            vh = vh_full.read(1,window=Window(w_start,h_start,w_end-w_start,h_end-h_start))
+            vv = vv_full.read(1,window=Window(w_start,h_start,w_end-w_start,h_end-h_start))
         else:
             for i in range(5):
                 h_start = rm.randint(0, h - crop_size - 1)
@@ -117,12 +120,15 @@ class XviewValDataset(Dataset):
 
                 h_end = h_start + crop_size
                 w_end = w_start + crop_size
-                vh = vh_full[h_start: h_end, w_start: w_end].astype(np.float32)
+                #vh = vh_full[h_start: h_end, w_start: w_end].astype(np.float32)
+                vh = vh_full.read(1,window=Window(w_start,h_start,w_end-w_start,h_end-h_start))
+                vv = vv_full.read(1,window=Window(w_start,h_start,w_end-w_start,h_end-h_start))
                 known_pixels = np.count_nonzero(vh > -1000)
-                vv = vv_full[h_start: h_end, w_start: w_end].astype(np.float32)
+                #vv = vv_full[h_start: h_end, w_start: w_end].astype(np.float32)
                 if known_pixels / (crop_size * crop_size) > 0.05:
                     break
-
+        vh_full.close()
+        vv_full.close()
         object_mask = np.zeros_like(vv, dtype=np.float32)
         vessel_mask = np.zeros_like(vv, dtype=np.float32)
         fishing_mask = np.zeros_like(vv, dtype=np.float32)

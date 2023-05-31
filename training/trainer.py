@@ -240,6 +240,12 @@ class PytorchTrainer(ABC):
             if math.isnan(total_loss.item()) or math.isinf(total_loss.item()):
                 raise ValueError("NaN loss !!")
             avg_metrics = {k: f"{v.avg:.4f}" for k, v in avg_meters.items()}
+            if self.train_config.local_rank == 0 and wandb.run is not None and i % 50 == 0:
+                payload = {k: float(f"{v.avg:.4f}") for k, v in avg_meters.items()}
+                payload.update(dict(
+                    lr=float(self.scheduler.get_lr()[-1])
+                ))
+                wandb.log(payload)
             iterator.set_postfix(
                 {
                     "lr": float(self.scheduler.get_lr()[-1]),
@@ -453,163 +459,170 @@ class PytorchTrainer(ABC):
 
         return loss_functions
 
+# Not Implemented
+# class PytorchTrainerPANDA(PytorchTrainer):
+#     def __init__(
+#         self,
+#         train_config: TrainConfiguration,
+#         evaluator: Evaluator,
+#         train_data: Dataset,
+#         val_data: Dataset,
+#     ) -> None:
+#         super(ABC, self).__init__()
+#         self.train_config = train_config
+#         self.conf = load_config(train_config.config_path)
+#         if self.train_config.local_rank == 0:
+#             wandb_args = dict(
+#                 project="panda segm unet",
+#                 entity="bair-climate-initiative",
+#                 resume="allow",
+#                 name=train_config.name,
+#                 config=self.conf,
+#             )
+#             wandb.init(**wandb_args)
+#         if train_config.crop_size is not None:
+#             self.conf["crop_size"] = train_config.crop_size
+#         self._init_distributed()
+#         self.evaluator = evaluator
+#         self.current_metrics = evaluator.init_metrics()
+#         self.current_epoch = 0
+#         self.model = self._init_model()
+#         self.losses = self._init_loss_functions()
+#         self.optimizer, self.scheduler = create_optimizer(
+#             self.conf["optimizer"], self.model, len(train_data), train_config.world_size
+#         )
+#         self._init_amp()
+#         self.train_data = train_data
+#         self.val_data = val_data
+#         if self.train_config.local_rank == 0:
+#             self.summary_writer = SummaryWriter(
+#                 os.path.join(train_config.log_dir, self.snapshot_name)
+#             )
 
-class PytorchTrainerPANDA(PytorchTrainer):
-    def __init__(
-        self,
-        train_config: TrainConfiguration,
-        evaluator: Evaluator,
-        train_data: Dataset,
-        val_data: Dataset,
-    ) -> None:
-        super(ABC, self).__init__()
-        self.train_config = train_config
-        self.conf = load_config(train_config.config_path)
-        if self.train_config.local_rank == 0:
-            wandb_args = dict(
-                project="panda segm unet",
-                entity="bair-climate-initiative",
-                resume="allow",
-                name=train_config.name,
-                config=self.conf,
-            )
-            wandb.init(**wandb_args)
-        if train_config.crop_size is not None:
-            self.conf["crop_size"] = train_config.crop_size
-        self._init_distributed()
-        self.evaluator = evaluator
-        self.current_metrics = evaluator.init_metrics()
-        self.current_epoch = 0
-        self.model = self._init_model()
-        self.losses = self._init_loss_functions()
-        self.optimizer, self.scheduler = create_optimizer(
-            self.conf["optimizer"], self.model, len(train_data), train_config.world_size
-        )
-        self._init_amp()
-        self.train_data = train_data
-        self.val_data = val_data
-        if self.train_config.local_rank == 0:
-            self.summary_writer = SummaryWriter(
-                os.path.join(train_config.log_dir, self.snapshot_name)
-            )
+#     def validate(self):
+#         self.model.eval()
+#         metrics = self.evaluator.validate(
+#             self.get_val_loader(),
+#             self.model,
+#             distributed=self.train_config.distributed,
+#             local_rank=self.train_config.local_rank,
+#             snapshot_name=self.snapshot_name,
+#         )
+#         print(metrics)
+#         if self.train_config.local_rank == 0 and wandb.run is not None:
+#             wandb.log(metrics)
 
-    def validate(self):
-        self.model.eval()
-        metrics = self.evaluator.validate(
-            self.get_val_loader(),
-            self.model,
-            distributed=self.train_config.distributed,
-            local_rank=self.train_config.local_rank,
-            snapshot_name=self.snapshot_name,
-        )
-        print(metrics)
-        if self.train_config.local_rank == 0 and wandb.run is not None:
-            wandb.log(metrics)
+#     def fit(self):
+#         for epoch in range(
+#             self.current_epoch, self.conf["optimizer"]["schedule"]["epochs"]
+#         ):
+#             self.current_epoch = epoch
+#             self.model.train()
+#             self._freeze()
+#             self._run_one_epoch_train(self.get_train_loader())
+#             self.model.eval()
+#             if self.train_config.local_rank == 0:
+#                 self._save_last()
+#             if (self.current_epoch + 1) % self.train_config.test_every == 0:
+#                 metrics = self.evaluator.validate(
+#                     self.get_val_loader(),
+#                     self.model,
+#                     distributed=self.train_config.distributed,
+#                     local_rank=self.train_config.local_rank,
+#                     snapshot_name=self.snapshot_name,
+#                 )
+#                 if self.train_config.local_rank == 0 and wandb.run is not None:
+#                     wandb.log(dict(**metrics, epoch=epoch))
+#                 if self.train_config.local_rank == 0:
+#                     improved_metrics = self.evaluator.get_improved_metrics(
+#                         self.current_metrics, metrics
+#                     )
+#                     self.current_metrics.update(improved_metrics)
+#                     self._save_best(improved_metrics)
+#                     for k, v in metrics.items():
+#                         self.summary_writer.add_scalar(
+#                             "val/{}".format(k), float(v), global_step=self.current_epoch
+#                         )
 
-    def fit(self):
-        for epoch in range(
-            self.current_epoch, self.conf["optimizer"]["schedule"]["epochs"]
-        ):
-            self.current_epoch = epoch
-            self.model.train()
-            self._freeze()
-            self._run_one_epoch_train(self.get_train_loader())
-            self.model.eval()
-            if self.train_config.local_rank == 0:
-                self._save_last()
-            if (self.current_epoch + 1) % self.train_config.test_every == 0:
-                metrics = self.evaluator.validate(
-                    self.get_val_loader(),
-                    self.model,
-                    distributed=self.train_config.distributed,
-                    local_rank=self.train_config.local_rank,
-                    snapshot_name=self.snapshot_name,
-                )
-                if self.train_config.local_rank == 0 and wandb.run is not None:
-                    wandb.log(dict(**metrics, epoch=epoch))
-                if self.train_config.local_rank == 0:
-                    improved_metrics = self.evaluator.get_improved_metrics(
-                        self.current_metrics, metrics
-                    )
-                    self.current_metrics.update(improved_metrics)
-                    self._save_best(improved_metrics)
-                    for k, v in metrics.items():
-                        self.summary_writer.add_scalar(
-                            "val/{}".format(k), float(v), global_step=self.current_epoch
-                        )
+#     # def _save_last(self):
+#     # def _save_best(self, improved_metrics: Dict):
 
-    # def _save_last(self):
-    # def _save_best(self, improved_metrics: Dict):
+#     def _run_one_epoch_train(self, loader: DataLoader):
+#         iterator = tqdm(loader)
+#         loss_meter = AverageMeter()
+#         avg_meters = {"loss": loss_meter}
+#         for loss_def in self.losses:
+#             if loss_def.display:
+#                 avg_meters[loss_def.name] = AverageMeter()
 
-    def _run_one_epoch_train(self, loader: DataLoader):
-        iterator = tqdm(loader)
-        loss_meter = AverageMeter()
-        avg_meters = {"loss": loss_meter}
-        for loss_def in self.losses:
-            if loss_def.display:
-                avg_meters[loss_def.name] = AverageMeter()
+#         if self.conf["optimizer"]["schedule"]["mode"] == "epoch":
+#             self.scheduler.step(self.current_epoch)
+#         for i, sample in enumerate(iterator):
+#             # todo: make configurable
+#             imgs = sample["image"].cuda().float()
+#             self.optimizer.zero_grad()
+#             with torch.cuda.amp.autocast(enabled=self.train_config.fp16):
+#                 output = self.model(imgs)
+#                 total_loss = 0
+#                 for loss_def in self.losses:
+#                     l = loss_def.loss.calculate_loss(output, sample)
+#                     if loss_def.display:
+#                         avg_meters[loss_def.name].update(
+#                             l if isinstance(l, Number) else l.item(), imgs.size(0)
+#                         )
+#                     total_loss += loss_def.weight * l
 
-        if self.conf["optimizer"]["schedule"]["mode"] == "epoch":
-            self.scheduler.step(self.current_epoch)
-        for i, sample in enumerate(iterator):
-            # todo: make configurable
-            imgs = sample["image"].cuda().float()
-            self.optimizer.zero_grad()
-            with torch.cuda.amp.autocast(enabled=self.train_config.fp16):
-                output = self.model(imgs)
-                total_loss = 0
-                for loss_def in self.losses:
-                    l = loss_def.loss.calculate_loss(output, sample)
-                    if loss_def.display:
-                        avg_meters[loss_def.name].update(
-                            l if isinstance(l, Number) else l.item(), imgs.size(0)
-                        )
-                    total_loss += loss_def.weight * l
+#             loss_meter.update(total_loss.item(), imgs.size(0))
+#             if math.isnan(total_loss.item()) or math.isinf(total_loss.item()):
+#                 raise ValueError("NaN loss !!")
+#             avg_metrics = {k: f"{v.avg:.4f}" for k, v in avg_meters.items()}
+#             if self.train_config.local_rank == 0:
+#                 wandb.log({
+#                     "lr": float(self.scheduler.get_lr()[-1]),
+#                     "epoch": self.current_epoch,
+#                     "total_loss_iter":total_loss.item(),
+#                     **avg_metrics,
+#                 })
+#             iterator.set_postfix(
+#                 {
+#                     "lr": float(self.scheduler.get_lr()[-1]),
+#                     "epoch": self.current_epoch,
+#                     **avg_metrics,
+#                 }
+#             )
+#             if self.train_config.fp16:
+#                 self.gscaler.scale(total_loss).backward()
+#                 self.gscaler.unscale_(self.optimizer)
+#                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), 5)
+#                 self.gscaler.step(self.optimizer)
+#                 self.gscaler.update()
+#             else:
+#                 total_loss.backward()
+#                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), 5)
+#                 self.optimizer.step()
+#             torch.cuda.synchronize()
+#             if self.train_config.distributed:
+#                 dist.barrier()
+#             if self.conf["optimizer"]["schedule"]["mode"] in ("step", "poly"):
+#                 self.scheduler.step(i + self.current_epoch * len(loader))
+#         if self.train_config.local_rank == 0:
+#             for idx, param_group in enumerate(self.optimizer.param_groups):
+#                 lr = param_group["lr"]
+#                 self.summary_writer.add_scalar(
+#                     "group{}/lr".format(idx), float(lr), global_step=self.current_epoch
+#                 )
+#             self.summary_writer.add_scalar(
+#                 "train/loss", float(loss_meter.avg), global_step=self.current_epoch
+#             )
+#             if wandb.run is not None:
+#                 wandb.log(
+#                     {"train/loss": float(loss_meter.avg), "epoch": self.current_epoch}
+#                 )
 
-            loss_meter.update(total_loss.item(), imgs.size(0))
-            if math.isnan(total_loss.item()) or math.isinf(total_loss.item()):
-                raise ValueError("NaN loss !!")
-            avg_metrics = {k: f"{v.avg:.4f}" for k, v in avg_meters.items()}
-            iterator.set_postfix(
-                {
-                    "lr": float(self.scheduler.get_lr()[-1]),
-                    "epoch": self.current_epoch,
-                    **avg_metrics,
-                }
-            )
-            if self.train_config.fp16:
-                self.gscaler.scale(total_loss).backward()
-                self.gscaler.unscale_(self.optimizer)
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), 5)
-                self.gscaler.step(self.optimizer)
-                self.gscaler.update()
-            else:
-                total_loss.backward()
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), 5)
-                self.optimizer.step()
-            torch.cuda.synchronize()
-            if self.train_config.distributed:
-                dist.barrier()
-            if self.conf["optimizer"]["schedule"]["mode"] in ("step", "poly"):
-                self.scheduler.step(i + self.current_epoch * len(loader))
-        if self.train_config.local_rank == 0:
-            for idx, param_group in enumerate(self.optimizer.param_groups):
-                lr = param_group["lr"]
-                self.summary_writer.add_scalar(
-                    "group{}/lr".format(idx), float(lr), global_step=self.current_epoch
-                )
-            self.summary_writer.add_scalar(
-                "train/loss", float(loss_meter.avg), global_step=self.current_epoch
-            )
-            if wandb.run is not None:
-                wandb.log(
-                    {"train/loss": float(loss_meter.avg), "epoch": self.current_epoch}
-                )
-
-    @property
-    def snapshot_name(self):
-        return "{}{}_{}_".format(
-            self.train_config.prefix,
-            self.conf["network"],
-            self.conf["encoder_params"]["encoder"],
-        )
+#     @property
+#     def snapshot_name(self):
+#         return "{}{}_{}_".format(
+#             self.train_config.prefix,
+#             self.conf["network"],
+#             self.conf["encoder_params"]["encoder"],
+#         )

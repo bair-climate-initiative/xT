@@ -1,10 +1,10 @@
 {
   "network": "TimmUnet",
   "encoder_params": {
-    "encoder": "swinv2_tiny_window16_256_xview",
+    "encoder": "vit_small_patch16",
     "in_chans": 2,
-    "drop_path_rate": 0.2,
-    "pretrained": false,
+    "drop_path_rate": 0.1,
+    "pretrained": "/home/jacklishufan/xView3_second_place/vit_small_ibot.pth",
     "channels_last": true
   },
   "crop_size": 1024,
@@ -20,7 +20,7 @@
     "schedule": {
       "type": "cosine",
       "mode": "step",
-      "epochs": 120,
+      "epochs": 20,
       "params": {
         "eta_min": 4e-4
       }

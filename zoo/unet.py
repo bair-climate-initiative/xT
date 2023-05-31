@@ -9,6 +9,7 @@ from .revswin import REVSWIN_CFG
 
 SWIN_CFG = SWIN_CFG | REVSWIN_CFG
 
+from .vit import registry as VIT_CFG
 encoder_params = {
     "resnet34": {"decoder_filters": [48, 96, 176, 192], "last_upsample": 32}
 }
@@ -187,6 +188,11 @@ class TimmUnet(AbstractModel):
             backbone = SWIN_CFG[backbone_arch](img_size=crop_size,pretrained=pretrained,
                                                input_dim=in_chans,
                                                **kwargs)
+        elif 'vit' in backbone_arch:
+            backbone = VIT_CFG[backbone_arch](img_size=crop_size,
+                                                   pretrained=pretrained,
+                                                input_dim=in_chans,
+                                               **kwargs)
         else:
             backbone = timm.create_model(
                 backbone_arch,
@@ -243,10 +249,14 @@ class TimmUnet(AbstractModel):
         enc_results = self.encoder(x)
         x = enc_results[-1]
         bottlenecks = self.bottlenecks
+        pp = []
         for idx, bottleneck in enumerate(bottlenecks):
             rev_idx = -(idx + 1)
             x = self.decoder_stages[rev_idx](x)
+            a = x.shape
             x = bottleneck(x, enc_results[rev_idx - 1])
+            b = x.shape
+            pp.append((a,b))
 
         fishing_mask = self.fishing_mask(x).contiguous(
             memory_format=torch.contiguous_format
