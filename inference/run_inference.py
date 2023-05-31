@@ -70,7 +70,6 @@ def predict_scene_and_return_mm(models: List[nn.Module], dataset_dir, scene_id: 
     slice_loader = DataLoader(
         slice_dataset, batch_size=1, shuffle=False, num_workers=num_workers, pin_memory=False
     )
-    print("HERE")
     for batch, slice_vals in tqdm(slice_loader):
         slice = TileSlice(*slice_vals[0])
         with torch.no_grad():

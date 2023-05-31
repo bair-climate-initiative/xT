@@ -10,5 +10,6 @@ TORCH_DISTRIBUTED_DEBUG=DETAIL \
     56789 \
     swin-test \
     256 \
+    --crop_size_val 256 --overlap_val 10
     # <optional --resume ckpt name>
     # /shared/ritwik/data/xview3/shoreline/validation \

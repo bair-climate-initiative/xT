@@ -1155,7 +1155,6 @@ class ReversibleSwinTransformer(nn.Module):
                 self.upsample.append(nn.Identity())
             self.feature_info += [dict(num_chs=num_chs, reduction=4 * 2 ** i_layer, module=f'layers.{i_layer}')]
 
-
         # num_features = [int(embed_dim * 2 ** i)
         #                 for i in range(self.num_layers)]
         # self.num_features = num_features

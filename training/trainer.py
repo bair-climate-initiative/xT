@@ -211,6 +211,7 @@ class PytorchTrainer(ABC):
             )
 
     def _run_one_epoch_train(self, loader: DataLoader):
+        torch.autograd.set_detect_anomaly(True)
         iterator = tqdm(loader)
         loss_meter = AverageMeter()
         avg_meters = {"loss": loss_meter}
@@ -225,15 +226,16 @@ class PytorchTrainer(ABC):
             imgs = sample["image"].cuda().float()
             self.optimizer.zero_grad()
             with torch.cuda.amp.autocast(enabled=self.train_config.fp16):
-                output = self.model(imgs)
-                total_loss = 0
-                for loss_def in self.losses:
-                    l = loss_def.loss.calculate_loss(output, sample)
-                    if loss_def.display:
-                        avg_meters[loss_def.name].update(
-                            l if isinstance(l, Number) else l.item(), imgs.size(0)
-                        )
-                    total_loss += loss_def.weight * l
+                with torch.autograd.detect_anomaly():
+                    output = self.model(imgs)
+                    total_loss = 0
+                    for loss_def in self.losses:
+                        l = loss_def.loss.calculate_loss(output, sample)
+                        if loss_def.display:
+                            avg_meters[loss_def.name].update(
+                                l if isinstance(l, Number) else l.item(), imgs.size(0)
+                            )
+                        total_loss += loss_def.weight * l
             loss_meter.update(total_loss.item(), imgs.size(0))
             if math.isnan(total_loss.item()) or math.isinf(total_loss.item()):
                 raise ValueError("NaN loss !!")
@@ -242,6 +244,7 @@ class PytorchTrainer(ABC):
                 {
                     "lr": float(self.scheduler.get_lr()[-1]),
                     "epoch": self.current_epoch,
+                    "mem": f"{torch.cuda.max_memory_reserved() / 1024 ** 3:.2f}G",
                     **avg_metrics,
                 }
             )

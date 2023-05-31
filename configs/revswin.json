@@ -10,10 +10,10 @@
   "crop_size": 1024,
   "multiplier": 64,
   "optimizer": {
-    "train_bs": 2,
-    "val_bs": 1,
+    "train_bs": 32,
+    "val_bs": 4,
     "type": "SGD",
-    "learning_rate": 0.003,
+    "learning_rate": 0.048,
     "weight_decay": 1e-4,
     "nesterov": true,
     "momentum": 0.9,
