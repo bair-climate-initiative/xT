@@ -2,7 +2,7 @@
 
 e.g.
 ```
-/cluster/example_exp_local.sh  ~/xView3_second_place/cluster/exps/512/swin_t_bs_4_p0.5.sh
+/cluster/main_exp_local.sh  ~/xView3_second_place/cluster/exps/512/swin_t_bs_4_p0.5.sh
 ```
 
 where the first argument is the actual config file
