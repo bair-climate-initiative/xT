@@ -13,8 +13,8 @@
     "train_bs": 1,
     "val_bs": 1,
     "type": "SGD",
-    "learning_rate": 0.001,
-    "weight_decay": 1e-4,
+    "learning_rate": 0.0003,
+    "weight_decay": 1e-6,
     "nesterov": true,
     "momentum": 0.9,
     "schedule": {

@@ -3,8 +3,8 @@
   "encoder_params": {
     "encoder": "swinv2_tiny_window16_256_xview",
     "in_chans": 2,
-    "drop_path_rate": 0.2,
-    "pretrained": "/shared/jacklishufan/large-image-models/swin_tiny_w16_256_pretrained.pth",
+    "drop_path_rate": 0.1,
+    "pretrained": false,
     "channels_last": true
   },
   "crop_size": 1024,

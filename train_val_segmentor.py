@@ -135,8 +135,11 @@ def parse_args():
     arg("--freeze-bn", action='store_true', default=False)
     arg('--crop_size', type=int, default=1024)
     arg('--positive_ratio', type=float, default=0.5)
-    
-
+    arg('--epoch', type=int, default=None)
+    arg('--bs', type=int, default=None)
+    arg('--lr', type=float, default=None)
+    arg('--wd',dest='weight_decay',type=float, default=None)   
+    arg('--drop_path',type=float, default=None)   
     args = parser.parse_args()
 
     return args
@@ -161,6 +164,7 @@ def make_folder(p):
     if not os.path.exists(p):
         os.mkdir(p)
 def main():
+    exit()
     args = parse_args()
     if args.local_rank == 0:
         make_folder(args.output_dir)
@@ -185,11 +189,10 @@ def main():
         freeze_bn=args.freeze_bn,
         name = args.name if args.name else None
     )
-
     data_train, data_val = create_data_datasets(args)
     seg_evaluator = XviewEvaluator(args)
     trainer = PytorchTrainer(train_config=trainer_config, evaluator=seg_evaluator, fold=args.fold,
-                             train_data=data_train, val_data=data_val)
+                             train_data=data_train, val_data=data_val,args=args)
     if args.val:
         trainer.validate()
         return

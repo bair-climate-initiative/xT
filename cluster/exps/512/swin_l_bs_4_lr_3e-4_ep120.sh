@@ -1,0 +1,6 @@
+BS=4
+NUM_GPUS=2
+LR=0.0003
+EPOCH=120
+CONFIG=swin_l
+NAME="swin_t_bs_8_ep_240"
