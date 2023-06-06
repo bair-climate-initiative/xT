@@ -26,3 +26,7 @@ or
 ./cluster/main_exp_all.sh ~/xView3_detection/cluster/main_exp_cluster.sh
 ```
 This will loop over all files in exps folder
+
+# Compile files on runtime
+
+Run `make build`

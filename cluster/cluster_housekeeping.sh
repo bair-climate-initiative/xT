@@ -2,8 +2,8 @@
 ID=$(cat /proc/sys/kernel/random/uuid | sed 's/[-]//g' | head -c 5)
 module load singularity
 
-DATA_DIR=/p/work/ritwik/data/xview3
-SHORE_DIR=/p/work/ritwik/data/xview3/shoreline/validation
+DATA_DIR=$WORKDIR/ritwik/data/xview3
+SHORE_DIR=$WORKDIR/ritwik/data/xview3/shoreline/validation
 VAL_OUT_DIR=$HOME/output-$RUN_NAME-$ID
 # CD
 cd $HOME/xview3_detection

@@ -86,7 +86,7 @@ class XviewEvaluator(Evaluator):
             metric_args.costly_dist = True
             metric_args.drop_low_detect = True
             metric_args.distance_tolerance = 200
-            metric_args.output = "out.json"
+            metric_args.output = os.path.join(self.args.logdir,"out.json")
             output = xview_metric.evaluate_xview_metric(metric_args)
             xview = output["aggregate"]
         if distributed:
