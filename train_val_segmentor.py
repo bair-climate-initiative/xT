@@ -164,7 +164,6 @@ def make_folder(p):
     if not os.path.exists(p):
         os.mkdir(p)
 def main():
-    exit()
     args = parse_args()
     if args.local_rank == 0:
         make_folder(args.output_dir)
