@@ -86,7 +86,7 @@ class XviewEvaluator(Evaluator):
             metric_args.costly_dist = True
             metric_args.drop_low_detect = True
             metric_args.distance_tolerance = 200
-            metric_args.output = "out.json"
+            metric_args.output = os.path.join(self.args.logdir,"out.json")
             output = xview_metric.evaluate_xview_metric(metric_args)
             xview = output["aggregate"]
         if distributed:
@@ -135,8 +135,11 @@ def parse_args():
     arg("--freeze-bn", action='store_true', default=False)
     arg('--crop_size', type=int, default=1024)
     arg('--positive_ratio', type=float, default=0.5)
-    
-
+    arg('--epoch', type=int, default=None)
+    arg('--bs', type=int, default=None)
+    arg('--lr', type=float, default=None)
+    arg('--wd',dest='weight_decay',type=float, default=None)   
+    arg('--drop_path',type=float, default=None)   
     args = parser.parse_args()
 
     return args
@@ -190,7 +193,7 @@ def main():
     data_train, data_val = create_data_datasets(args)
     seg_evaluator = XviewEvaluator(args)
     trainer = PytorchTrainer(train_config=trainer_config, evaluator=seg_evaluator, fold=args.fold,
-                             train_data=data_train, val_data=data_val)
+                             train_data=data_train, val_data=data_val,args=args)
     if args.val:
         trainer.validate()
         return

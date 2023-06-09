@@ -1,0 +1,21 @@
+find_free_port() {
+    local start_port=32768
+    local end_port=65535
+
+    for port in $(seq "$start_port" "$end_port"); do
+        local is_port_in_use=$(netstat -tlpn 2>/dev/null | awk -v p=$port '$0 ~ ":"p" "')
+        if [[ -z "$is_port_in_use" ]]; then
+            echo "$port"
+            return
+        fi
+    done
+
+    echo "No available port found in the range $start_port - $end_port"
+}
+NAME="Example_Run" # default, will be overwritten
+{}
+{}
+# manually pass args here or use a loop instead
+{}
+PORT=$(find_free_port)
+{}

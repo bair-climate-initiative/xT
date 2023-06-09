@@ -5,7 +5,7 @@ import os
 import re
 from abc import ABC, abstractmethod
 from numbers import Number
-from typing import Dict, List
+from typing import Dict, List,Any
 
 import torch
 import torch.distributed
@@ -92,6 +92,7 @@ class PytorchTrainer(ABC):
         fold: int,
         train_data: Dataset,
         val_data: Dataset,
+        args: Any,
     ) -> None:
         super().__init__()
         self.fold = fold
@@ -111,6 +112,17 @@ class PytorchTrainer(ABC):
 
         if train_config.crop_size is not None:
             self.conf["crop_size"] = train_config.crop_size
+        if args is not None:
+            if args.epoch is not None:
+                self.conf['optimizer']['schedule']['epochs'] = args.epoch
+            if args.lr is not None:
+                self.conf['optimizer']['learning_rate'] = args.lr
+            if args.weight_decay is not None:
+                self.conf['optimizer']['weight_decay'] = args.weight_decay
+            if args.bs is not None:
+                self.conf['optimizer']['train_bs'] = args.bs
+            if args.drop_path is not None:
+                self.conf['encoder_params']['drop_path_rate'] = args.drop_path
         self._init_distributed()
         self.evaluator = evaluator
         self.current_metrics = evaluator.init_metrics()

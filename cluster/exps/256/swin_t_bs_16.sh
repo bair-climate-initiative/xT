@@ -1,0 +1,4 @@
+BS=4
+CROP=256
+NUM_GPUS=4
+NAME="swin_t_bs_4_ep_240_cp256"
