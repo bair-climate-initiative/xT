@@ -1,4 +1,4 @@
-find_free_port() {
+find_free_port() {{
     local start_port=32768
     local end_port=65535
 
@@ -11,7 +11,7 @@ find_free_port() {
     done
 
     echo "No available port found in the range $start_port - $end_port"
-}
+}}
 NAME="Example_Run" # default, will be overwritten
 {}
 {}
