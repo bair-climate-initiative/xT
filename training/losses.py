@@ -102,7 +102,7 @@ class LengthLoss(LossCalculator):
             mask = targets > 0
             pred = outputs["length_mask"].float()
             if torch.sum(targets >= 0).item() == 0:
-                return 0
+                return 0 * pred.mean()
             return (torch.abs(pred[mask] - targets[mask]) / targets[mask]).mean()
 
 def dice_round(preds, trues, t=0.5):

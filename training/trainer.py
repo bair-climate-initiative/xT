@@ -375,7 +375,7 @@ class PytorchTrainer(ABC):
                 self.model,
                 device_ids=[self.train_config.local_rank],
                 output_device=self.train_config.local_rank,
-                find_unused_parameters=True,
+                find_unused_parameters=False,
             )
         else:
             self.model = DataParallel(self.model).cuda()
