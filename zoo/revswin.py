@@ -1219,8 +1219,12 @@ class ReversibleSwinTransformer(nn.Module):
 
     def forward_features(self, x):
         """Forward function."""
+        print(x.shape)
         x = self.input_ada(x)
         x = self.patch_embed(x)
+
+        print("start outs")
+        print(x.shape)
 
         # No need for reshape, processed as [B x C x H x W]
         outs = [x]
@@ -1239,6 +1243,7 @@ class ReversibleSwinTransformer(nn.Module):
             layer = self.layers[i]
             x, Wh, Ww = layer(x, Wh, Ww)
 
+            print(x.shape)
             outs.append(self.reshape(x))
             # if i in self.out_indices:
             #     norm_layer = getattr(self, f"norm{i}")
@@ -1247,8 +1252,11 @@ class ReversibleSwinTransformer(nn.Module):
             #     out = x_out.view(-1, H, W,
             #                      self.num_features[i]).permute(0, 3, 1, 2).contiguous()
             #     outs["res{}".format(i + 2)] = out
+
+        print("out shapes after upsamples")
         for idx, ox in enumerate(outs[:]):
             outs[idx] = self.upsample[idx](ox)
+            print(outs[idx].shape)
         
         return outs
 
@@ -1273,7 +1281,7 @@ def revswinv1_tiny_window7_224_xview(pretrained=False, **kwargs):
     """
     """
     model_kwargs = dict(
-        window_size=7, embed_dim=96, depths=(2, 2, 6, 2), num_heads=(3, 6, 12, 24), **kwargs)
+        window_size=16, embed_dim=96, depths=(2, 2, 6, 2), num_heads=(3, 6, 12, 24), **kwargs)
     model =  ReversibleSwinTransformer(**model_kwargs)
     if pretrained:
         ckpt = torch.load(pretrained,map_location='cpu')
@@ -1286,27 +1294,7 @@ def revswinv1_tiny_window7_224_xview(pretrained=False, **kwargs):
             filtered[k]=v
         model.load_state_dict(filtered,strict=False)
     return model
-
-def revswinv1_tiny_window16_256_xview(pretrained=False, **kwargs):
-    """
-    """
-    model_kwargs = dict(
-        window_size=7, img_size=256, embed_dim=96, depths=(2, 2, 6, 2), num_heads=(3, 6, 12, 24), **kwargs)
-    model =  ReversibleSwinTransformer(**model_kwargs)
-    if pretrained:
-        ckpt = torch.load(pretrained,map_location='cpu')
-        state_dict = model.state_dict()
-        filtered = {}
-        for k,v in ckpt.items():
-            if k in state_dict and state_dict[k].shape != v.shape:
-                print(f"Skipped {k} for size mismatch")
-                continue
-            filtered[k]=v
-        model.load_state_dict(filtered,strict=False)
-    return model
-
 
 REVSWIN_CFG = dict(
     revswinv1_tiny_window7_224_xview=revswinv1_tiny_window7_224_xview,
-    revswinv1_tiny_window16_256_xview=revswinv1_tiny_window16_256_xview
 )

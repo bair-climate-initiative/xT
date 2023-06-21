@@ -178,6 +178,7 @@ class PytorchTrainer(ABC):
                     snapshot_name=self.snapshot_name,
                 )
                 if self.train_config.local_rank == 0 and wandb.run is not None:
+                    metrics["epoch"] = epoch
                     wandb.log(metrics)
                 if self.train_config.local_rank == 0:
                     improved_metrics = self.evaluator.get_improved_metrics(

@@ -1,16 +1,16 @@
 {
   "network": "TimmUnet",
   "encoder_params": {
-    "encoder": "revswinv1_tiny_window7_224_xview",
+    "encoder": "revswinv2_tiny_window16_256_xview",
     "in_chans": 2,
     "drop_path_rate": 0.2,
-    "pretrained": "revswinT_epoch299.pth",
+    "pretrained": false,
     "channels_last": true
   },
   "crop_size": 1024,
   "multiplier": 64,
   "optimizer": {
-    "train_bs": 6,
+    "train_bs": 8,
     "val_bs": 2,
     "type": "SGD",
     "learning_rate": 0.048,

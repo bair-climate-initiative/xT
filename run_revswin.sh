@@ -1,5 +1,4 @@
-CUDA_LAUNCH_BLOCKING=1 \
-TORCH_DISTRIBUTED_DEBUG=DETAIL \
+# CUDA_LAUNCH_BLOCKING=1 \
 WANDB_MODE=disabled \
 ./train_xview.sh  \
     1 \
@@ -10,8 +9,10 @@ WANDB_MODE=disabled \
     revswin \
     59999 \
     revswin-test \
-    224 \
-    --crop_size_val 224 --overlap_val 10
+    512 \
+    --crop_size_val 512 --overlap_val 10 \
+    --test_every 20 --epoch 240 \
+    --bs 8 --lr 0.003 --wd 1.0e-4
     # --crop_size_val 784 --overlap_val 10
     # <optional --resume ckpt name>
     # /shared/ritwik/data/xview3/shoreline/validation \

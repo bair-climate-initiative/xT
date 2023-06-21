@@ -189,7 +189,6 @@ def main():
         freeze_bn=args.freeze_bn,
         name = args.name if args.name else None
     )
-    print(args.crop_size_val, args.overlap_val)
     data_train, data_val = create_data_datasets(args)
     seg_evaluator = XviewEvaluator(args)
     trainer = PytorchTrainer(train_config=trainer_config, evaluator=seg_evaluator, fold=args.fold,

@@ -4,10 +4,12 @@ import timm
 import torch.hub
 from torch.nn import Dropout2d
 from torch.utils import model_zoo
-from .swin import SWIN_CFG
+# from .swin import SWIN_CFG
 from .revswin import REVSWIN_CFG 
+from .revswinv2 import REVSWINV2_CFG
 
-SWIN_CFG = SWIN_CFG | REVSWIN_CFG
+# SWIN_CFG = SWIN_CFG | REVSWIN_CFG | REVSWINV2_CFG
+SWIN_CFG = REVSWIN_CFG | REVSWINV2_CFG
 
 from .vit import registry as VIT_CFG
 encoder_params = {
