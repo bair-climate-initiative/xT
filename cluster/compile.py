@@ -5,14 +5,28 @@ def get_str(fpath):
         data = f.read()
     return data
 
+def read_config(cfg_sh):
+    lines = get_str(cfg_sh)
+    lines = lines.split('\n')
+    out = {}
+    for r in lines:
+       args = r.split('=')
+       if len(args)==2:
+           k,v = args
+           if v[0] == '"' and v[-1] ==v[0]:
+               v = v[1:-1]
+           out[k]=v
+    return out       
 def compile(template,cfg_sh):
-    args = (
-        get_str("base_project_config.sh"),
-        get_str("cluster_housekeeping.sh"),
-        get_str(cfg_sh),
-        get_str("run.sh")
-    )
-    return template.format(*args)
+    cfgs = read_config("base_project_config.sh")
+    cfgs.update(read_config(cfg_sh))
+    cfgs['DEVICES']=','.join([str(x) for x in range(int(cfgs['NUM_GPUS']))])
+    cmd = get_str("run_cluster.sh")
+    items = list(cfgs.items())
+    items = sorted(items,key=lambda x:-len(x[0]) )
+    for k,v in items:
+        cmd = cmd.replace(f'${k}',v)
+    return cmd,cfgs
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -21,9 +35,12 @@ if __name__ == '__main__':
     parser.add_argument('-o','--output',type=str,default="")
     args = parser.parse_args()
     TEMPLATE = get_str(args.template)
-    r = compile(TEMPLATE,args.config)
+    cmd,cfgs = compile(TEMPLATE,args.config)
     if args.output:
-        with open(os.path.join('build',args.output.replace('/','_').replace('\\','_')),'w') as f:
-            f.write(r)
+        out_dir = os.path.join('build',
+                               f"gpu_{cfgs['REQUIRED_VRAM']}X{cfgs['NUM_GPUS']}")
+        os.makedirs(out_dir,exist_ok=True)
+        with open(os.path.join(out_dir,args.output.replace('/','_').replace('\\','_')),'w') as f:
+            f.write(cmd)
     else:
-        print(r)
+        print(cmd)
