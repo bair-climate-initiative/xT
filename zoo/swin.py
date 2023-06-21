@@ -199,7 +199,7 @@ def swinv2_tiny_window16_256_xview(pretrained=False, **kwargs):
         filtered = {}
         for k,v in ckpt.items():
             if k in state_dict and state_dict[k].shape != v.shape:
-                print(f"SKipped {k} for size mismatch")
+                print(f"Skipped {k} for size mismatch")
                 continue
             filtered[k]=v
         model.load_state_dict(filtered,strict=False)

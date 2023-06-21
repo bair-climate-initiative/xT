@@ -165,6 +165,7 @@ def make_folder(p):
         os.mkdir(p)
 def main():
     args = parse_args()
+    args.fp16 = False
     if args.local_rank == 0:
         make_folder(args.output_dir)
         make_folder(args.logdir)
