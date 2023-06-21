@@ -1,8 +1,8 @@
 # CUDA_LAUNCH_BLOCKING=1 \
 # TORCH_DISTRIBUTED_DEBUG=DETAIL \
-# WANDB_MODE=disabled \
+WANDB_MODE=disabled \
 ./train_xview.sh  \
-    8 \
+    1 \
     /home/group/xview3 \
     /home/group/xview3/shoreline/validation \
     output/revswinv2 \
