@@ -9,11 +9,11 @@
     77 \
     revswinv2 \
     59999 \
-    revswinv2-lr018 \
+    revswinv2-lr01 \
     512 \
     --crop_size_val 512 --overlap_val 10 \
     --test_every 20 --epoch 240 \
-    --bs 8 --lr 0.018 --wd 1.0e-4
+    --bs 8 --lr 0.01 --wd 1.0e-4
     # --crop_size_val 784 --overlap_val 10
     # <optional --resume ckpt name>
     # /shared/ritwik/data/xview3/shoreline/validation \
