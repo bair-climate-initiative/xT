@@ -17,11 +17,20 @@ def read_config(cfg_sh):
                v = v[1:-1]
            out[k]=v
     return out       
+
+MAX_GPU_PER_MACHINE = 2
 def compile(template,cfg_sh):
     cfgs = read_config("base_project_config.sh")
     cfgs.update(read_config(cfg_sh))
-    cfgs['DEVICES']=','.join([str(x) for x in range(int(cfgs['NUM_GPUS']))])
-    cmd = get_str("run_cluster.sh")
+    n_gpus = int(cfgs['NUM_GPUS'])
+    cfgs['DEVICES']=','.join([str(x) for x in range(n_gpus)])
+    if n_gpus > MAX_GPU_PER_MACHINE:
+        cfgs['NPROC_PER_NODE'] = str(MAX_GPU_PER_MACHINE)
+        cfgs['NNODES'] = str(n_gpus // MAX_GPU_PER_MACHINE)
+        cfgs['DEVICES']=','.join([str(x) for x in range(MAX_GPU_PER_MACHINE)])
+        cmd = get_str("run_cluster_multinode.sh")
+    else:
+        cmd = get_str("run_cluster.sh")
     items = list(cfgs.items())
     items = sorted(items,key=lambda x:-len(x[0]) )
     for k,v in items:

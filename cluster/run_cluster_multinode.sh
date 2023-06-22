@@ -1,7 +1,7 @@
-pbsdsh -v -- bash -l -c "module load singularity && CUDA_VISIBLE_DEVICES=0,1 singularity exec --nv --bind $WORKDIR:$WORKDIR $HOME/detectron2.sif \
+pbsdsh -v -- bash -l -c "module load singularity && CUDA_VISIBLE_DEVICES=$DEVICES singularity exec --nv --bind $WORKDIR:$WORKDIR $HOME/detectron2.sif \
 	torchrun \
-    --nnodes 4 \
-    --nproc_per_node=2 \
+    --nnodes $NNODES \
+    --nproc_per_node=$NPROC_PER_NODE \
     --master_port=$MASTER_PORT \
     --master_addr=$MASTER_ADDR \
     --node_rank=$PBS_NODENUM \
@@ -9,7 +9,7 @@ pbsdsh -v -- bash -l -c "module load singularity && CUDA_VISIBLE_DEVICES=0,1 sin
     --rdzv_backend c10d \
     --rdzv_endpoint "$MASTER_ADDR:$MASTER_PORT" \
     train_val_segmentor.py  \
-    --world-size 8   \
+    --world-size $NUM_GPUS   \
     --distributed  \
     --config configs/${CONFIG}.json  \
     --workers 8  \
@@ -20,16 +20,16 @@ pbsdsh -v -- bash -l -c "module load singularity && CUDA_VISIBLE_DEVICES=0,1 sin
     --output-dir $VAL_OUT_DIR \
     --folds-csv meta/folds.csv \
     --prefix val_only_  \
-    --fold 77    \
+    --fold $FOLD    \
     --freeze-epochs 0 \
-    --fp16 --name swin_t_bs_8_ep_240_cp256 \
-    --crop_size 256 \
-    --crop_size_val 512 \
+    --fp16 --name $NAME \
+    --crop_size $CROP \
+    --crop_size_val $CROP_VAL \
     --overlap_val 10 \
-    --positive_ratio 0.8 \
+    --positive_ratio $SAMPLE_RATE \
     --test_every 20 \
-    --epoch 240 \
-    --bs 4 \
-    --lr 0.003 \
-    --wd 1.0e-4 \
-    --drop_path 0.2 ;
+    --epoch $EPOCH \
+    --bs $BS \
+    --lr $LR \
+    --wd $WD \
+    --drop_path $DROP_PATH ;
