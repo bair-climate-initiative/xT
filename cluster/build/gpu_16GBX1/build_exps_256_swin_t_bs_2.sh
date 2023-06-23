@@ -19,7 +19,7 @@ CUDA_VISIBLE_DEVICES=0 WANDB_API_KEY=553070c5ef0d454bcb1e91afaabf2359ef69f4a0 si
         --freeze-epochs 0 \
         --fp16 --name swin_t_bs_2_ep_240_cp256 \
         --crop_size 256 \
-        --crop_size_val 512 \
+        --crop_size_val 256 \
         --overlap_val 10 \
         --positive_ratio 0.8 \
         --test_every 20 \

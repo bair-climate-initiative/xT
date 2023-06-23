@@ -24,7 +24,7 @@ pbsdsh -v -- bash -l -c "module load singularity && CUDA_VISIBLE_DEVICES=0,1 sin
     --freeze-epochs 0 \
     --fp16 --name swin_t_bs_4_ep_240_cp256 \
     --crop_size 256 \
-    --crop_size_val 512 \
+    --crop_size_val 256 \
     --overlap_val 10 \
     --positive_ratio 0.8 \
     --test_every 20 \

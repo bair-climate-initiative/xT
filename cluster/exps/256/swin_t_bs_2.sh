@@ -1,4 +1,5 @@
 BS=2
 CROP=256
+CROP_VAL=256
 NUM_GPUS=1
 NAME="swin_t_bs_2_ep_240_cp256"
