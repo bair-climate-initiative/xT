@@ -33,4 +33,4 @@ pbsdsh -v -- bash -l -c "module load singularity && CUDA_VISIBLE_DEVICES=0,1 sin
         --lr 0.003 \
         --wd 1.0e-4 \
         --drop_path 0.2 \
-        --pretrained default ;
+        --pretrained $SWINT_CKPT ;

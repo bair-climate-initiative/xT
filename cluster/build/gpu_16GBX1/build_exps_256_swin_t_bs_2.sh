@@ -28,4 +28,4 @@ CUDA_VISIBLE_DEVICES=0 WANDB_API_KEY=553070c5ef0d454bcb1e91afaabf2359ef69f4a0 si
         --lr 0.003 \
         --wd 1.0e-4 \
         --drop_path 0.2 \
-        --pretrained default ;
+        --pretrained $SWINT_CKPT ;
