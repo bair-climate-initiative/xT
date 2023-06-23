@@ -11,13 +11,13 @@ CUDA_VISIBLE_DEVICES=0 WANDB_API_KEY=553070c5ef0d454bcb1e91afaabf2359ef69f4a0 si
         --data-dir=$XVIEW_ROOT \
         --test_every 1 \
         --shoreline-dir $XVIEW_ROOT/shoreline/validation \
-        --val-dir $HOME/output-swin_t_bs_4_ep_240_cp256-$ID  \
-        --output-dir $HOME/output-swin_t_bs_4_ep_240_cp256-$ID \
+        --val-dir $HOME/output-exps_256_swin_t_bs_4-$ID  \
+        --output-dir $HOME/output-exps_256_swin_t_bs_4-$ID \
         --folds-csv meta/folds.csv \
         --prefix val_only_  \
         --fold 77    \
         --freeze-epochs 0 \
-        --fp16 --name swin_t_bs_4_ep_240_cp256 \
+        --fp16 --name exps_256_swin_t_bs_4 \
         --crop_size 256 \
         --crop_size_val 256 \
         --overlap_val 10 \

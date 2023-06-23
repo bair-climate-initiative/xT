@@ -31,6 +31,8 @@ def compile(template,cfg_sh):
         cmd = get_str("run_cluster_multinode.sh")
     else:
         cmd = get_str("run_cluster.sh")
+    # OVERWRITE
+    cfgs['NAME'] = cfg_sh.replace('/','_').replace('\\','_').replace('.sh','') #+ '---' #+  cfgs['NAME'] 
     items = list(cfgs.items())
     items = sorted(items,key=lambda x:-len(x[0]) )
     for k,v in items:

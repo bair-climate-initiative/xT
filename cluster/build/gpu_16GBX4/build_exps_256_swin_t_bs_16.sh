@@ -22,7 +22,7 @@ pbsdsh -v -- bash -l -c "module load singularity && CUDA_VISIBLE_DEVICES=0,1 sin
     --prefix val_only_  \
     --fold 77    \
     --freeze-epochs 0 \
-    --fp16 --name swin_t_bs_4_ep_240_cp256 \
+    --fp16 --name exps_256_swin_t_bs_16 \
     --crop_size 256 \
     --crop_size_val 256 \
     --overlap_val 10 \
