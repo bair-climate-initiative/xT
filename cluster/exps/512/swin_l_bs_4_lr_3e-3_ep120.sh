@@ -4,3 +4,4 @@ LR=0.003
 EPOCH=120
 CONFIG=swin_l
 NAME="swin_t_bs_8_ep_240"
+PRETRAINED=$SWINL_CKPT

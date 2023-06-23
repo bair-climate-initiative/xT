@@ -140,6 +140,7 @@ def parse_args():
     arg('--lr', type=float, default=None)
     arg('--wd',dest='weight_decay',type=float, default=None)   
     arg('--drop_path',type=float, default=None)   
+    arg('--pretrained', type=str, default='default')
     args = parser.parse_args()
 
     return args

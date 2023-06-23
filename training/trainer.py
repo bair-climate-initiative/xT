@@ -123,6 +123,19 @@ class PytorchTrainer(ABC):
                 self.conf['optimizer']['train_bs'] = args.bs
             if args.drop_path is not None:
                 self.conf['encoder_params']['drop_path_rate'] = args.drop_path
+            if args.pretrained:
+                pretrained = args.pretrained 
+                if pretrained.lower() == 'true':
+                    pretrained = True
+                    print("Setting pretrained to True (Bool)")
+                elif pretrained.lower() == 'false':
+                    pretrained = False
+                    print("Setting pretrained to False (Bool)")
+                elif pretrained.lower() == 'default':
+                    print("Pretrained config is not changed, using config")
+                else:
+                    print(f"Setting pretrained to {pretrained} (str)")
+                    self.conf['encoder_params']['pretrained'] = pretrained
         self._init_distributed()
         self.evaluator = evaluator
         self.current_metrics = evaluator.init_metrics()

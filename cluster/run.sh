@@ -26,4 +26,5 @@ eval $MAIN_CMD  \
         --bs $BS \
         --lr $LR \
         --wd $WD \
-        --drop_path $DROP_PATH ;
+        --drop_path $DROP_PATH \
+        --pretrained $PRETRAINED;

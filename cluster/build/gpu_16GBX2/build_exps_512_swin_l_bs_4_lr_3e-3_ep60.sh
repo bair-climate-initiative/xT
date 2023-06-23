@@ -24,7 +24,8 @@ CUDA_VISIBLE_DEVICES=0,1 WANDB_API_KEY=553070c5ef0d454bcb1e91afaabf2359ef69f4a0 
         --positive_ratio 0.8 \
         --test_every 20 \
         --epoch 60 \
-        --bs 4 \
+        --bs 2 \
         --lr 0.003 \
         --wd 1.0e-4 \
-        --drop_path 0.2 ;
+        --drop_path 0.2 \
+        --pretrained $SWINL_CKPT ;

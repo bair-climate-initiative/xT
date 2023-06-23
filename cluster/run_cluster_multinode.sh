@@ -32,4 +32,5 @@ pbsdsh -v -- bash -l -c "module load singularity && CUDA_VISIBLE_DEVICES=$DEVICE
     --bs $BS \
     --lr $LR \
     --wd $WD \
-    --drop_path $DROP_PATH ;
+    --drop_path $DROP_PATH \
+    --pretrained $PRETRAINED ;"

@@ -27,4 +27,5 @@ CUDA_VISIBLE_DEVICES=$DEVICES WANDB_API_KEY=553070c5ef0d454bcb1e91afaabf2359ef69
         --bs $BS \
         --lr $LR \
         --wd $WD \
-        --drop_path $DROP_PATH ;
+        --drop_path $DROP_PATH \
+        --pretrained $PRETRAINED ;
