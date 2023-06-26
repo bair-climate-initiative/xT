@@ -8,3 +8,5 @@ VAL_OUT_DIR=/shared/jacklishufan/large-image-models/swin_t_512_p_09
 cd $HOME/xView3_second_place
 # ENTRY
 MAIN_CMD="python -m torch.distributed.launch"
+SWINT_CKPT=/shared/jacklishufan/large-image-models/swin_tiny_w16_256_pretrained.pth
+SWINL_CKPT=/shared/jacklishufan/large-image-models/swin_large_w16_256_pretrained.pth

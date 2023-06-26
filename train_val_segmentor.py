@@ -35,17 +35,27 @@ from training.trainer import TrainConfiguration, PytorchTrainer, Evaluator
 
 from torch.utils.data import DataLoader
 import torch.distributed
-
+from training.config import load_config
 
 class XviewEvaluator(Evaluator):
     def __init__(self, args) -> None:
         super().__init__()
         self.args = args
         self.crop_size = args.crop_size_val
+        self.conf = load_config(args.config)
+        self.input_size = self.conf.get('encoder_crop_size',self.conf['crop_size'])
         self.overlap = args.overlap_val
-
     def init_metrics(self) -> Dict:
         return {"xview": 0}
+    
+    def build_iterator(self,batch):
+        old_dim = self.crop_size
+        n = old_dim // self.input_size
+        for i in range(n):
+            for j in range(n):
+                batch_new =  batch[...,self.input_size*i:self.input_size*(i+1),self.input_size*j:self.input_size*(j+1)]
+                context_id = i * n + j
+                yield batch_new,context_id,(self.input_size*i,self.input_size*(i+1),self.input_size*j,self.input_size*(j+1),batch.shape[-2],batch.shape[-1])
 
     @torch.no_grad()
     def validate(self, dataloader: DataLoader, model: torch.nn.Module, distributed: bool = False, local_rank: int = 0,
@@ -54,11 +64,13 @@ class XviewEvaluator(Evaluator):
         val_dir = os.path.join(self.args.val_dir, conf_name, str(self.args.fold))
         os.makedirs(val_dir, exist_ok=True)
         dataset_dir = os.path.join(self.args.data_dir, "images/validation")
+        extra_context = model.module.extra_context
         for sample in tqdm(dataloader):
             scene_id = sample["name"][0]
             mask_dict = predict_scene_and_return_mm([model], scene_id=scene_id, dataset_dir=dataset_dir,
                                                     use_fp16=self.args.fp16, rotate=True,
-                                                    crop_size = self.crop_size,overlap=self.overlap)
+                                                    crop_size = self.crop_size,overlap=self.overlap,
+                                                    extra_context=extra_context,iter_function=self.build_iterator)
             data = process_confidence(scene_id, None, mask_dict)
             pd.DataFrame(data,
                          columns=["detect_scene_row", "detect_scene_column", "scene_id", "is_vessel", "is_fishing",

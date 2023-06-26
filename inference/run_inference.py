@@ -63,7 +63,7 @@ import rasterio
 
 def predict_scene_and_return_mm(models: List[nn.Module], dataset_dir, scene_id: str, use_fp16: bool = False,
                                 rotate=False, output_dir=None,num_workers=8,
-                                crop_size = 3584,overlap=704):
+                                crop_size = 3584,overlap=704, extra_context = False,iter_function=None):
     vh_full = rasterio.open(os.path.join(dataset_dir, scene_id, "VH_dB.tif"))
 
     height, width = vh_full.shape
@@ -79,19 +79,37 @@ def predict_scene_and_return_mm(models: List[nn.Module], dataset_dir, scene_id: 
     slice_loader = DataLoader(
         slice_dataset, batch_size=1, shuffle=False, num_workers=num_workers, pin_memory=False
     )
+    if extra_context: # XL inner loop
+        def model_foward(x):
+            mem = set()
+            output = {}
+            iterator = iter_function(x)
+            for batch_new,context_id,(x0,x1,y0,y1,hh,ww) in tqdm(iterator):
+                local_output,mem = model(batch_new,mem)
+                if context_id == 0:
+                    output = {k:torch.zeros(*(v.shape[:-2]),hh,ww,dtype=v.dtype,device='cpu') for k,v in local_output.items()}
+                for k,v in output.items():
+                    output[k][...,x0:x1,y0:y1] = local_output[k].cpu()
+            return output
     for batch, slice_vals in tqdm(slice_loader):
         slice = TileSlice(*slice_vals[0])
         with torch.no_grad():
             batch = batch.cuda()
             with torch.cuda.amp.autocast(enabled=use_fp16):
                 outputs = []
-                for model in models:
-                    output = model(batch)
+                for model in models: 
+                    if extra_context:
+                        output = model_foward(batch)
+                    else:
+                        output = model(batch)
                     sigmoid_keys = ["fishing_mask", "vessel_mask"]
                     for k in sigmoid_keys:
                         output[k] = torch.sigmoid(output[k])
                     if rotate:
-                        out180 = model(torch.rot90(batch, 2, dims=(2, 3)))
+                        if extra_context:
+                            out180 = model_foward(torch.rot90(batch, 2, dims=(2, 3)))
+                        else:
+                            out180 = model(torch.rot90(batch, 2, dims=(2, 3)))
                         for key in list(output.keys()):
                             val = torch.rot90(out180[key], 2, dims=(2, 3))
                             if key in sigmoid_keys:

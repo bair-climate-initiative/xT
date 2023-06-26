@@ -236,9 +236,21 @@ class PytorchTrainer(ABC):
                 ),
             )
 
+    def build_iterator(self,dataloder):
+        for x in dataloder:
+            old_dim = x['image'].shape[-1]
+            n = old_dim // self.input_size
+            for i in range(n):
+                for j in range(n):
+                    new_payload = {k:v[...,self.input_size*i:self.input_size*(i+1),self.input_size*j:self.input_size*(j+1)] for k,v in x.items() if k != 'name' }
+                    new_payload['name'] = x['name']
+                    new_payload["context_id"] = i * n + j
+                    yield new_payload
+
+
     def _run_one_epoch_train(self, loader: DataLoader):
         torch.autograd.set_detect_anomaly(True)
-        iterator = tqdm(loader)
+        iterator = loader
         loss_meter = AverageMeter()
         avg_meters = {"loss": loss_meter}
         for loss_def in self.losses:
@@ -247,13 +259,30 @@ class PytorchTrainer(ABC):
 
         if self.conf["optimizer"]["schedule"]["mode"] == "epoch":
             self.scheduler.step(self.current_epoch)
-        for i, sample in enumerate(iterator):
+        extra_context = self.model.module.extra_context
+        if extra_context:
+            iterator = self.build_iterator(iterator)
+            iter_scale = (self.conf['crop_size'] // self.input_size)**2 
+        else:
+            iter_scale = 1
+        iterator = tqdm(iterator,total=iter_scale* len(loader))
+        for i, sample in enumerate(iterator): 
+            # Sliced Images with context_id
             # todo: make configurable
+            #breakpoint()
             imgs = sample["image"].cuda().float()
+            if extra_context:
+                if sample["context_id"] == 0:
+                    context = tuple()
+                else:
+                    pass
             self.optimizer.zero_grad()
             with torch.cuda.amp.autocast(enabled=self.train_config.fp16):
                 with torch.autograd.detect_anomaly():
-                    output = self.model(imgs)
+                    if extra_context:
+                        output,context = self.model(imgs,context)
+                    else:
+                        output = self.model(imgs)
                     total_loss = 0
                     for loss_def in self.losses:
                         l = loss_def.loss.calculate_loss(output, sample)
@@ -294,7 +323,7 @@ class PytorchTrainer(ABC):
             if self.train_config.distributed:
                 dist.barrier()
             if self.conf["optimizer"]["schedule"]["mode"] in ("step", "poly"):
-                self.scheduler.step(i + self.current_epoch * len(loader))
+                self.scheduler.step(int(i/iter_scale) + self.current_epoch * len(loader))
         if self.train_config.local_rank == 0:
             for idx, param_group in enumerate(self.optimizer.param_groups):
                 lr = param_group["lr"]
@@ -459,8 +488,8 @@ class PytorchTrainer(ABC):
 
     def _init_model(self):
         print(self.train_config)
-
-        model = zoo.__dict__[self.conf["network"]](**self.conf["encoder_params"],crop_size=self.conf['crop_size'])
+        self.input_size = self.conf.get('encoder_crop_size',self.conf['crop_size'])
+        model = zoo.__dict__[self.conf["network"]](**self.conf["encoder_params"],crop_size=self.input_size)
         model = model.cuda()
         self._load_checkpoint(model)
 

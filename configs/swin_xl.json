@@ -5,9 +5,14 @@
     "in_chans": 2,
     "drop_path_rate": 0.2,
     "pretrained": "/shared/jacklishufan/large-image-models/swin_tiny_w16_256_pretrained.pth",
-    "channels_last": true
+    "channels_last": true,
+    "context_mode": "transformer_xl",
+    "transformer_xl":{
+
+    }
   },
-  "crop_size": 1024,
+  "crop_size": 4096,
+  "encoder_crop_size":512,
   "multiplier": 64,
   "optimizer": {
     "train_bs": 2,

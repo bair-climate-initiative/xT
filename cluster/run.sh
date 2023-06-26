@@ -6,9 +6,8 @@ eval $MAIN_CMD  \
         --world-size $NUM_GPUS   \
         --distributed  \
         --config configs/${CONFIG}.json  \
-        --workers 8  \
+        --workers 2  \
         --data-dir=$DATA_DIR  \
-        --test_every 1 \
         --shoreline-dir $SHORE_DIR \
         --val-dir $VAL_OUT_DIR  \
         --output-dir $VAL_OUT_DIR \
@@ -21,10 +20,10 @@ eval $MAIN_CMD  \
         --crop_size_val $CROP_VAL \
         --overlap_val 10 \
         --positive_ratio $SAMPLE_RATE \
-        --test_every 20 \
+        --test_every $TEST_EVERY \
         --epoch $EPOCH \
         --bs $BS \
         --lr $LR \
         --wd $WD \
         --drop_path $DROP_PATH \
-        --pretrained $PRETRAINED;
+        --pretrained $PRETRAINED ${@:2};

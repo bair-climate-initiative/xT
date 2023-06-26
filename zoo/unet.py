@@ -11,6 +11,8 @@ from .revswinv2 import REVSWINV2_CFG
 SWIN_CFG = {**SWIN_CFG, **REVSWIN_CFG, **REVSWINV2_CFG}
 
 from .vit import registry as VIT_CFG
+from .transformer_xl import MemTransformerLM
+
 encoder_params = {
     "resnet34": {"decoder_filters": [48, 96, 176, 192], "last_upsample": 32}
 }
@@ -174,6 +176,7 @@ class TimmUnet(AbstractModel):
         pretrained=True,
         channels_last=False,
         crop_size = 256,
+        context_mode='None',
         **kwargs
     ):
         if not hasattr(self, "first_layer_stride_two"):
@@ -202,6 +205,7 @@ class TimmUnet(AbstractModel):
                 pretrained=pretrained,
                 **kwargs
             )
+        self.crop_size = crop_size
         self.filters = [f["num_chs"] for f in backbone.feature_info]
         self.decoder_filters = default_decoder_filters
         self.last_upsample_filters = default_last
@@ -220,6 +224,38 @@ class TimmUnet(AbstractModel):
                 for i, f in enumerate(reversed(self.decoder_filters[:]))
             ]
         )
+        self.context_mode = context_mode
+        self.extra_context = False
+        if context_mode == 'transformer_xl':
+            self.extra_context = True
+            #TODO: build transformer layers
+            transformer_xl_config = kwargs['transformer_xl']
+            d_model = self.filters[-1]
+            n_length = (self.crop_size  // backbone.feature_info[-1]['reduction'])**2
+            n_crops = 9
+            n_token = d_model
+            cutoffs = [n_token // 2]
+            tie_projs = [False] + [True] * len(cutoffs)
+            self.transformer_xl_layers= MemTransformerLM(
+                            n_token=n_token, 
+                            n_layer=4,
+                            n_head=2,
+                            d_model=d_model,
+                            d_head=2, 
+                            d_inner=d_model, 
+                            dropout=0.1,
+                            dropatt=0.1,
+                            tie_weight=False, 
+                            d_embed=d_model,
+                            div_val=1, 
+                            tie_projs=tie_projs,
+                            pre_lnorm=True,
+                            tgt_len=n_length, 
+                            ext_len=n_length, 
+                            mem_len=n_length, 
+                            cutoffs=cutoffs, attn_type=0,
+                            #**transformer_xl_config
+                )
 
         self.decoder_stages = nn.ModuleList(
             [self.get_decoder(idx) for idx in range(0, len(self.decoder_filters))]
@@ -243,11 +279,20 @@ class TimmUnet(AbstractModel):
         self.dropout = Dropout2d(p=0.0)
         self.encoder = backbone
 
-    def forward(self, x):
+    def forward(self, x,mem=tuple()):
         # Encoder
         if self.channels_last:
             x = x.contiguous(memory_format=torch.channels_last)
         enc_results = self.encoder(x)
+        if self.context_mode == 'transformer_xl':
+            xx = enc_results[-1] # N C H W
+            old_shape = xx.shape
+            xx = xx.flatten(2).permute(2,0,1) # L N C
+            xx = self.transformer_xl_layers(xx,xx,*mem)
+            pred_out,mem = xx[0],xx[1:]
+            pred_out = pred_out.permute(1,2,0).view(*old_shape)
+            enc_results[-1] = pred_out # overwrite
+            mem = mem
         x = enc_results[-1]
         bottlenecks = self.bottlenecks
         pp = []
@@ -271,13 +316,16 @@ class TimmUnet(AbstractModel):
         length_mask = self.length_mask(x).contiguous(
             memory_format=torch.contiguous_format
         )
-        return {
+        output = {
             "fishing_mask": fishing_mask,
             "vessel_mask": vessel_mask,
             "center_mask": center_mask,
             "length_mask": length_mask,
         }
-
+        if self.context_mode == 'transformer_xl':
+            return output,mem
+        else:
+            return output
     def get_decoder(self, layer):
         in_channels = (
             self.filters[layer + 1]
