@@ -282,7 +282,6 @@ class PytorchTrainer(ABC):
                         output = self.model(imgs)
                     forward_time.update(time.time() - end)
 
-                    end = time.time()
                     total_loss = 0
                     for loss_def in self.losses:
                         l = loss_def.loss.calculate_loss(output, sample)
@@ -291,7 +290,6 @@ class PytorchTrainer(ABC):
                                 l if isinstance(l, Number) else l.item(), imgs.size(0)
                             )
                         total_loss += loss_def.weight * l
-                    backward_time.update(time.time() - end)
             loss_meter.update(total_loss.item(), imgs.size(0))
             if math.isnan(total_loss.item()) or math.isinf(total_loss.item()):
                 raise ValueError("NaN loss !!")
@@ -304,6 +302,28 @@ class PytorchTrainer(ABC):
                 payload = {k: float(f"{v.avg:.4f}") for k, v in avg_meters.items()}
                 payload.update(dict(lr=float(self.scheduler.get_lr()[-1])))
                 wandb.log(payload)
+
+            # Run backward pass
+            end = time.time()
+            if self.train_config.fp16:
+                self.gscaler.scale(total_loss).backward()
+                self.gscaler.unscale_(self.optimizer)
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), 5)
+                self.gscaler.step(self.optimizer)
+                self.gscaler.update()
+            else:
+                total_loss.backward()
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), 5)
+                self.optimizer.step()
+            backward_time.update(time.time() - end)
+
+            torch.cuda.synchronize()
+            if self.train_config.distributed:
+                dist.barrier()
+            if self.conf["optimizer"]["schedule"]["mode"] in ("step", "poly"):
+                self.scheduler.step(
+                    int(i / iter_scale) + self.current_epoch * len(loader)
+                )
             t.set_postfix(
                 {
                     "lr": float(self.scheduler.get_lr()[-1]),
@@ -315,23 +335,6 @@ class PytorchTrainer(ABC):
                     "bwd_time": backward_time,
                 }
             )
-            if self.train_config.fp16:
-                self.gscaler.scale(total_loss).backward()
-                self.gscaler.unscale_(self.optimizer)
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), 5)
-                self.gscaler.step(self.optimizer)
-                self.gscaler.update()
-            else:
-                total_loss.backward()
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), 5)
-                self.optimizer.step()
-            torch.cuda.synchronize()
-            if self.train_config.distributed:
-                dist.barrier()
-            if self.conf["optimizer"]["schedule"]["mode"] in ("step", "poly"):
-                self.scheduler.step(
-                    int(i / iter_scale) + self.current_epoch * len(loader)
-                )
         if self.train_config.local_rank == 0:
             for idx, param_group in enumerate(self.optimizer.param_groups):
                 lr = param_group["lr"]
