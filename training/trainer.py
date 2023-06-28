@@ -238,6 +238,8 @@ class PytorchTrainer(ABC):
         iterator = loader
         data_time = SmoothedValue(fmt="{avg:.4f}")
         loss_meter = AverageMeter()
+        forward_time = SmoothedValue(fmt="{avg:.4f}")
+        backward_time = SmoothedValue(fmt="{avg:.4f}")
         avg_meters = {"loss": loss_meter}
         for loss_def in self.losses:
             if loss_def.display:
@@ -273,10 +275,14 @@ class PytorchTrainer(ABC):
             self.optimizer.zero_grad()
             with torch.cuda.amp.autocast(enabled=self.train_config.fp16):
                 with torch.autograd.detect_anomaly():
+                    end = time.time()
                     if extra_context:
                         output, context = self.model(imgs, context)
                     else:
                         output = self.model(imgs)
+                    forward_time.update(time.time() - end)
+
+                    end = time.time()
                     total_loss = 0
                     for loss_def in self.losses:
                         l = loss_def.loss.calculate_loss(output, sample)
@@ -285,6 +291,7 @@ class PytorchTrainer(ABC):
                                 l if isinstance(l, Number) else l.item(), imgs.size(0)
                             )
                         total_loss += loss_def.weight * l
+                    backward_time.update(time.time() - end)
             loss_meter.update(total_loss.item(), imgs.size(0))
             if math.isnan(total_loss.item()) or math.isinf(total_loss.item()):
                 raise ValueError("NaN loss !!")
@@ -304,6 +311,8 @@ class PytorchTrainer(ABC):
                     "mem": f"{torch.cuda.max_memory_reserved() / 1024 ** 3:.2f}G",
                     **avg_metrics,
                     "data_time": data_time,
+                    "fwd_time": forward_time,
+                    "bwd_time": backward_time,
                 }
             )
             if self.train_config.fp16:
