@@ -36,13 +36,15 @@ from training.trainer import TrainConfiguration, PytorchTrainer, Evaluator
 from torch.utils.data import DataLoader
 import torch.distributed
 from training.config import load_config
+from training.tiling import build_tiling
 
 class XviewEvaluator(Evaluator):
     def __init__(self, args) -> None:
         super().__init__()
         self.args = args
         self.crop_size = args.crop_size_val
-        self.conf = load_config(args.config)
+        self.conf = load_config(args.config,args=args)
+        self.tiling = self.conf.get('tiling','naive')
         self.input_size = self.conf.get('encoder_crop_size',self.conf['crop_size'])
         self.overlap = args.overlap_val
     def init_metrics(self) -> Dict:
@@ -51,11 +53,10 @@ class XviewEvaluator(Evaluator):
     def build_iterator(self,batch):
         old_dim = self.crop_size
         n = old_dim // self.input_size
-        for i in range(n):
-            for j in range(n):
+        for (i,j,k) in build_tiling(n,self.tiling):
                 batch_new =  batch[...,self.input_size*i:self.input_size*(i+1),self.input_size*j:self.input_size*(j+1)]
                 context_id = i * n + j
-                yield batch_new,context_id,(self.input_size*i,self.input_size*(i+1),self.input_size*j,self.input_size*(j+1),batch.shape[-2],batch.shape[-1])
+                yield batch_new,k,(self.input_size*i,self.input_size*(i+1),self.input_size*j,self.input_size*(j+1),batch.shape[-2],batch.shape[-1])
 
     @torch.no_grad()
     def validate(self, dataloader: DataLoader, model: torch.nn.Module, distributed: bool = False, local_rank: int = 0,

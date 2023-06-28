@@ -8,10 +8,9 @@
     "channels_last": true,
     "context_mode": "transformer_xl",
     "transformer_xl":{
-      "no_memory":false
+      "no_memory":true
     }
   },
-  "tiling":"naive",
   "crop_size": 4096,
   "encoder_crop_size":512,
   "multiplier": 64,

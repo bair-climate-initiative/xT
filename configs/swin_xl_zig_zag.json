@@ -11,7 +11,7 @@
       "no_memory":false
     }
   },
-  "tiling":"naive",
+  "tiling":"zig_zag_horizontal",
   "crop_size": 4096,
   "encoder_crop_size":512,
   "multiplier": 64,

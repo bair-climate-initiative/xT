@@ -254,7 +254,7 @@ class TimmUnet(AbstractModel):
                             ext_len=n_length, 
                             mem_len=n_length, 
                             cutoffs=cutoffs, attn_type=0,
-                            #**transformer_xl_config
+                            **transformer_xl_config
                 )
 
         self.decoder_stages = nn.ModuleList(

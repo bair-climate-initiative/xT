@@ -499,7 +499,7 @@ class MemTransformerLM(nn.Module):
                  tgt_len=None, ext_len=None, mem_len=None, 
                  cutoffs=[], adapt_inp=False,
                  same_length=False, attn_type=0, clamp_len=-1, 
-                 sample_softmax=-1):
+                 sample_softmax=-1,no_memory=False):
         super(MemTransformerLM, self).__init__()
         self.n_token = n_token
 
@@ -508,6 +508,7 @@ class MemTransformerLM(nn.Module):
         self.d_model = d_model
         self.n_head = n_head
         self.d_head = d_head
+        self.no_memory = no_memory
 
         # self.word_emb = AdaptiveEmbedding(n_token, d_embed, d_model, cutoffs, 
         #                                   div_val=div_val)
@@ -747,6 +748,8 @@ class MemTransformerLM(nn.Module):
         hidden, new_mems = self._forward(data, mems=mems)
 
         pred_hid = hidden[-tgt_len:]
+        if self.no_memory:
+            new_mems = []
         if new_mems is None:
             return [pred_hid]
         else:

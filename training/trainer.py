@@ -28,7 +28,7 @@ from training.utils import create_optimizer
 import wandb
 
 from fvcore.nn import FlopCountAnalysis
-
+from .tiling import build_tiling
 
 @dataclasses.dataclass
 class TrainConfiguration:
@@ -97,7 +97,8 @@ class PytorchTrainer(ABC):
         super().__init__()
         self.fold = fold
         self.train_config = train_config
-        self.conf = load_config(train_config.config_path)
+        self.conf = load_config(train_config.config_path,args=args)
+        self.tiling = self.conf.get('tiling','naive')
         self.wandb_id = None
         if self.train_config.local_rank == 0:
             wandb_args = dict(
@@ -109,33 +110,6 @@ class PytorchTrainer(ABC):
             )
             wandb.init(**wandb_args)
             self.wandb_id = wandb.run.id
-
-        if train_config.crop_size is not None:
-            self.conf["crop_size"] = train_config.crop_size
-        if args is not None:
-            if args.epoch is not None:
-                self.conf['optimizer']['schedule']['epochs'] = args.epoch
-            if args.lr is not None:
-                self.conf['optimizer']['learning_rate'] = args.lr
-            if args.weight_decay is not None:
-                self.conf['optimizer']['weight_decay'] = args.weight_decay
-            if args.bs is not None:
-                self.conf['optimizer']['train_bs'] = args.bs
-            if args.drop_path is not None:
-                self.conf['encoder_params']['drop_path_rate'] = args.drop_path
-            if args.pretrained:
-                pretrained = args.pretrained 
-                if pretrained.lower() == 'true':
-                    pretrained = True
-                    print("Setting pretrained to True (Bool)")
-                elif pretrained.lower() == 'false':
-                    pretrained = False
-                    print("Setting pretrained to False (Bool)")
-                elif pretrained.lower() == 'default':
-                    print("Pretrained config is not changed, using config")
-                else:
-                    print(f"Setting pretrained to {pretrained} (str)")
-                    self.conf['encoder_params']['pretrained'] = pretrained
         self._init_distributed()
         self.evaluator = evaluator
         self.current_metrics = evaluator.init_metrics()
@@ -240,11 +214,10 @@ class PytorchTrainer(ABC):
         for x in dataloder:
             old_dim = x['image'].shape[-1]
             n = old_dim // self.input_size
-            for i in range(n):
-                for j in range(n):
+            for (i,j,k) in build_tiling(n,self.tiling):
                     new_payload = {k:v[...,self.input_size*i:self.input_size*(i+1),self.input_size*j:self.input_size*(j+1)] for k,v in x.items() if k != 'name' }
                     new_payload['name'] = x['name']
-                    new_payload["context_id"] = i * n + j
+                    new_payload["context_id"] = k['context_id']
                     yield new_payload
 
 
