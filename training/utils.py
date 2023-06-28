@@ -1,6 +1,7 @@
 import os
 import pickle
 import re
+from collections import deque
 
 import cv2
 import torch
@@ -23,6 +24,13 @@ cv2.setNumThreads(0)
 import torch.distributed as dist
 
 
+def is_dist_avail_and_initialized():
+    if not dist.is_available():
+        return False
+    if not dist.is_initialized():
+        return False
+    return True
+
 
 def create_optimizer(optimizer_config, model, num_samples: int, num_gpus: int = 1):
     """Creates optimizer and schedule from configuration
@@ -42,13 +50,29 @@ def create_optimizer(optimizer_config, model, num_samples: int, num_gpus: int = 
         The learning rate scheduler.
     """
 
-    no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight', "_bn0.weight", "_bn1.weight", "_bn2.weight"]
+    no_decay = [
+        "bias",
+        "LayerNorm.bias",
+        "LayerNorm.weight",
+        "_bn0.weight",
+        "_bn1.weight",
+        "_bn2.weight",
+    ]
 
     def make_params(param_optimizer, lr=None):
         params = [
-            {'params': [p for n, p in param_optimizer if not any(nd in n for nd in no_decay)],
-             'weight_decay': optimizer_config["weight_decay"]},
-            {'params': [p for n, p in param_optimizer if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
+            {
+                "params": [
+                    p for n, p in param_optimizer if not any(nd in n for nd in no_decay)
+                ],
+                "weight_decay": optimizer_config["weight_decay"],
+            },
+            {
+                "params": [
+                    p for n, p in param_optimizer if any(nd in n for nd in no_decay)
+                ],
+                "weight_decay": 0.0,
+            },
         ]
         for p in params:
             if lr is not None:
@@ -78,35 +102,42 @@ def create_optimizer(optimizer_config, model, num_samples: int, num_gpus: int = 
     train_bs = optimizer_config["train_bs"]
     epochs = optimizer_config["schedule"]["epochs"]
     if optimizer_config["type"] == "SGD":
-        optimizer = optim.SGD(params,
-                              lr=optimizer_config["learning_rate"],
-                              momentum=optimizer_config["momentum"],
-                              nesterov=optimizer_config["nesterov"])
+        optimizer = optim.SGD(
+            params,
+            lr=optimizer_config["learning_rate"],
+            momentum=optimizer_config["momentum"],
+            nesterov=optimizer_config["nesterov"],
+        )
 
     elif optimizer_config["type"] == "Adam":
-        optimizer = optim.Adam(params,
-                               eps=optimizer_config.get("eps", 1e-8),
-                               lr=optimizer_config["learning_rate"],
-                               weight_decay=optimizer_config["weight_decay"])
+        optimizer = optim.Adam(
+            params,
+            eps=optimizer_config.get("eps", 1e-8),
+            lr=optimizer_config["learning_rate"],
+            weight_decay=optimizer_config["weight_decay"],
+        )
     elif optimizer_config["type"] == "AdamW":
-        optimizer = AdamW(params,
-                          eps=optimizer_config.get("eps", 1e-8),
-                          lr=optimizer_config["learning_rate"],
-                          weight_decay=optimizer_config["weight_decay"])
+        optimizer = AdamW(
+            params,
+            eps=optimizer_config.get("eps", 1e-8),
+            lr=optimizer_config["learning_rate"],
+            weight_decay=optimizer_config["weight_decay"],
+        )
     elif optimizer_config["type"] == "RmsProp":
-        optimizer = RMSprop(params,
-                            lr=optimizer_config["learning_rate"],
-                            weight_decay=optimizer_config["weight_decay"])
+        optimizer = RMSprop(
+            params,
+            lr=optimizer_config["learning_rate"],
+            weight_decay=optimizer_config["weight_decay"],
+        )
     elif optimizer_config["type"] == "MadGrad":
-        optimizer = MADGRAD(params,
-                            lr=optimizer_config["learning_rate"])
+        optimizer = MADGRAD(params, lr=optimizer_config["learning_rate"])
     else:
         raise KeyError("unrecognized optimizer {}".format(optimizer_config["type"]))
 
     if optimizer_config["schedule"]["type"] == "step":
         scheduler = LRStepScheduler(optimizer, **optimizer_config["schedule"]["params"])
     elif optimizer_config["schedule"]["type"] == "cosine":
-        tmax = int(epochs * num_samples/(num_gpus * train_bs))
+        tmax = int(epochs * num_samples / (num_gpus * train_bs))
         eta_min = optimizer_config["schedule"]["params"]["eta_min"]
         print(f"Cosine decay with T_max:{tmax} eta_min:{eta_min}")
         scheduler = CosineAnnealingLR(optimizer, T_max=tmax, eta_min=eta_min)
@@ -115,14 +146,20 @@ def create_optimizer(optimizer_config, model, num_samples: int, num_gpus: int = 
     elif optimizer_config["schedule"]["type"] == "multistep":
         scheduler = MultiStepLR(optimizer, **optimizer_config["schedule"]["params"])
     elif optimizer_config["schedule"]["type"] == "exponential":
-        scheduler = ExponentialLRScheduler(optimizer, **optimizer_config["schedule"]["params"])
+        scheduler = ExponentialLRScheduler(
+            optimizer, **optimizer_config["schedule"]["params"]
+        )
     elif optimizer_config["schedule"]["type"] == "poly":
         scheduler = PolyLR(optimizer, **optimizer_config["schedule"]["params"])
     elif optimizer_config["schedule"]["type"] == "constant":
         scheduler = lr_scheduler.LambdaLR(optimizer, lambda epoch: 1.0)
     elif optimizer_config["schedule"]["type"] == "linear":
+
         def linear_lr(it):
-            return it * optimizer_config["schedule"]["params"]["alpha"] + optimizer_config["schedule"]["params"]["beta"]
+            return (
+                it * optimizer_config["schedule"]["params"]["alpha"]
+                + optimizer_config["schedule"]["params"]["beta"]
+            )
 
         scheduler = lr_scheduler.LambdaLR(optimizer, linear_lr)
 
@@ -160,7 +197,9 @@ def all_gather(data):
     for _ in size_list:
         tensor_list.append(torch.empty((max_size,), dtype=torch.uint8, device="cuda"))
     if local_size != max_size:
-        padding = torch.empty(size=(max_size - local_size,), dtype=torch.uint8, device="cuda")
+        padding = torch.empty(
+            size=(max_size - local_size,), dtype=torch.uint8, device="cuda"
+        )
         tensor = torch.cat((tensor, padding), dim=0)
     dist.all_gather(tensor_list, tensor)
 
@@ -175,9 +214,9 @@ def all_gather(data):
 def load_checkpoint(model, checkpoint_path, strict=False, verbose=True):
     if verbose:
         print("=> loading checkpoint '{}'".format(checkpoint_path))
-    checkpoint = torch.load(checkpoint_path, map_location='cpu')
-    if 'state_dict' in checkpoint:
-        state_dict = checkpoint['state_dict']
+    checkpoint = torch.load(checkpoint_path, map_location="cpu")
+    if "state_dict" in checkpoint:
+        state_dict = checkpoint["state_dict"]
         state_dict = {re.sub("^module.", "", k): w for k, w in state_dict.items()}
         orig_state_dict = model.state_dict()
         mismatched_keys = []
@@ -185,22 +224,92 @@ def load_checkpoint(model, checkpoint_path, strict=False, verbose=True):
             ori_size = orig_state_dict[k].size() if k in orig_state_dict else None
             if v.size() != ori_size:
                 if verbose:
-                    print("SKIPPING!!! Shape of {} changed from {} to {}".format(k, v.size(), ori_size))
+                    print(
+                        "SKIPPING!!! Shape of {} changed from {} to {}".format(
+                            k, v.size(), ori_size
+                        )
+                    )
                 mismatched_keys.append(k)
         for k in mismatched_keys:
             del state_dict[k]
         model.load_state_dict(state_dict, strict=strict)
         del state_dict
         del orig_state_dict
-        print("=> loaded checkpoint '{}' (epoch {})"
-              .format(checkpoint_path, checkpoint['epoch']))
+        print(
+            "=> loaded checkpoint '{}' (epoch {})".format(
+                checkpoint_path, checkpoint["epoch"]
+            )
+        )
     else:
         model.load_state_dict(checkpoint)
     del checkpoint
 
 
-def get_random_subset(dataset,count=5):
-    #n = len(dataset)
+def get_random_subset(dataset, count=5):
+    # n = len(dataset)
     indices = np.arange(count).tolist()
-    #indices = np.random.choice(indices,count,replace=False)
-    return Subset(dataset,indices)
+    # indices = np.random.choice(indices,count,replace=False)
+    return Subset(dataset, indices)
+
+
+class SmoothedValue:
+    """Track a series of values and provide access to smoothed values over a
+    window or the global series average.
+    """
+
+    def __init__(self, window_size=20, fmt=None):
+        if fmt is None:
+            fmt = "{median:.4f} ({global_avg:.4f})"
+        self.deque = deque(maxlen=window_size)
+        self.total = 0.0
+        self.count = 0
+        self.fmt = fmt
+
+    def update(self, value, n=1):
+        self.deque.append(value)
+        self.count += n
+        self.total += value * n
+
+    def synchronize_between_processes(self):
+        """
+        Warning: does not synchronize the deque!
+        """
+        if not is_dist_avail_and_initialized():
+            return
+        t = torch.tensor([self.count, self.total], dtype=torch.float64, device="cuda")
+        dist.barrier()
+        dist.all_reduce(t)
+        t = t.tolist()
+        self.count = int(t[0])
+        self.total = t[1]
+
+    @property
+    def median(self):
+        d = torch.tensor(list(self.deque))
+        return d.median().item()
+
+    @property
+    def avg(self):
+        d = torch.tensor(list(self.deque), dtype=torch.float32)
+        return d.mean().item()
+
+    @property
+    def global_avg(self):
+        return self.total / self.count
+
+    @property
+    def max(self):
+        return max(self.deque)
+
+    @property
+    def value(self):
+        return self.deque[-1]
+
+    def __str__(self):
+        return self.fmt.format(
+            median=self.median,
+            avg=self.avg,
+            global_avg=self.global_avg,
+            max=self.max,
+            value=self.value,
+        )
