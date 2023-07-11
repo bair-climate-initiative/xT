@@ -1,7 +1,7 @@
 {
   "network": "TimmUnet",
   "encoder_params": {
-    "encoder": "revswinv2_tiny_window16_256_xview",
+    "encoder": "swinv2_large_window16_256_xview",
     "in_chans": 2,
     "drop_path_rate": 0.2,
     "pretrained": false,
@@ -10,11 +10,11 @@
   "crop_size": 1024,
   "multiplier": 64,
   "optimizer": {
-    "train_bs": 8,
-    "val_bs": 4,
+    "train_bs": 1,
+    "val_bs": 1,
     "type": "SGD",
-    "learning_rate": 0.048,
-    "weight_decay": 1e-4,
+    "learning_rate": 0.0003,
+    "weight_decay": 1e-6,
     "nesterov": true,
     "momentum": 0.9,
     "schedule": {
