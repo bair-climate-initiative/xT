@@ -4,7 +4,7 @@
     "encoder": "revswinv2_tiny_window16_256_xview",
     "in_chans": 2,
     "drop_path_rate": 0.2,
-    "pretrained": false,
+    "pretrained": "ckpts/swinv2_tiny_window16_256.pth",
     "channels_last": true
   },
   "crop_size": 1024,
@@ -13,10 +13,11 @@
     "train_bs": 8,
     "val_bs": 4,
     "type": "SGD",
-    "learning_rate": 0.048,
+    "learning_rate": 0.0001,
     "weight_decay": 1e-4,
     "nesterov": true,
     "momentum": 0.9,
+    "classifier_lr": 0.01,
     "schedule": {
       "type": "cosine",
       "mode": "step",
