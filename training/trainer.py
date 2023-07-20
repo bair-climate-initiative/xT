@@ -218,6 +218,7 @@ class PytorchTrainer(ABC):
                     new_payload = {k:v[...,self.input_size*i:self.input_size*(i+1),self.input_size*j:self.input_size*(j+1)] for k,v in x.items() if k != 'name' }
                     new_payload['name'] = x['name']
                     new_payload["context_id"] = k['context_id']
+                    new_payload['mem_only'] = k.get('mem_only',False)
                     yield new_payload
 
 
@@ -235,7 +236,9 @@ class PytorchTrainer(ABC):
         extra_context = self.model.module.extra_context
         if extra_context:
             iterator = self.build_iterator(iterator)
-            iter_scale = (self.conf['crop_size'] // self.input_size)**2 
+            iter_scale = (self.conf['crop_size'] // self.input_size)**2
+            if 'two_stream' in self.tiling:
+                iter_scale *= 2
         else:
             iter_scale = 1
         iterator = tqdm(iterator,total=iter_scale* len(loader))
@@ -252,7 +255,11 @@ class PytorchTrainer(ABC):
             self.optimizer.zero_grad()
             with torch.cuda.amp.autocast(enabled=self.train_config.fp16):
                 with torch.autograd.detect_anomaly():
-                    if extra_context:
+                    if extra_context and sample['mem_only']:
+                        with torch.no_grad():
+                            output,context = self.model(imgs,context)
+                        continue
+                    elif extra_context:
                         output,context = self.model(imgs,context)
                     else:
                         output = self.model(imgs)
