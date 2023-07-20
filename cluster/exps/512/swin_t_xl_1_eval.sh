@@ -1,5 +1,5 @@
 BS=4
-NUM_GPUS=8
+NUM_GPUS=7
 NAME="swin_t_xl_4096_8x8_ep20"
 CONFIG=swin_xl
 CROP=4096

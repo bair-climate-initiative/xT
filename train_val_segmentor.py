@@ -24,6 +24,20 @@ from metrics import xview_metric
 from metrics.xview_metric import create_metric_arg_parser
 from training.config import load_config
 from training.val_dataset import XviewValDataset
+from torch.utils.data import Dataset
+import datetime
+
+class TestDataset(Dataset):
+
+    def __init__(self, root_dir):
+        super().__init__()
+        self.names = os.listdir(root_dir)
+
+    def __getitem__(self, index):
+        return dict(name=self.names[index])
+
+    def __len__(self):
+        return len(self.names)
 
 warnings.filterwarnings("ignore")
 import argparse
@@ -39,14 +53,26 @@ from training.config import load_config
 from training.tiling import build_tiling
 
 class XviewEvaluator(Evaluator):
-    def __init__(self, args) -> None:
+    def __init__(self, args,mode='val') -> None:
         super().__init__()
         self.args = args
+        if args.test:
+            mode = 'public'
         self.crop_size = args.crop_size_val
         self.conf = load_config(args.config,args=args)
         self.tiling = self.conf.get('tiling','naive')
         self.input_size = self.conf.get('encoder_crop_size',self.conf['crop_size'])
         self.overlap = args.overlap_val
+        if mode == 'public':
+            self.dataset_dir = "images/public"
+            self.annotation_dir = "labels/public.csv"
+            self.shoreline_dir= "shoreline/public"
+        elif mode == 'val':
+            self.dataset_dir = "images/validation"
+            self.annotation_dir = "labels/validation.csv"
+            self.shoreline_dir = "shoreline/validation"
+        else:
+            raise NotImplemented
     def init_metrics(self) -> Dict:
         return {"xview": 0}
     
@@ -64,14 +90,23 @@ class XviewEvaluator(Evaluator):
         conf_name = os.path.splitext(os.path.basename(self.args.config))[0]
         val_dir = os.path.join(self.args.val_dir, conf_name, str(self.args.fold))
         os.makedirs(val_dir, exist_ok=True)
-        dataset_dir = os.path.join(self.args.data_dir, "images/validation")
+        dataset_dir = os.path.join(self.args.data_dir, self.dataset_dir)
         extra_context = model.module.extra_context
-        for sample in tqdm(dataloader):
+        # if self.args.local_rank == 0:
+        #     csv_paths = glob.glob(os.path.join(val_dir, "*.csv"))
+        #     for csv_file in csv_paths:
+        #         os.remove(csv_file)
+        if distributed:
+            dist.barrier()
+        for sample in tqdm(dataloader,position=0):
             scene_id = sample["name"][0]
+            tgt_path = os.path.join(val_dir, f"{scene_id}.csv")
+            # if os.path.exists(tgt_path) and datetime.datetime.fromtimestamp(os.path.getmtime(tgt_path) )> datetime.datetime.now() - datetime.timedelta(hours=10):
+            #     continue
             mask_dict = predict_scene_and_return_mm([model], scene_id=scene_id, dataset_dir=dataset_dir,
                                                     use_fp16=self.args.fp16, rotate=True,
                                                     crop_size = self.crop_size,overlap=self.overlap,
-                                                    extra_context=extra_context,iter_function=self.build_iterator)
+                                                    extra_context=extra_context,iter_function=self.build_iterator,position=self.args.local_rank+1)
             data = process_confidence(scene_id, None, mask_dict)
             pd.DataFrame(data,
                          columns=["detect_scene_row", "detect_scene_column", "scene_id", "is_vessel", "is_fishing",
@@ -93,8 +128,8 @@ class XviewEvaluator(Evaluator):
             df[["detect_scene_row", "detect_scene_column", "scene_id", "is_vessel", "is_fishing",
                  "vessel_length_m"]].to_csv(pred_csv, index=False)
             metric_args.inference_file = pred_csv
-            metric_args.label_file = os.path.join(self.args.data_dir, "labels/validation.csv")
-            metric_args.shore_root = self.args.shoreline_dir
+            metric_args.label_file = os.path.join(self.args.data_dir, self.annotation_dir)
+            metric_args.shore_root = os.path.join(self.args.data_dir, self.shoreline_dir)
             metric_args.shore_tolerance = 2
             metric_args.costly_dist = True
             metric_args.drop_low_detect = True
@@ -109,11 +144,10 @@ class XviewEvaluator(Evaluator):
 
     def get_improved_metrics(self, prev_metrics: Dict, current_metrics: Dict) -> Dict:
         improved = {}
-        if current_metrics["xview"] > prev_metrics["xview"]:
-            print("XView improved from {:.4f} to {:.4f}".format(prev_metrics["xview"], current_metrics["xview"]))
-            improved["xview"] = current_metrics["xview"]
-        else:
-            print("XView {:.4f} current {:.4f}".format(prev_metrics["xview"], current_metrics["xview"]))
+        for k in ("xview","loc_fscore_shore"):
+            if current_metrics[k]> prev_metrics.get(k,0.0):
+                print(k," improved from {:.4f} to {:.4f}".format(prev_metrics["xview"], current_metrics["xview"]))
+                improved[k] = current_metrics[k]
         return improved
 
 
@@ -130,7 +164,7 @@ def parse_args():
     arg('--overlap_val', type=int, default=704)
     arg('--prefix', type=str, default='val_')
     arg('--data-dir', type=str, default="/mnt/viper/xview3/")
-    arg('--shoreline-dir', type=str, default="/mnt/viper/xview3/shore/validation")
+    arg('--shoreline-dir', type=str, default="")
     arg('--val-dir', type=str, default="/mnt/viper/xview3/oof")
     arg('--folds-csv', type=str, default='folds4val.csv')
     arg('--logdir', type=str, default='logs')
@@ -138,7 +172,7 @@ def parse_args():
     arg('--from-zero', action='store_true', default=False)
     arg('--fp16', action='store_true', default=False)
     arg('--distributed', action='store_true', default=False)
-    arg("--local_rank", default=0, type=int)
+    arg("--local-rank", default=0, type=int)
     arg("--world-size", default=1, type=int)
     arg("--test_every", type=int, default=1)
     arg('--freeze-epochs', type=int, default=0)
@@ -154,23 +188,35 @@ def parse_args():
     arg('--wd',dest='weight_decay',type=float, default=None)   
     arg('--drop_path',type=float, default=None)   
     arg('--pretrained', type=str, default='default')
+    arg("--test", action='store_true', default=False)
     args = parser.parse_args()
 
     return args
 
 
 def create_data_datasets(args):
+    if args.shoreline_dir:
+        print("Legacy Warning:shoreline_dir is no longer used")
     conf = load_config(args.config)
     conf['crop_size'] = args.crop_size
-    train_annotations = os.path.join(args.data_dir, "labels/validation.csv")
-    train_dataset = XviewValDataset(mode="train", dataset_dir=args.data_dir, fold=args.fold, folds_csv=args.folds_csv,
-                                    annotation_csv=train_annotations,
-                                    crop_size=conf["crop_size"],
-                                    multiplier=conf["multiplier"],
-                                    positive_ratio=args.positive_ratio
-                                    )
-    val_dataset = XviewValDataset(mode="val", dataset_dir=args.data_dir, fold=args.fold, folds_csv=args.folds_csv,
-                                  annotation_csv=train_annotations, crop_size=conf["crop_size"])
+    if args.test:
+        train_annotations = os.path.join(args.data_dir, "labels/public.csv")
+        train_dataset = XviewValDataset(mode="train", dataset_dir=args.data_dir, fold=12345, folds_csv=args.folds_csv,
+                                        annotation_csv=train_annotations,
+                                        crop_size=conf["crop_size"],
+                                        multiplier=conf["multiplier"],
+                                        )
+        val_dataset =   TestDataset( os.path.join(args.data_dir, "images/public"))
+    else:
+        train_annotations = os.path.join(args.data_dir, "labels/validation.csv")
+        train_dataset = XviewValDataset(mode="train", dataset_dir=args.data_dir, fold=args.fold, folds_csv=args.folds_csv,
+                                        annotation_csv=train_annotations,
+                                        crop_size=conf["crop_size"],
+                                        multiplier=conf["multiplier"],
+                                        positive_ratio=args.positive_ratio
+                                        )
+        val_dataset = XviewValDataset(mode="val", dataset_dir=args.data_dir, fold=args.fold, folds_csv=args.folds_csv,
+                                    annotation_csv=train_annotations, crop_size=conf["crop_size"])
     return train_dataset, val_dataset
 
 
@@ -207,6 +253,13 @@ def main():
     seg_evaluator = XviewEvaluator(args)
     trainer = PytorchTrainer(train_config=trainer_config, evaluator=seg_evaluator, fold=args.fold,
                              train_data=data_train, val_data=data_val,args=args)
+    if args.test:
+        sampler = torch.utils.data.distributed.DistributedSampler(data_val, shuffle=False)
+        test_loader = DataLoader(
+            data_val, batch_size=1, sampler=sampler, shuffle=False, num_workers=0, pin_memory=False
+        )
+        trainer.validate(test_loader)
+        return
     if args.val:
         trainer.validate()
         return

@@ -6,7 +6,7 @@ eval $MAIN_CMD  \
         --world-size $NUM_GPUS   \
         --distributed  \
         --config configs/${CONFIG}.json  \
-        --workers 2  \
+        --workers 1  \
         --data-dir=$DATA_DIR  \
         --shoreline-dir $SHORE_DIR \
         --val-dir $VAL_OUT_DIR  \

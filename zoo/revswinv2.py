@@ -23,6 +23,7 @@ import torch.utils.checkpoint as checkpoint
 
 from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
 from timm.models.layers import Mlp, DropPath, to_2tuple, trunc_normal_, ClassifierHead # manually add patchembed
+from timm.models.helpers import build_model_with_cfg, load_pretrained
 from torch.autograd import Function as Function
 from .format import Format, nchw_to # manually add from timm 0.9
 
@@ -104,6 +105,8 @@ def window_partition(x, window_size: Tuple[int, int]):
         windows: (num_windows*B, window_size, window_size, C)
     """
     B, H, W, C = x.shape
+    # print(B, H, W, C)
+    # print(window_size)
     x = x.view(B, H // window_size[0], window_size[0], W // window_size[1], window_size[1], C)
     windows = x.permute(0, 1, 3, 2, 4, 5).contiguous().view(-1, window_size[0], window_size[1], C)
     return windows
@@ -970,22 +973,56 @@ class ReversibleSwinTransformerV2(nn.Module):
         return x
 
 
-def _cfg(url='', **kwargs):
-    return {
-        'url': url,
-        'num_classes': 1000, 'input_size': (3, 256, 256), 'pool_size': (8, 8),
-        'crop_pct': .9, 'interpolation': 'bicubic', 'fixed_input_size': True,
-        'mean': IMAGENET_DEFAULT_MEAN, 'std': IMAGENET_DEFAULT_STD,
-        'first_conv': 'patch_embed.proj', 'classifier': 'head.fc',
-        'license': 'mit', **kwargs
-    }
+def checkpoint_filter_fn(state_dict, model):
+    out_dict = {}
+    if 'model' in state_dict:
+        # For deit models
+        state_dict = state_dict['model']
+    for k, v in state_dict.items():
+        if any([n in k for n in ('relative_position_index', 'relative_coords_table')]):
+            continue  # skip buffers that should not be persistent
+        out_dict[k] = v
+    return out_dict
 
-def revswinv2_tiny_window16_256_xview(**kwargs):
+
+def revswinv2_tiny_window16_256_xview(pretrained=True, **kwargs):
     """
     """
     model_args = dict(window_size=16, embed_dim=96, depths=(2, 2, 6, 2), num_heads=(3, 6, 12, 24))
-    return ReversibleSwinTransformerV2(**dict(model_args, **kwargs))
+    model = ReversibleSwinTransformerV2(**dict(model_args, **kwargs))
+    if pretrained:
+        print("Loading pretrained weights from path...")
+        ckpt = torch.load(pretrained,map_location='cpu')
+        state_dict = model.state_dict()
+        filtered = {}
+        for k,v in ckpt.items():
+            if k in state_dict and state_dict[k].shape != v.shape:
+                print(f"Skipped {k} for size mismatch")
+                continue
+            filtered[k]=v
+        model.load_state_dict(filtered,strict=False)
+    return model
+
+def revswinv2_large_window16_256_xview(pretrained=False, **kwargs):
+    """
+    """
+    model_args = dict(window_size=16, embed_dim=192, depths=(2, 2, 18, 2), num_heads=(6, 12, 24, 48), pretrained_window_size=(12, 12, 12, 6), **kwargs)
+    model = ReversibleSwinTransformerV2(**dict(model_args, **kwargs))
+    if pretrained:
+        print("Loading pretrained weights from path...")
+        ckpt = torch.load(pretrained,map_location='cpu')
+        state_dict = model.state_dict()
+        filtered = {}
+        for k,v in ckpt.items():
+            if k in state_dict and state_dict[k].shape != v.shape:
+                print(f"Skipped {k} for size mismatch")
+                continue
+            filtered[k]=v
+        model.load_state_dict(filtered,strict=False)
+    return model
 
 REVSWINV2_CFG = dict(
-    revswinv2_tiny_window16_256_xview=revswinv2_tiny_window16_256_xview
+    revswinv2_tiny_window16_256_xview=revswinv2_tiny_window16_256_xview,
+    revswinv2_large_window16_256_xview=revswinv2_large_window16_256_xview,
 )
+

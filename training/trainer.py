@@ -5,7 +5,7 @@ import os
 import re
 from abc import ABC, abstractmethod
 from numbers import Number
-from typing import Dict, List,Any
+from typing import Dict, List, Any
 
 import torch
 import torch.distributed
@@ -24,11 +24,13 @@ from training import losses
 from training.config import load_config
 from training.losses import LossCalculator
 from training.sampler import DistributedWeightedRandomSampler
-from training.utils import create_optimizer
+from training.utils import create_optimizer, SmoothedValue
 import wandb
 
 from fvcore.nn import FlopCountAnalysis
 from .tiling import build_tiling
+import time
+
 
 @dataclasses.dataclass
 class TrainConfiguration:
@@ -97,8 +99,8 @@ class PytorchTrainer(ABC):
         super().__init__()
         self.fold = fold
         self.train_config = train_config
-        self.conf = load_config(train_config.config_path,args=args)
-        self.tiling = self.conf.get('tiling','naive')
+        self.conf = load_config(train_config.config_path, args=args)
+        self.tiling = self.conf.get("tiling", "naive")
         self.wandb_id = None
         if self.train_config.local_rank == 0:
             wandb_args = dict(
@@ -129,7 +131,6 @@ class PytorchTrainer(ABC):
                 os.path.join(train_config.log_dir, self.snapshot_name)
             )
 
-        
         # self._profile_model((1, 2, self.conf["crop_size"], self.conf["crop_size"]))
 
     def validate(self, test_loader=None):
@@ -193,7 +194,10 @@ class PytorchTrainer(ABC):
                 "state_dict": self.model.state_dict(),
                 "metrics": self.current_metrics,
             },
-            os.path.join(self.train_config.output_dir, self.snapshot_name + '_'  + str(self.wandb_id) + '_' "_last"),
+            os.path.join(
+                self.train_config.output_dir,
+                self.snapshot_name + "_" + str(self.wandb_id) + "_" "_last",
+            ),
         )
 
     def _save_best(self, improved_metrics: Dict):
@@ -206,13 +210,14 @@ class PytorchTrainer(ABC):
                     "metrics": self.current_metrics,
                 },
                 os.path.join(
-                    self.train_config.output_dir, self.snapshot_name + "_" + str(self.wandb_id) + '_' + metric_name
+                    self.train_config.output_dir,
+                    self.snapshot_name + "_" + str(self.wandb_id) + "_" + metric_name,
                 ),
             )
 
-    def build_iterator(self,dataloder):
-        for x in dataloder:
-            old_dim = x['image'].shape[-1]
+    def build_iterator(self, dataloader):
+        for x in dataloader:
+            old_dim = x["image"].shape[-1]
             n = old_dim // self.input_size
             for (i,j,k) in build_tiling(n,self.tiling):
                     new_payload = {k:v[...,self.input_size*i:self.input_size*(i+1),self.input_size*j:self.input_size*(j+1)] for k,v in x.items() if k != 'name' }
@@ -225,7 +230,10 @@ class PytorchTrainer(ABC):
     def _run_one_epoch_train(self, loader: DataLoader):
         torch.autograd.set_detect_anomaly(True)
         iterator = loader
+        data_time = SmoothedValue(fmt="{avg:.4f}")
         loss_meter = AverageMeter()
+        forward_time = SmoothedValue(fmt="{avg:.4f}")
+        backward_time = SmoothedValue(fmt="{avg:.4f}")
         avg_meters = {"loss": loss_meter}
         for loss_def in self.losses:
             if loss_def.display:
@@ -241,11 +249,19 @@ class PytorchTrainer(ABC):
                 iter_scale *= 2
         else:
             iter_scale = 1
-        iterator = tqdm(iterator,total=iter_scale* len(loader))
-        for i, sample in enumerate(iterator): 
+
+        total_n = iter_scale * len(loader)
+        t = tqdm(total=total_n)
+        loader = iter(loader)
+
+        for i in range(total_n):
+            end = time.time()
+            sample = next(loader)
+            data_time.update(time.time() - end)
+            t.update()
             # Sliced Images with context_id
             # todo: make configurable
-            #breakpoint()
+            # breakpoint()
             imgs = sample["image"].cuda().float()
             if extra_context:
                 if sample["context_id"] == 0:
@@ -263,6 +279,8 @@ class PytorchTrainer(ABC):
                         output,context = self.model(imgs,context)
                     else:
                         output = self.model(imgs)
+                    forward_time.update(time.time() - end)
+
                     total_loss = 0
                     for loss_def in self.losses:
                         l = loss_def.loss.calculate_loss(output, sample)
@@ -275,20 +293,17 @@ class PytorchTrainer(ABC):
             if math.isnan(total_loss.item()) or math.isinf(total_loss.item()):
                 raise ValueError("NaN loss !!")
             avg_metrics = {k: f"{v.avg:.4f}" for k, v in avg_meters.items()}
-            if self.train_config.local_rank == 0 and wandb.run is not None and i % 50 == 0:
+            if (
+                self.train_config.local_rank == 0
+                and wandb.run is not None
+                and i % 50 == 0
+            ):
                 payload = {k: float(f"{v.avg:.4f}") for k, v in avg_meters.items()}
-                payload.update(dict(
-                    lr=float(self.scheduler.get_lr()[-1])
-                ))
+                payload.update(dict(lr=float(self.scheduler.get_lr()[-1])))
                 wandb.log(payload)
-            iterator.set_postfix(
-                {
-                    "lr": float(self.scheduler.get_lr()[-1]),
-                    "epoch": self.current_epoch,
-                    "mem": f"{torch.cuda.max_memory_reserved() / 1024 ** 3:.2f}G",
-                    **avg_metrics,
-                }
-            )
+
+            # Run backward pass
+            end = time.time()
             if self.train_config.fp16:
                 self.gscaler.scale(total_loss).backward()
                 self.gscaler.unscale_(self.optimizer)
@@ -299,11 +314,26 @@ class PytorchTrainer(ABC):
                 total_loss.backward()
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), 5)
                 self.optimizer.step()
+            backward_time.update(time.time() - end)
+
             torch.cuda.synchronize()
             if self.train_config.distributed:
                 dist.barrier()
             if self.conf["optimizer"]["schedule"]["mode"] in ("step", "poly"):
-                self.scheduler.step(int(i/iter_scale) + self.current_epoch * len(loader))
+                self.scheduler.step(
+                    int(i / iter_scale) + self.current_epoch * len(loader)
+                )
+            t.set_postfix(
+                {
+                    "lr": float(self.scheduler.get_lr()[-1]),
+                    "epoch": self.current_epoch,
+                    "mem": f"{torch.cuda.max_memory_reserved() / 1024 ** 3:.2f}G",
+                    **avg_metrics,
+                    "data_time": data_time,
+                    "fwd_time": forward_time,
+                    "bwd_time": backward_time,
+                }
+            )
         if self.train_config.local_rank == 0:
             for idx, param_group in enumerate(self.optimizer.param_groups):
                 lr = param_group["lr"]
@@ -468,8 +498,10 @@ class PytorchTrainer(ABC):
 
     def _init_model(self):
         print(self.train_config)
-        self.input_size = self.conf.get('encoder_crop_size',self.conf['crop_size'])
-        model = zoo.__dict__[self.conf["network"]](**self.conf["encoder_params"],crop_size=self.input_size)
+        self.input_size = self.conf.get("encoder_crop_size", self.conf["crop_size"])
+        model = zoo.__dict__[self.conf["network"]](
+            **self.conf["encoder_params"], crop_size=self.input_size
+        )
         model = model.cuda()
         self._load_checkpoint(model)
 
@@ -492,6 +524,7 @@ class PytorchTrainer(ABC):
             )
 
         return loss_functions
+
 
 # Not Implemented
 # class PytorchTrainerPANDA(PytorchTrainer):

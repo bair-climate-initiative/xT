@@ -1,28 +1,34 @@
 {
   "network": "TimmUnet",
   "encoder_params": {
-    "encoder": "revswinv2_tiny_window16_256_xview",
+    "encoder": "swinv2_tiny_window16_256_xview",
     "in_chans": 2,
     "drop_path_rate": 0.2,
-    "pretrained": false,
-    "channels_last": true
+    "pretrained": "/shared/jacklishufan/large-image-models/swin_tiny_w16_256_pretrained.pth",
+    "channels_last": true,
+    "context_mode": "transformer_xl",
+    "transformer_xl":{
+      "no_memory":false
+    }
   },
-  "crop_size": 1024,
+  "tiling":"naive",
+  "crop_size": 4096,
+  "encoder_crop_size":1024,
   "multiplier": 64,
   "optimizer": {
-    "train_bs": 8,
-    "val_bs": 4,
+    "train_bs": 2,
+    "val_bs": 1,
     "type": "SGD",
-    "learning_rate": 0.048,
+    "learning_rate": 0.003,
     "weight_decay": 1e-4,
     "nesterov": true,
     "momentum": 0.9,
     "schedule": {
       "type": "cosine",
       "mode": "step",
-      "epochs": 120,
+      "epochs": 240,
       "params": {
-        "eta_min": 4e-4
+        "eta_min": 4e-9
       }
     }
   },

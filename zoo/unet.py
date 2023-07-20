@@ -236,8 +236,7 @@ class TimmUnet(AbstractModel):
             n_token = d_model
             cutoffs = [n_token // 2]
             tie_projs = [False] + [True] * len(cutoffs)
-            self.transformer_xl_layers= MemTransformerLM(
-                            n_token=n_token, 
+            xl_args = dict(n_token=n_token, 
                             n_layer=4,
                             n_head=2,
                             d_model=d_model,
@@ -253,9 +252,12 @@ class TimmUnet(AbstractModel):
                             tgt_len=n_length, 
                             ext_len=n_length, 
                             mem_len=n_length, 
-                            cutoffs=cutoffs, attn_type=0,
-                            **transformer_xl_config
-                )
+                            cutoffs=cutoffs, attn_type=0)
+            
+            xl_args.update(transformer_xl_config)   
+            self.transformer_xl_layers= MemTransformerLM(
+                **xl_args
+            )
 
         self.decoder_stages = nn.ModuleList(
             [self.get_decoder(idx) for idx in range(0, len(self.decoder_filters))]

@@ -63,7 +63,7 @@ import rasterio
 
 def predict_scene_and_return_mm(models: List[nn.Module], dataset_dir, scene_id: str, use_fp16: bool = False,
                                 rotate=False, output_dir=None,num_workers=8,
-                                crop_size = 3584,overlap=704, extra_context = False,iter_function=None):
+                                crop_size = 3584,overlap=704, extra_context = False,iter_function=None,position=0):
     vh_full = rasterio.open(os.path.join(dataset_dir, scene_id, "VH_dB.tif"))
 
     height, width = vh_full.shape
@@ -74,7 +74,7 @@ def predict_scene_and_return_mm(models: List[nn.Module], dataset_dir, scene_id: 
     fishing_preds = np.zeros_like(vh_full, dtype=np.uint8)
     length_preds = np.zeros_like(vh_full, dtype=np.float16)
     center_preds = np.zeros_like(vh_full, dtype=np.uint8)
-    print(os.path.join(dataset_dir, scene_id))
+    #print(os.path.join(dataset_dir, scene_id))
     slice_dataset = SliceDataset(os.path.join(dataset_dir, scene_id), tiler)
     slice_loader = DataLoader(
         slice_dataset, batch_size=1, shuffle=False, num_workers=num_workers, pin_memory=False
@@ -82,17 +82,20 @@ def predict_scene_and_return_mm(models: List[nn.Module], dataset_dir, scene_id: 
     if extra_context: # XL inner loop
         def model_foward(x):
             mem = set()
-            output = {}
+            output = None
             iterator = iter_function(x)
-            for batch_new,k,(x0,x1,y0,y1,hh,ww) in tqdm(iterator):
+            for batch_new,k,(x0,x1,y0,y1,hh,ww) in iterator:
+                mem_only = k.get('mem_only',False)
                 local_output,mem = model(batch_new,mem)
-                context_id = k['context_id']
-                if context_id == 0:
+                if mem_only:
+                    continue
+                context_id = k['context_id']    
+                if output is None:
                     output = {k:torch.zeros(*(v.shape[:-2]),hh,ww,dtype=v.dtype,device='cpu') for k,v in local_output.items()}
                 for k,v in output.items():
                     output[k][...,x0:x1,y0:y1] = local_output[k].cpu()
             return output
-    for batch, slice_vals in tqdm(slice_loader):
+    for batch, slice_vals in tqdm(slice_loader,position=position):
         slice = TileSlice(*slice_vals[0])
         with torch.no_grad():
             batch = batch.cuda()
