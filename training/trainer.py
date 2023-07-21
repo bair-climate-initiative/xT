@@ -230,10 +230,10 @@ class PytorchTrainer(ABC):
     def _run_one_epoch_train(self, loader: DataLoader):
         torch.autograd.set_detect_anomaly(True)
         iterator = loader
-        data_time = SmoothedValue(fmt="{avg:.4f}")
+        #data_time = SmoothedValue(fmt="{avg:.4f}")
         loss_meter = AverageMeter()
-        forward_time = SmoothedValue(fmt="{avg:.4f}")
-        backward_time = SmoothedValue(fmt="{avg:.4f}")
+        # forward_time = SmoothedValue(fmt="{avg:.4f}")
+        # backward_time = SmoothedValue(fmt="{avg:.4f}")
         avg_meters = {"loss": loss_meter}
         for loss_def in self.losses:
             if loss_def.display:
@@ -249,19 +249,9 @@ class PytorchTrainer(ABC):
                 iter_scale *= 2
         else:
             iter_scale = 1
-
-        total_n = iter_scale * len(loader)
-        t = tqdm(total=total_n)
-        loader = iter(loader)
-
-        for i in range(total_n):
-            end = time.time()
-            sample = next(loader)
-            data_time.update(time.time() - end)
-            t.update()
-            # Sliced Images with context_id
-            # todo: make configurable
-            # breakpoint()
+        iterator = tqdm(iterator,total=iter_scale* len(loader))
+        # Broken, temporaily disable time logging
+        for i,sample in enumerate(iterator):
             imgs = sample["image"].cuda().float()
             if extra_context:
                 if sample["context_id"] == 0:
@@ -279,7 +269,7 @@ class PytorchTrainer(ABC):
                         output,context = self.model(imgs,context)
                     else:
                         output = self.model(imgs)
-                    forward_time.update(time.time() - end)
+                    #forward_time.update(time.time() - end)
 
                     total_loss = 0
                     for loss_def in self.losses:
@@ -303,7 +293,7 @@ class PytorchTrainer(ABC):
                 wandb.log(payload)
 
             # Run backward pass
-            end = time.time()
+            #end = time.time()
             if self.train_config.fp16:
                 self.gscaler.scale(total_loss).backward()
                 self.gscaler.unscale_(self.optimizer)
@@ -314,7 +304,7 @@ class PytorchTrainer(ABC):
                 total_loss.backward()
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), 5)
                 self.optimizer.step()
-            backward_time.update(time.time() - end)
+            #backward_time.update(time.time() - end)
 
             torch.cuda.synchronize()
             if self.train_config.distributed:
@@ -323,17 +313,17 @@ class PytorchTrainer(ABC):
                 self.scheduler.step(
                     int(i / iter_scale) + self.current_epoch * len(loader)
                 )
-            t.set_postfix(
-                {
-                    "lr": float(self.scheduler.get_lr()[-1]),
-                    "epoch": self.current_epoch,
-                    "mem": f"{torch.cuda.max_memory_reserved() / 1024 ** 3:.2f}G",
-                    **avg_metrics,
-                    "data_time": data_time,
-                    "fwd_time": forward_time,
-                    "bwd_time": backward_time,
-                }
-            )
+            # t.set_postfix(
+            #     {
+            #         "lr": float(self.scheduler.get_lr()[-1]),
+            #         "epoch": self.current_epoch,
+            #         "mem": f"{torch.cuda.max_memory_reserved() / 1024 ** 3:.2f}G",
+            #         **avg_metrics,
+            #         "data_time": data_time,
+            #         "fwd_time": forward_time,
+            #         "bwd_time": backward_time,
+            #     }
+            # )
         if self.train_config.local_rank == 0:
             for idx, param_group in enumerate(self.optimizer.param_groups):
                 lr = param_group["lr"]
