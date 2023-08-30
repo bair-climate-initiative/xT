@@ -151,6 +151,7 @@ def parse_args():
     arg('--epoch', type=int, default=None)
     arg('--bs', type=int, default=None)
     arg('--lr', type=float, default=None)
+    arg('--eta_min', type=float, default=None)
     arg('--wd',dest='weight_decay',type=float, default=None)   
     arg('--drop_path',type=float, default=None)   
     arg('--pretrained', type=str, default='default')
@@ -162,6 +163,7 @@ def parse_args():
 def create_data_datasets(args):
     conf = load_config(args.config)
     conf['crop_size'] = args.crop_size
+    conf['optimizer']['schedule']['params']['eta_min'] = args.eta_min
     train_annotations = os.path.join(args.data_dir, "labels/validation.csv")
     train_dataset = XviewValDataset(mode="train", dataset_dir=args.data_dir, fold=args.fold, folds_csv=args.folds_csv,
                                     annotation_csv=train_annotations,
