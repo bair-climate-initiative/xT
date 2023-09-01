@@ -24,7 +24,7 @@ from training import losses
 from training.config import load_config
 from training.losses import LossCalculator
 from training.sampler import DistributedWeightedRandomSampler
-from training.utils import create_optimizer, SmoothedValue
+from training.utils import create_optimizer, SmoothedValue,wandb_dump_images
 import wandb
 
 from fvcore.nn import FlopCountAnalysis
@@ -270,7 +270,20 @@ class PytorchTrainer(ABC):
                     else:
                         output = self.model(imgs)
                     #forward_time.update(time.time() - end)
+                    if i % 400 == 0:
+                        # visualize
+                        if self.train_config.local_rank == 0:
+                            all_keys = []
+                            all_imgs = [imgs[0][0].detach().cpu()]
+                            all_keys.append('input')
+                            for k,v in output.items():
+                                all_imgs.append(v[0][0].detach().cpu())
+                                all_imgs.append(sample[k][0][0].detach().cpu())
+                                short_k = k.replace('_mask','')
+                                all_keys.append(k)
+                                all_keys.append(k+'_GT')
 
+                            wandb_dump_images(all_imgs,keys=all_keys)
                     total_loss = 0
                     for loss_def in self.losses:
                         l = loss_def.loss.calculate_loss(output, sample)
@@ -421,7 +434,7 @@ class PytorchTrainer(ABC):
                 self.model,
                 device_ids=[self.train_config.local_rank],
                 output_device=self.train_config.local_rank,
-                find_unused_parameters=False,
+                find_unused_parameters=True,
             )
         else:
             self.model = DataParallel(self.model).cuda()

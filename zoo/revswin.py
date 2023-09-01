@@ -1060,6 +1060,7 @@ class ReversibleSwinTransformer(nn.Module):
         fused_window_process=False,
         lateral_fusion="avg",
         fast_backprop=False,
+        **kwargs
     ):
         super().__init__()
 
@@ -1219,12 +1220,12 @@ class ReversibleSwinTransformer(nn.Module):
 
     def forward_features(self, x):
         """Forward function."""
-        print(x.shape)
+        #print(x.shape)
         x = self.input_ada(x)
         x = self.patch_embed(x)
 
-        print("start outs")
-        print(x.shape)
+        # print("start outs")
+        # print(x.shape)
 
         # No need for reshape, processed as [B x C x H x W]
         outs = [x]
@@ -1243,7 +1244,7 @@ class ReversibleSwinTransformer(nn.Module):
             layer = self.layers[i]
             x, Wh, Ww = layer(x, Wh, Ww)
 
-            print(x.shape)
+            #print(x.shape)
             outs.append(self.reshape(x))
             # if i in self.out_indices:
             #     norm_layer = getattr(self, f"norm{i}")
@@ -1253,10 +1254,10 @@ class ReversibleSwinTransformer(nn.Module):
             #                      self.num_features[i]).permute(0, 3, 1, 2).contiguous()
             #     outs["res{}".format(i + 2)] = out
 
-        print("out shapes after upsamples")
+        #print("out shapes after upsamples")
         for idx, ox in enumerate(outs[:]):
             outs[idx] = self.upsample[idx](ox)
-            print(outs[idx].shape)
+            #print(outs[idx].shape)
         
         return outs
 

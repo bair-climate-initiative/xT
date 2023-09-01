@@ -11,6 +11,7 @@ from .revswinv2 import REVSWINV2_CFG
 SWIN_CFG = {**SWIN_CFG, **REVSWIN_CFG, **REVSWINV2_CFG}
 
 from .vit import registry as VIT_CFG
+from .vit import MAEDecoder
 from .transformer_xl import MemTransformerLM
 
 encoder_params = {
@@ -341,6 +342,127 @@ class TimmUnet(AbstractModel):
         )
 
 
+class EncoderDecoder(AbstractModel):
+    def __init__(
+        self,
+        encoder="resnet34",
+        in_chans=2,
+        pretrained=True,
+        channels_last=False,
+        crop_size = 256,
+        context_mode='None',
+        out_indices=-2,
+        decoder_embed_dim=512,
+        decoder_depth=8,
+        decoder_num_heads=16,
+        decoder_mlp_ratio=4.,
+        **kwargs
+    ):
+        backbone_arch = encoder
+        self.channels_last = channels_last
+        if 'swin' in backbone_arch:
+            backbone = SWIN_CFG[backbone_arch](img_size=crop_size,pretrained=pretrained,
+                                               input_dim=in_chans,
+                                               **kwargs)
+        elif 'vit' in backbone_arch:
+            backbone = VIT_CFG[backbone_arch](img_size=crop_size,
+                                                   pretrained=pretrained,
+                                                input_dim=in_chans,
+                                               **kwargs)
+        else:
+            backbone = timm.create_model(
+                backbone_arch,
+                features_only=True,
+                in_chans=in_chans,
+                pretrained=pretrained,
+                **kwargs
+            )
+        self.crop_size = crop_size
+        self.filters = [f["num_chs"] for f in backbone.feature_info]
+        self.strides = [f['reduction'] for f in backbone.feature_info]
+        self.decoder_filters = default_decoder_filters
+        self.last_upsample_filters = default_last
+        if encoder in encoder_params:
+            self.decoder_filters = encoder_params[encoder].get(
+                "decoder_filters", self.filters[:-1]
+            )
+            self.last_upsample_filters = encoder_params[encoder].get(
+                "last_upsample", self.decoder_filters[0] // 2
+            )
+        if kwargs.get('expected_stride'):
+            assert kwargs.get('expected_stride') == self.strides[out_indices]
+
+        super().__init__()
+        self.decoder_layers = MAEDecoder(
+            embed_dim=self.filters[out_indices],
+            decoder_embed_dim=decoder_embed_dim,
+            decoder_num_heads=decoder_num_heads,
+            mlp_ratio=decoder_mlp_ratio,
+            num_patches = int((crop_size // self.strides[out_indices]) **2),
+            decoder_depth=8
+        )
+        self.out_indices = out_indices
+        self.context_mode = context_mode
+        self.extra_context = False
+        predictor_cls = MAEPredictor
+        self.vessel_mask = predictor_cls(
+            decoder_embed_dim, self.last_upsample_filters,self.strides[out_indices],1,
+        )
+        self.fishing_mask = predictor_cls(
+            decoder_embed_dim, self.last_upsample_filters,self.strides[out_indices],1
+        )
+        self.center_mask = predictor_cls(
+            decoder_embed_dim, self.last_upsample_filters,self.strides[out_indices],1
+        )
+        self.length_mask = predictor_cls(
+            decoder_embed_dim, self.last_upsample_filters,self.strides[out_indices],1
+        )
+
+        self.name = "u-{}".format(encoder)
+
+        self._initialize_weights()
+        self.dropout = Dropout2d(p=0.0)
+        self.encoder = backbone
+
+    def forward(self, x,mem=tuple()):
+        # Encoder
+        if self.channels_last:
+            x = x.contiguous(memory_format=torch.channels_last)
+        enc_results = self.encoder(x)
+        x = enc_results[self.out_indices]
+        x = self.decoder_layers(x)
+        fishing_mask = self.fishing_mask(x).contiguous(
+            memory_format=torch.contiguous_format
+        )
+        vessel_mask = self.vessel_mask(x).contiguous(
+            memory_format=torch.contiguous_format
+        )
+        center_mask = self.center_mask(x).contiguous(
+            memory_format=torch.contiguous_format
+        )
+        length_mask = self.length_mask(x).contiguous(
+            memory_format=torch.contiguous_format
+        )
+        output = {
+            "fishing_mask": fishing_mask,
+            "vessel_mask": vessel_mask,
+            "center_mask": center_mask,
+            "length_mask": length_mask,
+        }
+
+        return output
+    def get_decoder(self, layer):
+        in_channels = (
+            self.filters[layer + 1]
+            if layer + 1 == len(self.decoder_filters)
+            else self.decoder_filters[layer + 1]
+        )
+        return self.decoder_block(
+            in_channels,
+            self.decoder_filters[layer],
+            self.decoder_filters[max(layer, 0)],
+        )
+
 class TimmUnetPANDA(AbstractModel):
     def __init__(
         self,
@@ -485,6 +607,19 @@ class UnetDecoderLastConv(nn.Module):
         self.layer = nn.Sequential(
             nn.Upsample(scale_factor=2),
             nn.Conv2d(in_channels, out_channels, 3, padding=1),
+            nn.SiLU(inplace=True),
+            nn.Conv2d(out_channels, num_classes, 1),
+        )
+
+    def forward(self, x):
+        return self.layer(x)
+
+
+class MAEPredictor(nn.Module):
+    def __init__(self, in_channels, out_channels, stride,num_classes):
+        super().__init__()
+        self.layer = nn.Sequential(
+            nn.ConvTranspose2d(in_channels, out_channels,stride,stride),
             nn.SiLU(inplace=True),
             nn.Conv2d(out_channels, num_classes, 1),
         )

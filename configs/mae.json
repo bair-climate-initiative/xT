@@ -1,16 +1,18 @@
 {
-  "network": "TimmUnet",
+  "network": "EncoderDecoder",
   "encoder_params": {
-    "encoder": "swinv2_tiny_window16_256_xview",
+    "encoder": "vit_base_patch16",
     "in_chans": 2,
     "drop_path_rate": 0.2,
-    "pretrained": "/shared/jacklishufan/large-image-models/swin_tiny_w16_256_pretrained.pth",
+    "pretrained": "/shared/jacklishufan/mae/mae_visualize_vit_base.pth",
     "channels_last": true,
     "context_mode": "transformer_xl",
     "transformer_xl":{
       "no_memory":false,
       "ext_len": 0
-    }
+    },
+    "out_indices":-2,
+    "expected_stride":16
   },
   "tiling":"naive",
   "crop_size": 4096,
@@ -19,7 +21,7 @@
   "optimizer": {
     "train_bs": 2,
     "val_bs": 1,
-    "type": "SGD",
+    "type": "AdamW",
     "learning_rate": 0.003,
     "weight_decay": 1e-4,
     "nesterov": true,
@@ -27,10 +29,11 @@
     "schedule": {
       "type": "cosine",
       "mode": "step",
-      "epochs": 240,
+      "epochs": 800,
       "params": {
-        "eta_min": 4e-4
-      }
+        "eta_min": 4e-6
+      },
+      "warmup_epoches":40
     }
   },
    "losses": [
@@ -65,7 +68,7 @@
     {
       "name": "center",
       "type": "CenterLossCalculator",
-      "weight": 3e-7,
+      "weight": 1e-5,
       "display": true,
       "params": {
       }
@@ -73,7 +76,7 @@
     {
       "name": "length",
       "type": "LengthLoss",
-      "weight": 2,
+      "weight": 0.1,
       "display": true,
       "params": {
       }

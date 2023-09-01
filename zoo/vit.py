@@ -18,7 +18,7 @@ import torch.nn.functional as F
 import torch.utils.checkpoint as checkpoint
 
 from timm.models.layers import drop_path, to_2tuple, trunc_normal_
-
+from .pos_embed import get_2d_sincos_pos_embed
 # from mmdet.utils import get_root_logger
 # from ..builder import BACKBONES
 
@@ -399,7 +399,7 @@ class ViT(nn.Module):
                  num_heads=12, mlp_ratio=4., qkv_bias=False, qk_scale=None, drop_rate=0., attn_drop_rate=0.,
                  drop_path_rate=0., hybrid_backbone=None, norm_layer=None, init_values=None, use_checkpoint=False, 
                  use_abs_pos_emb=False, use_rel_pos_bias=False, use_shared_rel_pos_bias=False,
-                 out_indices=[11], interval=3, pretrained=None):
+                 out_indices=[11], interval=3, pretrained=None,class_token=False,**kwargs):
         super().__init__()
         
         if input_dim == in_chans:
@@ -409,7 +409,7 @@ class ViT(nn.Module):
         norm_layer = norm_layer or partial(nn.LayerNorm, eps=1e-6)
         self.num_classes = num_classes
         self.num_features = self.embed_dim = embed_dim  # num_features for consistency with other models
-
+        self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim)) if class_token else None
         if hybrid_backbone is not None:
             self.patch_embed = HybridEmbed(
                 hybrid_backbone, img_size=img_size, in_chans=in_chans, embed_dim=embed_dim)
@@ -464,7 +464,7 @@ class ViT(nn.Module):
         self.fpn3 = nn.Identity()
 
         self.fpn4 = nn.MaxPool2d(kernel_size=2, stride=2)
-
+        self.init_weights()
         self.apply(self._init_weights)
         self.fix_init_weight()
         self.pretrained = pretrained
@@ -499,26 +499,11 @@ class ViT(nn.Module):
             pretrained (str, optional): Path to pre-trained weights.
                 Defaults to None.
         """
-        pretrained = pretrained or self.pretrained
-        def _init_weights(m):
-            if isinstance(m, nn.Linear):
-                trunc_normal_(m.weight, std=.02)
-                if isinstance(m, nn.Linear) and m.bias is not None:
-                    nn.init.constant_(m.bias, 0)
-            elif isinstance(m, nn.LayerNorm):
-                nn.init.constant_(m.bias, 0)
-                nn.init.constant_(m.weight, 1.0)
-
-        # if isinstance(pretrained, str):
-        #     self.apply(_init_weights)
-        #     logger = get_root_logger()
-        #     print(f"load from {pretrained}")
-        #     load_checkpoint(self, pretrained, strict=False, logger=logger)
-        # elif pretrained is None:
-        #     self.apply(_init_weights)
-        # else:
-        #     raise TypeError('pretrained must be a str or None')
-
+        if self.pos_embed is not None:
+            pos_embed = get_2d_sincos_pos_embed(self.pos_embed.shape[-1], int(self.patch_embed.num_patches**.5), cls_token=True)
+            self.pos_embed.data.copy_(torch.from_numpy(pos_embed).float().unsqueeze(0))
+        if self.cls_token is not None:
+            nn.init.normal_(self.cls_token, std=1e-6)
     def get_num_layers(self):
         return len(self.blocks)
 
@@ -561,12 +546,12 @@ def load_checkpoint(model,pretrained):
     if 'state_dict' in ckpt:
         ckpt = ckpt['state_dict']
     elif 'model' in ckpt:
-        ckpt = ckpt['state_dict']
+        ckpt = ckpt['model']
     state_dict = ckpt
     old_state_dict = model.state_dict()
     for k,v in state_dict.items():
         if k in old_state_dict and old_state_dict[k].shape != v.shape:
-            assert 'rel_pos' in k
+            assert 'rel_pos' in k,k
             state_dict[k] = _interpolate(v,old_state_dict[k].shape[0])
             assert state_dict[k].shape == old_state_dict[k].shape
             print("Resized:",k)
@@ -579,6 +564,56 @@ def load_checkpoint(model,pretrained):
     msg = model.load_state_dict(state_dict, False)
     print(msg)
     return model
+
+class MAEDecoder(nn.Module):
+
+    def __init__(self,embed_dim,
+                 decoder_embed_dim,
+                 num_patches,
+                 decoder_num_heads,
+                 mlp_ratio,
+                 decoder_depth,
+                 norm_layer=partial(nn.LayerNorm, eps=1e-6)) -> None:
+        super().__init__()
+        self.decoder_embed = nn.Linear(embed_dim, decoder_embed_dim, bias=True)
+
+        self.mask_token = nn.Parameter(torch.zeros(1, 1, decoder_embed_dim))
+
+        self.decoder_pos_embed = nn.Parameter(torch.zeros(1, num_patches + 1, decoder_embed_dim), requires_grad=False)  # fixed sin-cos embedding
+        n_d = int(num_patches**0.5)
+        self.decoder_blocks = nn.ModuleList([
+            Block(decoder_embed_dim, decoder_num_heads, mlp_ratio, qkv_bias=True, qk_scale=None, norm_layer=norm_layer,window_size=(n_d,n_d))
+            for i in range(decoder_depth)])
+        self.num_patches = num_patches
+
+    def initialize_weights(self):
+
+        decoder_pos_embed = get_2d_sincos_pos_embed(self.decoder_pos_embed.shape[-1], int(self.num_patches**.5), cls_token=True)
+        self.decoder_pos_embed.data.copy_(torch.from_numpy(decoder_pos_embed).float().unsqueeze(0))
+
+        # initialize nn.Linear and nn.LayerNorm
+        self.apply(self._init_weights)
+
+    def _init_weights(self, m):
+        if isinstance(m, nn.Linear):
+            # we use xavier_uniform following official JAX ViT:
+            torch.nn.init.xavier_uniform_(m.weight)
+            if isinstance(m, nn.Linear) and m.bias is not None:
+                nn.init.constant_(m.bias, 0)
+        elif isinstance(m, nn.LayerNorm):
+            nn.init.constant_(m.bias, 0)
+            nn.init.constant_(m.weight, 1.0)
+        
+    def forward(self,x):
+        B, C, Hp, Wp = x.shape
+        x = x.permute(0,2,3,1).flatten(1,2) # B L C
+        x = self.decoder_embed(x)
+        for layer in self.decoder_blocks:
+            x = layer(x,Hp, Wp)
+        xp = x.permute(0, 2, 1).reshape(B, -1, Hp, Wp)
+        return xp
+
+
 
 def vit_base_patch16(pretrained=False,**kwargs):
     model = ViT(
