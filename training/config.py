@@ -66,4 +66,7 @@ def load_config(config_file, defaults=DEFAULTS,args=None):
             else:
                 print(f"Setting pretrained to {pretrained} (str)")
                 config['encoder_params']['pretrained'] = pretrained
+        if args.eta_min is not None:
+            print(f"Overriding eta min to {args.eta_min}")
+            config['optimizer']['schedule']['params']['eta_min'] = args.eta_min
     return config

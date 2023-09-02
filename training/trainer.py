@@ -253,7 +253,6 @@ class PytorchTrainer(ABC):
             iter_scale = (self.conf["crop_size"] // self.input_size) ** 2
         else:
             iter_scale = 1
-
         total_n = iter_scale * len(loader)
         t = tqdm(total=total_n)
         loader = iter(loader)

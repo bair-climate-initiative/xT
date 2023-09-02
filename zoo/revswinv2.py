@@ -483,18 +483,20 @@ class ReversibleSwinTransformerV2Block(nn.Module):
             shifted_x = torch.roll(x, shifts=(-self.shift_size[0], -self.shift_size[1]), dims=(1, 2))
         else:
             shifted_x = x
-
+        print("0", x.shape)
         # partition windows
         x_windows = window_partition(shifted_x, self.window_size)  # nW*B, window_size, window_size, C
         x_windows = x_windows.view(-1, self.window_area, C)  # nW*B, window_size*window_size, C
 
+        print("1", x_windows.shape)
         # W-MSA/SW-MSA
         attn_windows = self.attn(x_windows, mask=self.attn_mask)  # nW*B, window_size*window_size, C
-
+        print("2", attn_windows.shape)
         # merge windows
         attn_windows = attn_windows.view(-1, self.window_size[0], self.window_size[1], C)
+        print("2.5", attn_windows.shape)
         shifted_x = window_reverse(attn_windows, self.window_size, self.input_resolution)  # B H' W' C
-
+        print("3", shifted_x.shape)
         # reverse cyclic shift
         if has_shift:
             x = torch.roll(shifted_x, shifts=self.shift_size, dims=(1, 2))
@@ -506,10 +508,12 @@ class ReversibleSwinTransformerV2Block(nn.Module):
         # X1, X2: shape is [B, H, W, C]
         assert X1.shape == X2.shape, "Input shapes are different."
         B, H, W, C = X1.shape
-
+        print(X1.shape, X2.shape)
         self._seed_cuda("attn")
         attn_out = self.norm1(self._attn(X2))
+        print(attn_out.shape)
 
+        breakpoint()
         self._seed_cuda("droppath1")
         Y1 = X1 + self.drop_path1(attn_out)
 
@@ -871,6 +875,7 @@ class ReversibleSwinTransformerV2(nn.Module):
         layers = []
         in_dim = embed_dim[0]
         scale = 1
+        breakpoint()
         for i in range(self.num_layers):
             out_dim = embed_dim[i]
             layers += [ReversibleSwinTransformerV2Stage(
@@ -955,6 +960,7 @@ class ReversibleSwinTransformerV2(nn.Module):
         x = self.input_ada(x) # * added 
         x = self.patch_embed(x)
         outs = [x.permute(0, 3, 1, 2)]
+        print("INITIAL SHAPE:", x.shape)
         for layer in self.layers:
             x = layer(x)
             outs.append(x.permute(0, 3, 1, 2)) # * added

@@ -162,8 +162,6 @@ def parse_args():
 
 def create_data_datasets(args):
     conf = load_config(args.config)
-    conf['crop_size'] = args.crop_size
-    conf['optimizer']['schedule']['params']['eta_min'] = args.eta_min
     train_annotations = os.path.join(args.data_dir, "labels/validation.csv")
     train_dataset = XviewValDataset(mode="train", dataset_dir=args.data_dir, fold=args.fold, folds_csv=args.folds_csv,
                                     annotation_csv=train_annotations,
