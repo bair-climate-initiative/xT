@@ -36,7 +36,7 @@ def _merge(src, dst):
             dst[k] = v
 
 
-def load_config(config_file, defaults=DEFAULTS,args=None):
+def load_config(config_file, defaults=DEFAULTS, args=None):
     with open(config_file, "r") as fd:
         config = json.load(fd)
     _merge(defaults, config)
@@ -57,16 +57,25 @@ def load_config(config_file, defaults=DEFAULTS,args=None):
             pretrained = args.pretrained 
             if pretrained.lower() == 'true':
                 pretrained = True
-                print("Setting pretrained to True (Bool)")
+                if args.local_rank == 0:
+                    print("Setting pretrained to True (Bool)")
             elif pretrained.lower() == 'false':
                 pretrained = False
-                print("Setting pretrained to False (Bool)")
+                if args.local_rank == 0:
+                    print("Setting pretrained to False (Bool)")
             elif pretrained.lower() == 'default':
-                print("Pretrained config is not changed, using config")
+                if args.local_rank == 0:
+                    print("Pretrained config is not changed, using config")
             else:
-                print(f"Setting pretrained to {pretrained} (str)")
+                if args.local_rank == 0:
+                    print(f"Setting pretrained to {pretrained} (str)")
                 config['encoder_params']['pretrained'] = pretrained
         if args.eta_min is not None:
-            print(f"Overriding eta min to {args.eta_min}")
+            if args.local_rank == 0:
+                print(f"Overriding eta min to {args.eta_min}")
             config['optimizer']['schedule']['params']['eta_min'] = args.eta_min
+        if args.classifier_lr is not None:
+            if args.local_rank == 0:
+                print(f"Overriding classifier lr to {args.classifier_lr}")
+            config['optimizer']['classifier_lr'] = args.classifier_lr
     return config

@@ -254,17 +254,18 @@ class PytorchTrainer(ABC):
         else:
             iter_scale = 1
         total_n = iter_scale * len(loader)
-        t = tqdm(total=total_n)
+        if self.train_config.local_rank == 0:
+            t = tqdm(total=total_n)
         loader = iter(loader)
 
         for i in range(total_n):
             end = time.time()
             sample = next(loader)
             data_time.update(time.time() - end)
-            t.update()
+            if self.train_config.local_rank == 0:
+                t.update()
             # Sliced Images with context_id
             # todo: make configurable
-            # breakpoint()
             imgs = sample["image"].cuda().float()
             if extra_context:
                 if sample["context_id"] == 0:
@@ -323,17 +324,18 @@ class PytorchTrainer(ABC):
                 self.scheduler.step(
                     int(i / iter_scale) + self.current_epoch * len(loader)
                 )
-            t.set_postfix(
-                {
-                    "lr": float(self.scheduler.get_lr()[-1]),
-                    "epoch": self.current_epoch,
-                    "mem": f"{torch.cuda.max_memory_reserved() / 1024 ** 3:.2f}G",
-                    **avg_metrics,
-                    "data_time": data_time,
-                    "fwd_time": forward_time,
-                    "bwd_time": backward_time,
-                }
-            )
+            if self.train_config.local_rank == 0:
+                t.set_postfix(
+                    {
+                        "lr": float(self.scheduler.get_lr()[-1]),
+                        "epoch": self.current_epoch,
+                        "mem": f"{torch.cuda.max_memory_reserved() / 1024 ** 3:.2f}G",
+                        **avg_metrics,
+                        "data_time": data_time,
+                        "fwd_time": forward_time,
+                        "bwd_time": backward_time,
+                    }
+                )
         if self.train_config.local_rank == 0:
             for idx, param_group in enumerate(self.optimizer.param_groups):
                 lr = param_group["lr"]

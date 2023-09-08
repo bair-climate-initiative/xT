@@ -155,21 +155,26 @@ def parse_args():
     arg('--wd',dest='weight_decay',type=float, default=None)   
     arg('--drop_path',type=float, default=None)   
     arg('--pretrained', type=str, default='default')
+    arg('--classifier_lr', type=float, default=None)   
     args = parser.parse_args()
 
     return args
 
 
 def create_data_datasets(args):
-    conf = load_config(args.config)
+    conf = load_config(args.config, args=args)
+    if args.local_rank == 0:
+        print("dataset config crop size", conf["crop_size"])
     train_annotations = os.path.join(args.data_dir, "labels/validation.csv")
-    train_dataset = XviewValDataset(mode="train", dataset_dir=args.data_dir, fold=args.fold, folds_csv=args.folds_csv,
+    train_dataset = XviewValDataset(mode="train", dataset_dir=args.data_dir, 
+                                    fold=args.fold, folds_csv=args.folds_csv,
                                     annotation_csv=train_annotations,
                                     crop_size=conf["crop_size"],
                                     multiplier=conf["multiplier"],
                                     positive_ratio=args.positive_ratio
                                     )
-    val_dataset = XviewValDataset(mode="val", dataset_dir=args.data_dir, fold=args.fold, folds_csv=args.folds_csv,
+    val_dataset = XviewValDataset(mode="val", dataset_dir=args.data_dir, 
+                                  fold=args.fold, folds_csv=args.folds_csv,
                                   annotation_csv=train_annotations, crop_size=conf["crop_size"])
     return train_dataset, val_dataset
 
