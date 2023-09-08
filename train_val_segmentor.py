@@ -28,6 +28,7 @@ from training.val_dataset import XviewValDataset
 warnings.filterwarnings("ignore")
 import argparse
 import os
+import wandb
 from typing import Dict
 import pandas as pd
 
@@ -211,7 +212,7 @@ def main():
     data_train, data_val = create_data_datasets(args)
     seg_evaluator = XviewEvaluator(args)
     trainer = PytorchTrainer(train_config=trainer_config, evaluator=seg_evaluator, fold=args.fold,
-                             train_data=data_train, val_data=data_val,args=args)
+                             train_data=data_train, val_data=data_val,args=args)    
     if args.val:
         trainer.validate()
         return
