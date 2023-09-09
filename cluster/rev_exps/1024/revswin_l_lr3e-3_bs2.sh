@@ -1,7 +1,7 @@
 NUM_GPUS=2
-CONFIG=revswinv2
+CONFIG=revswinv2_l
 PORT=10025
-NAME=NO_NAME
+NAME=revswin_l_lr3e-3_bs2
 CROP=1024
 CROP_VAL=1024
 BS=2

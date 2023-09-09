@@ -986,7 +986,7 @@ def revswinv2_tiny_window16_256_xview(pretrained=True, **kwargs):
     model_args = dict(window_size=16, embed_dim=96, depths=(2, 2, 6, 2), num_heads=(3, 6, 12, 24))
     model = ReversibleSwinTransformerV2(**dict(model_args, **kwargs))
     if pretrained:
-        print("Loading pretrained weights from path...")
+        print(f"Loading pretrained weights from path {pretrained}...")
         ckpt = torch.load(pretrained,map_location='cpu')
         state_dict = model.state_dict()
         filtered = {}

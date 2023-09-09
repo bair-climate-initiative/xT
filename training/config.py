@@ -68,7 +68,7 @@ def load_config(config_file, defaults=DEFAULTS, args=None):
                     print("Pretrained config is not changed, using config")
             else:
                 if args.local_rank == 0:
-                    print(f"Setting pretrained to {pretrained} (str)")
+                    print(f"Setting pretrained to {pretrained}")
                 config['encoder_params']['pretrained'] = pretrained
         if args.eta_min is not None:
             if args.local_rank == 0:

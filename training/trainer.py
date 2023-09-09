@@ -453,8 +453,6 @@ class PytorchTrainer(ABC):
 
     def _load_checkpoint(self, model: torch.nn.Module):
         checkpoint_path = self.train_config.resume_checkpoint
-        if not checkpoint_path:
-            return
         if os.path.isfile(checkpoint_path):
             print("=> loading checkpoint '{}'".format(checkpoint_path))
             checkpoint = torch.load(checkpoint_path, map_location="cpu")
