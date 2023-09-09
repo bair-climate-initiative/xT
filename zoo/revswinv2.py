@@ -105,8 +105,6 @@ def window_partition(x, window_size: Tuple[int, int]):
         windows: (num_windows*B, window_size, window_size, C)
     """
     B, H, W, C = x.shape
-    # print(B, H, W, C)
-    # print(window_size)
     x = x.view(B, H // window_size[0], window_size[0], W // window_size[1], window_size[1], C)
     windows = x.permute(0, 1, 3, 2, 4, 5).contiguous().view(-1, window_size[0], window_size[1], C)
     return windows
@@ -991,7 +989,7 @@ def revswinv2_tiny_window16_256_xview(pretrained=True, **kwargs):
     model_args = dict(window_size=16, embed_dim=96, depths=(2, 2, 6, 2), num_heads=(3, 6, 12, 24))
     model = ReversibleSwinTransformerV2(**dict(model_args, **kwargs))
     if pretrained:
-        print("Loading pretrained weights from path...")
+        print(f"Loading pretrained weights from path {pretrained}...")
         ckpt = torch.load(pretrained,map_location='cpu')
         state_dict = model.state_dict()
         filtered = {}

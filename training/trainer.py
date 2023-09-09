@@ -249,6 +249,19 @@ class PytorchTrainer(ABC):
                 iter_scale *= 2
         else:
             iter_scale = 1
+#         total_n = iter_scale * len(loader)
+#         if self.train_config.local_rank == 0:
+#             t = tqdm(total=total_n)
+#         loader = iter(loader)
+
+#         for i in range(total_n):
+#             end = time.time()
+#             sample = next(loader)
+#             data_time.update(time.time() - end)
+#             if self.train_config.local_rank == 0:
+#                 t.update()
+            # Sliced Images with context_id
+            # todo: make configurable
         iterator = tqdm(iterator,total=iter_scale* len(loader))
         # Broken, temporaily disable time logging
         for i,sample in enumerate(iterator):
@@ -326,6 +339,7 @@ class PytorchTrainer(ABC):
                 self.scheduler.step(
                     int(i / iter_scale) + self.current_epoch * len(loader)
                 )
+            # if self.train_config.local_rank == 0:
             # t.set_postfix(
             #     {
             #         "lr": float(self.scheduler.get_lr()[-1]),

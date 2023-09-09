@@ -185,9 +185,11 @@ def parse_args():
     arg('--epoch', type=int, default=None)
     arg('--bs', type=int, default=None)
     arg('--lr', type=float, default=None)
+    arg('--eta_min', type=float, default=None)
     arg('--wd',dest='weight_decay',type=float, default=None)   
     arg('--drop_path',type=float, default=None)   
     arg('--pretrained', type=str, default='default')
+    arg('--classifier_lr', type=float, default=None)   
     arg("--test", action='store_true', default=False)
     args = parser.parse_args()
 
@@ -197,8 +199,9 @@ def parse_args():
 def create_data_datasets(args):
     if args.shoreline_dir:
         print("Legacy Warning:shoreline_dir is no longer used")
-    conf = load_config(args.config)
-    conf['crop_size'] = args.crop_size
+    conf = load_config(args.config, args=args)
+    if args.local_rank == 0:
+        print("dataset config crop size", conf["crop_size"])
     if args.test:
         train_annotations = os.path.join(args.data_dir, "labels/public.csv")
         train_dataset = XviewValDataset(mode="train", dataset_dir=args.data_dir, fold=12345, folds_csv=args.folds_csv,

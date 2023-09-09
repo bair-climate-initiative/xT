@@ -10,3 +10,5 @@ cd $HOME/xView3_second_place
 MAIN_CMD="python -m torch.distributed.launch"
 SWINT_CKPT=/shared/jacklishufan/large-image-models/swin_tiny_w16_256_pretrained.pth
 SWINL_CKPT=/shared/jacklishufan/large-image-models/swin_large_w16_256_pretrained.pth
+SWINv2T_CKPT=/home/tyler/ckpts/swinv2_tiny_window16_256.pth
+SWINv2L_CKPT=/home/tyler/ckpts/swinv2_large_window16_256.pth
