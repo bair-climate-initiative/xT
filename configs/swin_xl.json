@@ -8,7 +8,8 @@
     "channels_last": true,
     "context_mode": "transformer_xl",
     "transformer_xl":{
-      "no_memory":false
+      "no_memory":false,
+      "ext_len": 0
     }
   },
   "tiling":"naive",

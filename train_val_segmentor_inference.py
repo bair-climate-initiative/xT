@@ -137,7 +137,7 @@ def parse_args():
     arg('--from-zero', action='store_true', default=False)
     arg('--fp16', action='store_true', default=False)
     arg('--distributed', action='store_true', default=False)
-    arg("--local_rank", default=0, type=int)
+    arg("--local-rank", default=0, type=int)
     arg("--world-size", default=1, type=int)
     arg("--test_every", type=int, default=1)
     arg('--freeze-epochs', type=int, default=0)

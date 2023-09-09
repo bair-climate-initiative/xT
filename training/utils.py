@@ -15,7 +15,7 @@ from torch.optim.adamw import AdamW
 from torch.optim.lr_scheduler import MultiStepLR, CyclicLR, CosineAnnealingLR
 from torch.optim.rmsprop import RMSprop
 from torch.utils.data import Subset
-
+from warmup_scheduler import GradualWarmupScheduler
 from training.schedulers import ExponentialLRScheduler, PolyLR, LRStepScheduler
 import numpy as np
 
@@ -162,6 +162,12 @@ def create_optimizer(optimizer_config, model, num_samples: int, num_gpus: int = 
             )
 
         scheduler = lr_scheduler.LambdaLR(optimizer, linear_lr)
+    
+    if optimizer_config['schedule'].get('warmup_epoches',0):
+        scheduler = GradualWarmupScheduler(optimizer, multiplier=1, 
+        total_epoch=int(optimizer_config['schedule']['warmup_epoches'] * num_samples / (num_gpus * train_bs)), 
+        after_scheduler=scheduler)
+
 
     return optimizer, scheduler
 
@@ -313,3 +319,22 @@ class SmoothedValue:
             max=self.max,
             value=self.value,
         )
+import wandb
+from matplotlib import pyplot as plt
+import torch
+def wandb_dump_images(imgs, name="vis",keys=None,epoch=0):
+    """
+    x: H X W X C
+    y: H X W X C
+    """
+    if wandb.run is not None:
+        n_imgs = len(imgs)
+        fig, axes = plt.subplots(1, n_imgs, figsize=(5 * n_imgs, 5))
+        for idx, img in enumerate(imgs):
+            if torch.is_tensor(imgs):
+                imgs = imgs.detach().cpu().numpy()
+            axes[idx].imshow(img)
+            if keys:
+                axes[idx].title.set_text(keys[idx])
+        wandb.log({name: wandb.Image(fig), "epoch": epoch})
+        plt.close(fig)
