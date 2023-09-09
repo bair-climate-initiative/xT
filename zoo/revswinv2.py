@@ -481,15 +481,18 @@ class ReversibleSwinTransformerV2Block(nn.Module):
             shifted_x = torch.roll(x, shifts=(-self.shift_size[0], -self.shift_size[1]), dims=(1, 2))
         else:
             shifted_x = x
+
         # partition windows
         x_windows = window_partition(shifted_x, self.window_size)  # nW*B, window_size, window_size, C
         x_windows = x_windows.view(-1, self.window_area, C)  # nW*B, window_size*window_size, C
 
         # W-MSA/SW-MSA
         attn_windows = self.attn(x_windows, mask=self.attn_mask)  # nW*B, window_size*window_size, C
+
         # merge windows
         attn_windows = attn_windows.view(-1, self.window_size[0], self.window_size[1], C)
         shifted_x = window_reverse(attn_windows, self.window_size, self.input_resolution)  # B H' W' C
+
         # reverse cyclic shift
         if has_shift:
             x = torch.roll(shifted_x, shifts=self.shift_size, dims=(1, 2))
@@ -501,6 +504,7 @@ class ReversibleSwinTransformerV2Block(nn.Module):
         # X1, X2: shape is [B, H, W, C]
         assert X1.shape == X2.shape, "Input shapes are different."
         B, H, W, C = X1.shape
+
         self._seed_cuda("attn")
         attn_out = self.norm1(self._attn(X2))
 
@@ -865,7 +869,6 @@ class ReversibleSwinTransformerV2(nn.Module):
         layers = []
         in_dim = embed_dim[0]
         scale = 1
-        # breakpoint()
         for i in range(self.num_layers):
             out_dim = embed_dim[i]
             layers += [ReversibleSwinTransformerV2Stage(

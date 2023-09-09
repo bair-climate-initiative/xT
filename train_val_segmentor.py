@@ -28,7 +28,6 @@ from training.val_dataset import XviewValDataset
 warnings.filterwarnings("ignore")
 import argparse
 import os
-import wandb
 from typing import Dict
 import pandas as pd
 
