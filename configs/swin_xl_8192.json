@@ -14,7 +14,7 @@
   },
   "tiling":"naive",
   "crop_size": 8192,
-  "encoder_crop_size":1024,
+  "encoder_crop_size":512,
   "multiplier": 64,
   "optimizer": {
     "train_bs": 2,

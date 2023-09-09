@@ -59,7 +59,7 @@
     {
       "name": "center",
       "type": "CenterLossCalculator",
-      "weight": 2e-7,
+      "weight": 3e-7,
       "display": true,
       "params": {
       }
