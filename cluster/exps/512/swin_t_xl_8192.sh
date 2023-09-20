@@ -1,7 +1,7 @@
-BS=2
-NUM_GPUS=1
-NAME="swin_t_xl_8192_no_memory"
-CONFIG=swin_xl_8192
+BS=4
+NUM_GPUS=6
+NAME="revswin_t_xl_8192_no_memory"
+CONFIG=revswin_xl_8192
 CROP=8192
 CROP_VAL=8192
 TEST_EVERY=1

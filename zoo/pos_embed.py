@@ -67,6 +67,17 @@ def get_1d_sincos_pos_embed_from_grid(embed_dim, pos):
     return emb
 
 
+def get_1d_sincos_pos_embed_from_grid_torch(embed_dim, pos):
+    assert embed_dim % 2 == 0
+    omega = torch.arange(embed_dim // 2, dtype=float,device=pos.device)
+    omega /= embed_dim / 2.
+    omega = 1. / 10000**omega  # (D/2,)
+    pos = pos.reshape(-1)  # (M,)
+    out = torch.einsum('m,d->md', pos, omega)  # (M, D/2), outer product
+    emb_sin = torch.sin(out) # (M, D/2)
+    emb_cos = torch.cos(out) # (M, D/2)
+    emb = torch.cat([emb_sin, emb_cos], dim=1)  # (M, D)
+    return emb
 # --------------------------------------------------------
 # Interpolate position embeddings for high-resolution
 # References:

@@ -30,7 +30,7 @@ import wandb
 from fvcore.nn import FlopCountAnalysis
 from .tiling import build_tiling
 import time
-
+from einops import rearrange
 
 @dataclasses.dataclass
 class TrainConfiguration:
@@ -117,6 +117,8 @@ class PytorchTrainer(ABC):
         self.current_metrics = evaluator.init_metrics()
         self.current_epoch = 0
         self.model = self._init_model()
+        self.patch_size = self.conf.get('patch_size',16)
+        self.context_patch_len = self.conf.get('context_patch_len',100)
 
         self.losses = self._init_loss_functions()
         self.optimizer, self.scheduler = create_optimizer(
@@ -219,8 +221,34 @@ class PytorchTrainer(ABC):
         for x in dataloader:
             old_dim = x["image"].shape[-1]
             n = old_dim // self.input_size
+            rearranged_image =  rearrange(x['image'],'N C (H PH GH) (W PW GW )-> N C H W  PH PW GH GW',
+                                          PH=self.input_size // self.patch_size,PW=self.input_size // self.patch_size,
+                                          GH=self.patch_size,GW = self.patch_size
+                                          )
+            N ,C ,H ,W , PH,PW ,PPH ,PPW = rearranged_image.shape
+            rearranged_image = rearranged_image.flatten(2,5)
             for (i,j,k) in build_tiling(n,self.tiling):
+                    indices = torch.rand(N,H,W,PH,PW)
+                    indices[:,i,j] = 999
+                    indices= indices.flatten(1).argsort(-1)
+                    indices = indices[:,:self.context_patch_len]
+                    context_patches = torch.stack([rearranged_image[i][:,v] for i,v in enumerate(indices)],dim=0) # N C L 16 16
+                    H_i = indices // (W * PH*PW)
+                    W_i = (indices // ( PH*PW) ) % W
+                    PH_i  = (indices // ( PW) ) % PH
+                    PW_i = indices % PW
+                    # assert torch.all(indices == H_i * (W * PH*PW) + W_i *PH*PW + PH_i * PW + PW_i) sanity check
+                    h_idx = H_i * PH + PH_i
+                    w_idx = W_i * PW + PW_i
+
+                    raw_indices_h = torch.arange(PH) + i * PH
+                    raw_indices_w = torch.arange(PH) + j * PW
+                    raw_indices = torch.stack([raw_indices_h[:,None].repeat(1,PW),raw_indices_w[None,].repeat(PH,1)])
+                    patch_indices = torch.stack([h_idx,w_idx]) # 2 X B X L
                     new_payload = {k:v[...,self.input_size*i:self.input_size*(i+1),self.input_size*j:self.input_size*(j+1)] for k,v in x.items() if k != 'name' }
+                    new_payload['context_patches'] = context_patches
+                    new_payload['patch_indices'] = patch_indices
+                    new_payload['raw_indices'] = raw_indices
                     new_payload['name'] = x['name']
                     new_payload["context_id"] = k['context_id']
                     new_payload['mem_only'] = k.get('mem_only',False)
@@ -255,18 +283,23 @@ class PytorchTrainer(ABC):
             imgs = sample["image"].cuda().float()
             if extra_context:
                 if sample["context_id"] == 0:
-                    context = tuple()
+                    mem = tuple()
                 else:
                     pass
+                context = dict(
+                    context_patches = sample["context_patches"].cuda(),
+                    patch_indices=sample['patch_indices'] ,
+                    raw_indices=sample['raw_indices'] 
+                )
             self.optimizer.zero_grad()
             with torch.cuda.amp.autocast(enabled=self.train_config.fp16):
                 with torch.autograd.detect_anomaly():
                     if extra_context and sample['mem_only']:
                         with torch.no_grad():
-                            output,context = self.model(imgs,context)
+                            output,mem = self.model(imgs,context=context,mem=mem)
                         continue
                     elif extra_context:
-                        output,context = self.model(imgs,context)
+                        output,mem = self.model(imgs,context=context,mem=mem)
                     else:
                         output = self.model(imgs)
                     #forward_time.update(time.time() - end)

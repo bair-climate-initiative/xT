@@ -282,7 +282,7 @@ class TimmUnet(AbstractModel):
         self.dropout = Dropout2d(p=0.0)
         self.encoder = backbone
 
-    def forward(self, x,mem=tuple()):
+    def forward(self, x,mem=tuple(),**kwargs):
         # Encoder
         if self.channels_last:
             x = x.contiguous(memory_format=torch.channels_last)
@@ -423,12 +423,13 @@ class EncoderDecoder(AbstractModel):
         self._initialize_weights()
         self.dropout = Dropout2d(p=0.0)
         self.encoder = backbone
-
-    def forward(self, x,mem=tuple()):
+        if context_mode == 'transformer_xl':
+            self.extra_context = True
+    def forward(self, x,context=None,**kwargs):
         # Encoder
         if self.channels_last:
             x = x.contiguous(memory_format=torch.channels_last)
-        enc_results = self.encoder(x)
+        enc_results = self.encoder(x,context)
         x = enc_results[self.out_indices]
         x = self.decoder_layers(x)
         fishing_mask = self.fishing_mask(x).contiguous(
@@ -449,7 +450,8 @@ class EncoderDecoder(AbstractModel):
             "center_mask": center_mask,
             "length_mask": length_mask,
         }
-
+        if context:
+            return output,None
         return output
     def get_decoder(self, layer):
         in_channels = (

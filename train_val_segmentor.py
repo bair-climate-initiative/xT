@@ -3,7 +3,7 @@ import os
 import warnings
 
 import torch
-
+from einops import rearrange
 os.environ["MKL_NUM_THREADS"] = "1"
 os.environ["NUMEXPR_NUM_THREADS"] = "1"
 os.environ["OMP_NUM_THREADS"] = "1"
@@ -62,6 +62,8 @@ class XviewEvaluator(Evaluator):
         self.conf = load_config(args.config,args=args)
         self.tiling = self.conf.get('tiling','naive')
         self.input_size = self.conf.get('encoder_crop_size',self.conf['crop_size'])
+        self.patch_size = self.conf.get('patch_size',16)
+        self.context_patch_len = self.conf.get('context_patch_len',100)
         self.overlap = args.overlap_val
         if mode == 'public':
             self.dataset_dir = "images/public"
@@ -79,10 +81,38 @@ class XviewEvaluator(Evaluator):
     def build_iterator(self,batch):
         old_dim = self.crop_size
         n = old_dim // self.input_size
+        rearranged_image =  rearrange(batch,'N C (H PH GH) (W PW GW )-> N C H W  PH PW GH GW',
+                                          PH=self.input_size // self.patch_size,PW=self.input_size // self.patch_size,
+                                          GH=self.patch_size,GW = self.patch_size
+                                          )
+        N ,C ,H ,W , PH,PW ,PPH ,PPW = rearranged_image.shape
+        rearranged_image = rearranged_image.flatten(2,5)
         for (i,j,k) in build_tiling(n,self.tiling):
+                indices = torch.rand(N,H,W,PH,PW)
+                indices[:,i,j] = 999
+                indices= indices.flatten(1).argsort(-1)
+                indices = indices[:,:self.context_patch_len]
+                context_patches = torch.stack([rearranged_image[i][:,v] for i,v in enumerate(indices)],dim=0) # N C L 16 16
+                H_i = indices // (W * PH*PW)
+                W_i = (indices // ( PH*PW) ) % W
+                PH_i  = (indices // ( PW) ) % PH
+                PW_i = indices % PW
+                # assert torch.all(indices == H_i * (W * PH*PW) + W_i *PH*PW + PH_i * PW + PW_i) sanity check
+                h_idx = H_i * PH + PH_i
+                w_idx = W_i * PW + PW_i
+
+                raw_indices_h = torch.arange(PH) + i * PH
+                raw_indices_w = torch.arange(PH) + j * PW
+                raw_indices = torch.stack([raw_indices_h[:,None].repeat(1,PW),raw_indices_w[None,].repeat(PH,1)])
+                patch_indices = torch.stack([h_idx,w_idx]) # 2 X B X L
+                
                 batch_new =  batch[...,self.input_size*i:self.input_size*(i+1),self.input_size*j:self.input_size*(j+1)]
                 context_id = i * n + j
-                yield batch_new,k,(self.input_size*i,self.input_size*(i+1),self.input_size*j,self.input_size*(j+1),batch.shape[-2],batch.shape[-1])
+                context = {}
+                context['context_patches'] = context_patches
+                context['patch_indices'] = patch_indices
+                context['raw_indices'] = raw_indices
+                yield batch_new,k,(self.input_size*i,self.input_size*(i+1),self.input_size*j,self.input_size*(j+1),batch.shape[-2],batch.shape[-1]),context
 
     @torch.no_grad()
     def validate(self, dataloader: DataLoader, model: torch.nn.Module, distributed: bool = False, local_rank: int = 0,

@@ -18,11 +18,10 @@ import torch.nn.functional as F
 import torch.utils.checkpoint as checkpoint
 
 from timm.models.layers import drop_path, to_2tuple, trunc_normal_
-from .pos_embed import get_2d_sincos_pos_embed
+from .pos_embed import get_2d_sincos_pos_embed,get_1d_sincos_pos_embed_from_grid,get_1d_sincos_pos_embed_from_grid_torch
 # from mmdet.utils import get_root_logger
 # from ..builder import BACKBONES
-
-
+from einops import rearrange
 class DropPath(nn.Module):
     """Drop paths (Stochastic Depth) per sample  (when applied in main path of residual blocks).
     """
@@ -58,61 +57,111 @@ class Mlp(nn.Module):
 
 
 class Attention(nn.Module):
+
     def __init__(
-            self, dim, num_heads=8, qkv_bias=False, qk_scale=None, attn_drop=0.,
-            proj_drop=0., window_size=None, attn_head_dim=None):
+            self,
+            dim,
+            num_heads=8,
+            qkv_bias=False,
+            qk_norm=False,
+            attn_drop=0.,
+            proj_drop=0.,
+            norm_layer=nn.LayerNorm,
+            **kwargs
+    ):
         super().__init__()
+        assert dim % num_heads == 0, 'dim should be divisible by num_heads'
         self.num_heads = num_heads
-        head_dim = dim // num_heads
-        if attn_head_dim is not None:
-            head_dim = attn_head_dim
-        all_head_dim = head_dim * self.num_heads
-        # NOTE scale factor was wrong in my original version, can set manually to be compat with prev weights
-        self.scale = qk_scale or head_dim ** -0.5
+        self.head_dim = dim // num_heads
+        self.scale = self.head_dim ** -0.5
+        self.fused_attn = False
 
-        self.qkv = nn.Linear(dim, all_head_dim * 3, bias=qkv_bias)
-        self.window_size = window_size
-        q_size = window_size[0]
-        kv_size = q_size
-        rel_sp_dim = 2 * q_size - 1
-        self.rel_pos_h = nn.Parameter(torch.zeros(rel_sp_dim, head_dim))
-        self.rel_pos_w = nn.Parameter(torch.zeros(rel_sp_dim, head_dim))
-
+        self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias)
+        self.q_norm = norm_layer(self.head_dim) if qk_norm else nn.Identity()
+        self.k_norm = norm_layer(self.head_dim) if qk_norm else nn.Identity()
         self.attn_drop = nn.Dropout(attn_drop)
-        self.proj = nn.Linear(all_head_dim, dim)
+        self.proj = nn.Linear(dim, dim)
         self.proj_drop = nn.Dropout(proj_drop)
 
-    def forward(self, x, H, W, rel_pos_bias=None):
+    def forward(self, x,*kwargs):
         B, N, C = x.shape
-        # qkv_bias = None
-        # if self.q_bias is not None:
-        #     qkv_bias = torch.cat((self.q_bias, torch.zeros_like(self.v_bias, requires_grad=False), self.v_bias))
-        # qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
-        qkv = self.qkv(x)
-        qkv = qkv.reshape(B, N, 3, self.num_heads, -1).permute(2, 0, 3, 1, 4)
-        q, k, v = qkv[0], qkv[1], qkv[2]   # make torchscript happy (cannot use tensor as tuple)
+        qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, self.head_dim).permute(2, 0, 3, 1, 4)
+        q, k, v = qkv.unbind(0)
+        q, k = self.q_norm(q), self.k_norm(k)
 
-        q = q * self.scale
-        attn = (q @ k.transpose(-2, -1))
-        attn = calc_rel_pos_spatial(attn, q, self.window_size, self.window_size, self.rel_pos_h, self.rel_pos_w)
-        # if self.relative_position_bias_table is not None:
-        #     relative_position_bias = \
-        #         self.relative_position_bias_table[self.relative_position_index.view(-1)].view(
-        #             self.window_size[0] * self.window_size[1] + 1,
-        #             self.window_size[0] * self.window_size[1] + 1, -1)  # Wh*Ww,Wh*Ww,nH
-        #     relative_position_bias = relative_position_bias.permute(2, 0, 1).contiguous()  # nH, Wh*Ww, Wh*Ww
-        #     attn = attn + relative_position_bias.unsqueeze(0)
+        if self.fused_attn:
+            x = F.scaled_dot_product_attention(
+                q, k, v,
+                dropout_p=self.attn_drop.p,
+            )
+        else:
+            q = q * self.scale
+            attn = q @ k.transpose(-2, -1)
+            attn = attn.softmax(dim=-1)
+            attn = self.attn_drop(attn)
+            x = attn @ v
 
-        # if rel_pos_bias is not None:
-        #     attn = attn + rel_pos_bias
-        
-        attn = attn.softmax(dim=-1)
-        attn = self.attn_drop(attn)
-
-        x = (attn @ v).transpose(1, 2).reshape(B, N, -1)
+        x = x.transpose(1, 2).reshape(B, N, C)
         x = self.proj(x)
         x = self.proj_drop(x)
         return x
+    
+# class Attention(nn.Module):
+#     def __init__(
+#             self, dim, num_heads=8, qkv_bias=False, qk_scale=None, attn_drop=0.,
+#             proj_drop=0., window_size=None, attn_head_dim=None):
+#         super().__init__()
+#         self.num_heads = num_heads
+#         head_dim = dim // num_heads
+#         if attn_head_dim is not None:
+#             head_dim = attn_head_dim
+#         all_head_dim = head_dim * self.num_heads
+#         # NOTE scale factor was wrong in my original version, can set manually to be compat with prev weights
+#         self.scale = qk_scale or head_dim ** -0.5
+
+#         self.qkv = nn.Linear(dim, all_head_dim * 3, bias=qkv_bias)
+#         self.window_size = window_size
+#         q_size = window_size[0]
+#         kv_size = q_size
+#         rel_sp_dim = 2 * q_size - 1
+#         self.rel_pos_h = nn.Parameter(torch.zeros(rel_sp_dim, head_dim))
+#         self.rel_pos_w = nn.Parameter(torch.zeros(rel_sp_dim, head_dim))
+
+#         self.attn_drop = nn.Dropout(attn_drop)
+#         self.proj = nn.Linear(all_head_dim, dim)
+#         self.proj_drop = nn.Dropout(proj_drop)
+
+#     def forward(self, x, H, W, rel_pos_bias=None):
+#         B, N, C = x.shape
+#         # qkv_bias = None
+#         # if self.q_bias is not None:
+#         #     qkv_bias = torch.cat((self.q_bias, torch.zeros_like(self.v_bias, requires_grad=False), self.v_bias))
+#         # qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
+#         qkv = self.qkv(x)
+#         qkv = qkv.reshape(B, N, 3, self.num_heads, -1).permute(2, 0, 3, 1, 4)
+#         q, k, v = qkv[0], qkv[1], qkv[2]   # make torchscript happy (cannot use tensor as tuple)
+
+#         q = q * self.scale
+#         attn = (q @ k.transpose(-2, -1))
+#         attn = calc_rel_pos_spatial(attn, q, self.window_size, self.window_size, self.rel_pos_h, self.rel_pos_w)
+#         # if self.relative_position_bias_table is not None:
+#         #     relative_position_bias = \
+#         #         self.relative_position_bias_table[self.relative_position_index.view(-1)].view(
+#         #             self.window_size[0] * self.window_size[1] + 1,
+#         #             self.window_size[0] * self.window_size[1] + 1, -1)  # Wh*Ww,Wh*Ww,nH
+#         #     relative_position_bias = relative_position_bias.permute(2, 0, 1).contiguous()  # nH, Wh*Ww, Wh*Ww
+#         #     attn = attn + relative_position_bias.unsqueeze(0)
+
+#         # if rel_pos_bias is not None:
+#         #     attn = attn + rel_pos_bias
+        
+#         attn = attn.softmax(dim=-1)
+#         attn = self.attn_drop(attn)
+
+#         x = (attn @ v).transpose(1, 2).reshape(B, N, -1)
+#         x = self.proj(x)
+#         x = self.proj_drop(x)
+#         return x
 
 def window_partition(x, window_size):
     """
@@ -290,7 +339,7 @@ class Block(nn.Module):
         self.norm2 = norm_layer(dim)
         mlp_hidden_dim = int(dim * mlp_ratio)
         self.mlp = Mlp(in_features=dim, hidden_features=mlp_hidden_dim, act_layer=act_layer, drop=drop)
-
+        self.window = window
         if init_values is not None:
             self.gamma_1 = nn.Parameter(init_values * torch.ones((dim)),requires_grad=True)
             self.gamma_2 = nn.Parameter(init_values * torch.ones((dim)),requires_grad=True)
@@ -298,12 +347,17 @@ class Block(nn.Module):
             self.gamma_1, self.gamma_2 = None, None
 
     def forward(self, x, H, W):
+        if self.window:
+            x_extra = x[:,H*W:]
+            x = x[:,:H*W]
         if self.gamma_1 is None:
             x = x + self.drop_path(self.attn(self.norm1(x), H, W))
             x = x + self.drop_path(self.mlp(self.norm2(x)))
         else:
             x = x + self.drop_path(self.gamma_1 * self.attn(self.norm1(x), H, W))
             x = x + self.drop_path(self.gamma_2 * self.mlp(self.norm2(x)))
+        if self.window:
+            x = torch.cat([x,x_extra],dim=1)
         return x
 
 class PatchEmbed(nn.Module):
@@ -399,7 +453,7 @@ class ViT(nn.Module):
                  num_heads=12, mlp_ratio=4., qkv_bias=False, qk_scale=None, drop_rate=0., attn_drop_rate=0.,
                  drop_path_rate=0., hybrid_backbone=None, norm_layer=None, init_values=None, use_checkpoint=False, 
                  use_abs_pos_emb=False, use_rel_pos_bias=False, use_shared_rel_pos_bias=False,
-                 out_indices=[11], interval=3, pretrained=None,class_token=False,**kwargs):
+                 out_indices=[11], interval=3, pretrained=None,class_token=False,no_window=False,**kwargs):
         super().__init__()
         
         if input_dim == in_chans:
@@ -435,7 +489,7 @@ class ViT(nn.Module):
             Block(
                 dim=embed_dim, num_heads=num_heads, mlp_ratio=mlp_ratio, qkv_bias=qkv_bias, qk_scale=qk_scale,
                 drop=drop_rate, attn_drop=attn_drop_rate, drop_path=dpr[i], norm_layer=norm_layer,
-                init_values=init_values, window_size=(14, 14) if ((i + 1) % interval != 0) else self.patch_embed.patch_shape, window=((i + 1) % interval != 0))
+                init_values=init_values, window_size=(14, 14) if ((i + 1) % interval != 0) else self.patch_embed.patch_shape,window=((i + 1) % interval != 0) and (not no_window) )
             for i in range(depth)])
 
         if self.pos_embed is not None:
@@ -443,23 +497,10 @@ class ViT(nn.Module):
 
         self.norm = norm_layer(embed_dim)
 
-        self.fpn1 = nn.Sequential(
-            nn.ConvTranspose2d(embed_dim, embed_dim, kernel_size=2, stride=2),
-            Norm2d(embed_dim),
-            nn.GELU(),
-            nn.ConvTranspose2d(embed_dim, embed_dim, kernel_size=2, stride=2),
-        )
+        self.fpn1 = nn.Identity()
 
-        self.fpn0 = nn.Sequential(
-            nn.ConvTranspose2d(embed_dim, embed_dim, kernel_size=4, stride=4),
-            Norm2d(embed_dim),
-            nn.GELU(),
-            nn.ConvTranspose2d(embed_dim, embed_dim, kernel_size=2, stride=2),
-        )
-
-        self.fpn2 = nn.Sequential(
-            nn.ConvTranspose2d(embed_dim, embed_dim, kernel_size=2, stride=2),
-        )
+        self.fpn0 = nn.Identity()
+        self.fpn2 = nn.Identity()
 
         self.fpn3 = nn.Identity()
 
@@ -511,7 +552,7 @@ class ViT(nn.Module):
     def no_weight_decay(self):
         return {'pos_embed', 'cls_token'}
 
-    def forward_features(self, x):
+    def forward_features(self, x,context=None):
         B, C, H, W = x.shape
         x = self.input_ada(x)
         x, (Hp, Wp) = self.patch_embed(x)
@@ -520,14 +561,28 @@ class ViT(nn.Module):
         if self.pos_embed is not None:
             x = x + self.pos_embed
         x = self.pos_drop(x)
-
+        if context:
+            context_patches = context['context_patches'] #' n c l hp wp'
+            nc,cc,lc,hpc,wpc =  context_patches.shape
+            context_patches = rearrange(context_patches,'n c l h w-> ( n l ) c h w')
+            context_patches = self.input_ada(context_patches) # (n l) c_in h
+            context_patches,_ = self.patch_embed(context_patches) # (nl ) 1 d
+            context_patches = context_patches.view(nc,lc,self.embed_dim) # n L d
+            base_idx =  context['raw_indices'][:,:1,:1]
+            context_grid = context['patch_indices'] - base_idx
+            context_pos_embed = torch.cat([get_1d_sincos_pos_embed_from_grid_torch(self.embed_dim // 2,context_grid[0]),
+            get_1d_sincos_pos_embed_from_grid_torch(self.embed_dim // 2,context_grid[1])],dim=-1).view(*context_grid.shape[1:],self.embed_dim)
+            context_patches += context_pos_embed
+            n_x = x.shape[1]
+            x = torch.cat([x,context_patches],dim=1)
         features = []
         for i, blk in enumerate(self.blocks):
             if self.use_checkpoint:
                 x = checkpoint.checkpoint(blk, x)
             else:
-                x = blk(x, Hp, Wp)
-
+                x = blk(x,Hp,Wp)
+        if context:
+            x = x[:,:n_x]
         x = self.norm(x)
         xp = x.permute(0, 2, 1).reshape(B, -1, Hp, Wp)
         ops = [self.fpn0,self.fpn1, self.fpn2, self.fpn3, self.fpn4]
@@ -536,8 +591,8 @@ class ViT(nn.Module):
 
         return tuple(features)
 
-    def forward(self, x):
-        x = self.forward_features(x)
+    def forward(self, x,context=None):
+        x = self.forward_features(x,context)
         return x
 
         
@@ -577,9 +632,9 @@ class MAEDecoder(nn.Module):
         super().__init__()
         self.decoder_embed = nn.Linear(embed_dim, decoder_embed_dim, bias=True)
 
-        self.mask_token = nn.Parameter(torch.zeros(1, 1, decoder_embed_dim))
+        #self.mask_token = nn.Parameter(torch.zeros(1, 1, decoder_embed_dim))
 
-        self.decoder_pos_embed = nn.Parameter(torch.zeros(1, num_patches + 1, decoder_embed_dim), requires_grad=False)  # fixed sin-cos embedding
+        self.decoder_pos_embed = nn.Parameter(torch.zeros(1, num_patches, decoder_embed_dim), requires_grad=False)  # fixed sin-cos embedding
         n_d = int(num_patches**0.5)
         self.decoder_blocks = nn.ModuleList([
             Block(decoder_embed_dim, decoder_num_heads, mlp_ratio, qkv_bias=True, qk_scale=None, norm_layer=norm_layer,window_size=(n_d,n_d))
@@ -588,7 +643,7 @@ class MAEDecoder(nn.Module):
 
     def initialize_weights(self):
 
-        decoder_pos_embed = get_2d_sincos_pos_embed(self.decoder_pos_embed.shape[-1], int(self.num_patches**.5), cls_token=True)
+        decoder_pos_embed = get_2d_sincos_pos_embed(self.decoder_pos_embed.shape[-1], int(self.num_patches**.5), cls_token=False)
         self.decoder_pos_embed.data.copy_(torch.from_numpy(decoder_pos_embed).float().unsqueeze(0))
 
         # initialize nn.Linear and nn.LayerNorm
@@ -608,6 +663,7 @@ class MAEDecoder(nn.Module):
         B, C, Hp, Wp = x.shape
         x = x.permute(0,2,3,1).flatten(1,2) # B L C
         x = self.decoder_embed(x)
+        x  += self.decoder_pos_embed
         for layer in self.decoder_blocks:
             x = layer(x,Hp, Wp)
         xp = x.permute(0, 2, 1).reshape(B, -1, Hp, Wp)

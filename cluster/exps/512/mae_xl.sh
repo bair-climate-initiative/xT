@@ -1,0 +1,11 @@
+BS=4
+NUM_GPUS=4
+NAME="mae_xl"
+CONFIG=mae_xl
+CROP=4096
+CROP_VAL=4096
+TEST_EVERY=1
+SAMPLE_RATE=0.85
+EPOCH=12
+LR=0.0003
+PRETRAINED=/shared/jacklishufan/mae/mae_visualize_vit_base.pth

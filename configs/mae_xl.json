@@ -1,18 +1,21 @@
 {
   "network": "EncoderDecoder",
+  "patch_size": 16,
+  "patch_size_comment": "patch size here is actually for reshuffle context window",
   "encoder_params": {
     "encoder": "vit_base_patch16",
     "in_chans": 2,
     "drop_path_rate": 0.2,
     "pretrained": "/shared/jacklishufan/mae/mae_visualize_vit_base.pth",
     "channels_last": true,
-    "context_mode": "none",
+    "context_mode": "transformer_xl",
     "transformer_xl":{
       "no_memory":false,
       "ext_len": 0
     },
     "out_indices":-2,
-    "expected_stride":16
+    "expected_stride":16,
+    "no_window":false
   },
   "tiling":"naive",
   "crop_size": 4096,
@@ -29,11 +32,11 @@
     "schedule": {
       "type": "cosine",
       "mode": "step",
-      "epochs": 800,
+      "epochs": 12,
       "params": {
         "eta_min": 4e-6
       },
-      "warmup_epoches":40
+      "warmup_epoches":0.1
     }
   },
    "losses": [
