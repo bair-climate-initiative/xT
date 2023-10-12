@@ -322,6 +322,7 @@ class SmoothedValue:
 import wandb
 from matplotlib import pyplot as plt
 import torch
+
 def wandb_dump_images(imgs, name="vis",keys=None,epoch=0):
     """
     x: H X W X C
@@ -336,5 +337,6 @@ def wandb_dump_images(imgs, name="vis",keys=None,epoch=0):
             axes[idx].imshow(img)
             if keys:
                 axes[idx].title.set_text(keys[idx])
+        fig.tight_layout() 
         wandb.log({name: wandb.Image(fig), "epoch": epoch})
         plt.close(fig)

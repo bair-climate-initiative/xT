@@ -78,4 +78,13 @@ def load_config(config_file, defaults=DEFAULTS, args=None):
             if args.local_rank == 0:
                 print(f"Overriding classifier lr to {args.classifier_lr}")
             config['optimizer']['classifier_lr'] = args.classifier_lr
+        if args.warmup_epochs is not None:
+            if args.local_rank == 0:
+                print(f"Overriding warmup epochs to {args.warmup_epochs}")
+            config['optimizer']['schedule']['warmup_epoches'] = args.warmup_epochs 
+        if hasattr(args, "mask_ratio"):
+            if args.mask_ratio is not None:
+                if args.local_rank == 0:
+                    print(f"Overriding mask ratio to {args.mask_ratio}")
+                config['mask_ratio'] = args.mask_ratio
     return config

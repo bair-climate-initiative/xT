@@ -119,6 +119,7 @@ class PytorchTrainer(ABC):
         self.model = self._init_model()
 
         self.losses = self._init_loss_functions()
+        self.scale_learning_rate()
         self.optimizer, self.scheduler = create_optimizer(
             self.conf["optimizer"], self.model, len(train_data), train_config.world_size
         )
@@ -178,6 +179,19 @@ class PytorchTrainer(ABC):
                         self.summary_writer.add_scalar(
                             "val/{}".format(k), float(v), global_step=self.current_epoch
                         )
+    
+    def scale_learning_rate(self):
+        # linear scale the learning rate according to total batch size, may not be optimal
+        config = self.conf["optimizer"]
+        eff_batch_size = config["train_bs"] * dist.get_world_size()
+        # base batch size is 8 * 1 = 32
+        lr = config["learning_rate"] * eff_batch_size / 8.0
+        classifier_lr = config["classifier_lr"] * eff_batch_size / 8.0
+        if self.train_config.local_rank == 0:
+            print(f"Effective batch size of {eff_batch_size} " \
+                  f"lr: {config['learning_rate']} --> {lr}")
+        config["learning_rate"] = lr
+        self.conf["optimizer"] = config
 
     def _profile_model(self, shape):
         input = torch.randn(shape).cuda()
@@ -262,10 +276,11 @@ class PytorchTrainer(ABC):
 #                 t.update()
             # Sliced Images with context_id
             # todo: make configurable
-        iterator = tqdm(iterator,total=iter_scale* len(loader))
+        if self.train_config.local_rank == 0:
+            iterator = tqdm(iterator,total=iter_scale* len(loader))
         # Broken, temporaily disable time logging
         for i,sample in enumerate(iterator):
-            imgs = sample["image"].cuda().float()
+            imgs = sample["image"].cuda()
             if extra_context:
                 if sample["context_id"] == 0:
                     context = tuple()
@@ -283,23 +298,26 @@ class PytorchTrainer(ABC):
                     else:
                         output = self.model(imgs)
                     #forward_time.update(time.time() - end)
-                    if i % 400 == 0:
+                    # if i % 400 == 0:
                         # visualize
-                        if self.train_config.local_rank == 0:
-                            all_keys = []
-                            all_imgs = [imgs[0][0].detach().cpu()]
-                            all_keys.append('input')
-                            for k,v in output.items():
-                                all_imgs.append(v[0][0].detach().cpu())
-                                all_imgs.append(sample[k][0][0].detach().cpu())
-                                short_k = k.replace('_mask','')
-                                all_keys.append(k)
-                                all_keys.append(k+'_GT')
+                        # if self.train_config.local_rank == 0:
+                        #     all_keys = []
+                        #     all_imgs = [imgs[0][0].detach().cpu()]
+                        #     all_keys.append('input')
+                        #     for k,v in output.items():
+                        #         all_imgs.append(v[0][0].detach().cpu())
+                        #         all_imgs.append(sample[k][0][0].detach().cpu())
+                        #         short_k = k.replace('_mask','')
+                        #         all_keys.append(k)
+                        #         all_keys.append(k+'_GT')
 
-                            wandb_dump_images(all_imgs,keys=all_keys)
+                        #     wandb_dump_images(all_imgs,keys=all_keys)
                     total_loss = 0
                     for loss_def in self.losses:
                         l = loss_def.loss.calculate_loss(output, sample)
+                        if math.isnan(l.item()) or math.isinf(l.item()):
+                            print(loss_def)
+                            print("is nan!")
                         if loss_def.display:
                             avg_meters[loss_def.name].update(
                                 l if isinstance(l, Number) else l.item(), imgs.size(0)
@@ -339,18 +357,15 @@ class PytorchTrainer(ABC):
                 self.scheduler.step(
                     int(i / iter_scale) + self.current_epoch * len(loader)
                 )
-            # if self.train_config.local_rank == 0:
-            # t.set_postfix(
-            #     {
-            #         "lr": float(self.scheduler.get_lr()[-1]),
-            #         "epoch": self.current_epoch,
-            #         "mem": f"{torch.cuda.max_memory_reserved() / 1024 ** 3:.2f}G",
-            #         **avg_metrics,
-            #         "data_time": data_time,
-            #         "fwd_time": forward_time,
-            #         "bwd_time": backward_time,
-            #     }
-            # )
+            if self.train_config.local_rank == 0:
+                iterator.set_postfix(
+                    {
+                        "lr": float(self.scheduler.get_lr()[-1]),
+                        "epoch": self.current_epoch,
+                        "mem": f"{torch.cuda.max_memory_reserved() / 1024 ** 3:.2f}G",
+                        **avg_metrics,
+                    }
+                )
         if self.train_config.local_rank == 0:
             for idx, param_group in enumerate(self.optimizer.param_groups):
                 lr = param_group["lr"]

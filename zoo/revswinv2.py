@@ -588,23 +588,28 @@ class ReversibleSwinTransformerV2Block(nn.Module):
 
 
 class PatchMerging(nn.Module):
-    """ Patch Merging Layer.
+    """ Patch Merging Layer, modified to support TwoStreamFusion.
     """
 
-    def __init__(self, dim, out_dim=None, norm_layer=nn.LayerNorm):
+    def __init__(self, dim, out_dim=None, norm_layer=nn.LayerNorm, fusion_module=None):
         """
         Args:
             dim (int): Number of input channels.
             out_dim (int): Number of output channels (or 2 * dim if None)
             norm_layer (nn.Module, optional): Normalization layer.  Default: nn.LayerNorm
+            fusion_module (nn.Module, optional): Fusion module for rev.  Default: None
         """
         super().__init__()
         self.dim = dim
         self.out_dim = out_dim or 2 * dim
         self.reduction = nn.Linear(4 * dim, self.out_dim, bias=False)
         self.norm = norm_layer(self.out_dim)
+        self.fusion_module = fusion_module if fusion_module is not None else nn.Identity()
 
     def forward(self, x):
+        # Fuse for revswin first
+        x = self.fusion_module(x)
+        # Then normal patch merge
         B, H, W, C = x.shape
         assert(H % 2 == 0, f"x height ({H}) is not even.")
         assert(W % 2 == 0, f"x width ({W}) is not even.")
@@ -718,10 +723,9 @@ class ReversibleSwinTransformerV2Stage(nn.Module):
 
         # patch merging / downsample layer
         if downsample:
-            self.downsample = nn.Sequential(
-                TwoStreamFusion(mode="concat_linear_2", dim=dim),
-                PatchMerging(dim=dim, out_dim=out_dim, norm_layer=norm_layer)
-            )
+            self.downsample = PatchMerging(dim=dim, out_dim=out_dim,
+                                           norm_layer=norm_layer,
+                                           fusion_module=TwoStreamFusion(mode="concat_linear_2", dim=dim))
         else:
             assert dim == out_dim
             self.downsample = nn.Identity()
@@ -760,7 +764,6 @@ class ReversibleSwinTransformerV2Stage(nn.Module):
 
     def forward(self, x):
         x = self.downsample(x)
-
         x = torch.cat([x, x], dim=-1)
 
         if self.use_vanilla_backward: 
@@ -993,11 +996,19 @@ def revswinv2_tiny_window16_256_xview(pretrained=True, **kwargs):
         ckpt = torch.load(pretrained,map_location='cpu')
         state_dict = model.state_dict()
         filtered = {}
+        unexpected_keys = []
         for k,v in ckpt.items():
-            if k in state_dict and state_dict[k].shape != v.shape:
-                print(f"Skipped {k} for size mismatch")
-                continue
-            filtered[k]=v
+            if k in state_dict: 
+                if state_dict[k].shape != v.shape:
+                    print(f"Skipped {k} for size mismatch")
+                    print(state_dict[k].shape, v.shape)
+                    continue
+                filtered[k]=v
+            else:
+                unexpected_keys.append(k)
+        missing_keys = set(state_dict.keys()) - set(filtered.keys())
+        print("Missing keys: ", missing_keys)
+        print("Unexpected keys: ", unexpected_keys)
         model.load_state_dict(filtered,strict=False)
     return model
 
@@ -1011,12 +1022,21 @@ def revswinv2_large_window16_256_xview(pretrained=False, **kwargs):
         ckpt = torch.load(pretrained,map_location='cpu')
         state_dict = model.state_dict()
         filtered = {}
+        unexpected_keys = []
         for k,v in ckpt.items():
-            if k in state_dict and state_dict[k].shape != v.shape:
-                print(f"Skipped {k} for size mismatch")
-                continue
-            filtered[k]=v
-        model.load_state_dict(filtered,strict=False)
+            if k in state_dict:
+                if state_dict[k].shape != v.shape:
+                    print(f"Skipped {k} for size mismatch")
+                    print(state_dict[k].shape, v.shape)
+                    continue
+                filtered[k]=v
+            else:
+                unexpected_keys.append(k)
+        missing_keys = set(state_dict.keys()) - set(filtered.keys())
+        # print("Missing keys: ", missing_keys)
+        # print("Unexpected keys: ", unexpected_keys)
+        msg = model.load_state_dict(filtered,strict=False)
+        print(msg)
     return model
 
 REVSWINV2_CFG = dict(

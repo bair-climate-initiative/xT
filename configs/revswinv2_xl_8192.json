@@ -1,0 +1,83 @@
+{
+  "network": "TimmUnet",
+  "encoder_params": {
+    "encoder": "revswinv2_tiny_window16_256_xview",
+    "in_chans": 2,
+    "drop_path_rate": 0.2,
+    "pretrained": "ckpts/swinv2_tiny_window16_256.pth",
+    "channels_last": true,
+    "context_mode": "transformer_xl",
+    "transformer_xl":{
+      "no_memory":false,
+      "n_layer":12
+    }
+  },
+  "tiling":"naive",
+  "crop_size": 8192,
+  "encoder_crop_size":512,
+  "multiplier": 64,
+  "optimizer": {
+    "train_bs": 2,
+    "val_bs": 1,
+    "type": "SGD",
+    "learning_rate": 0.003,
+    "weight_decay": 1e-4,
+    "nesterov": true,
+    "momentum": 0.9,
+    "schedule": {
+      "type": "cosine",
+      "mode": "step",
+      "epochs": 240,
+      "params": {
+        "eta_min": 4e-4
+      }
+    }
+  },
+   "losses": [
+    {
+      "name": "msk_v",
+      "type": "ComboLossCalculator",
+      "weight": 1.0,
+      "display": true,
+      "params": {
+        "field": "vessel_mask",
+        "weights": {
+          "bce": 1,
+          "focal": 3,
+          "dice": 1
+        }
+      }
+    },
+    {
+      "name": "msk_f",
+      "type": "ComboLossCalculator",
+      "weight": 2.0,
+      "display": true,
+      "params": {
+        "field": "fishing_mask",
+        "weights": {
+          "bce": 1,
+          "focal": 3,
+          "dice": 1
+        }
+      }
+    },
+    {
+      "name": "center",
+      "type": "CenterLossCalculator",
+      "weight": 3e-7,
+      "display": true,
+      "params": {
+      }
+    },
+    {
+      "name": "length",
+      "type": "LengthLoss",
+      "weight": 2,
+      "display": true,
+      "params": {
+      }
+    }
+   
+  ]
+}

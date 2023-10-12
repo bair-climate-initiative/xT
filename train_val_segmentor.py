@@ -103,10 +103,12 @@ class XviewEvaluator(Evaluator):
             tgt_path = os.path.join(val_dir, f"{scene_id}.csv")
             # if os.path.exists(tgt_path) and datetime.datetime.fromtimestamp(os.path.getmtime(tgt_path) )> datetime.datetime.now() - datetime.timedelta(hours=10):
             #     continue
-            mask_dict = predict_scene_and_return_mm([model], scene_id=scene_id, dataset_dir=dataset_dir,
-                                                    use_fp16=self.args.fp16, rotate=True,
-                                                    crop_size = self.crop_size,overlap=self.overlap,
-                                                    extra_context=extra_context,iter_function=self.build_iterator,position=self.args.local_rank+1)
+            mask_dict = predict_scene_and_return_mm(
+                [model], scene_id=scene_id, dataset_dir=dataset_dir,
+                use_fp16=self.args.fp16, rotate=True,
+                crop_size = self.crop_size,overlap=self.overlap,
+                extra_context=extra_context,iter_function=self.build_iterator,
+                position=self.args.local_rank+1)
             data = process_confidence(scene_id, None, mask_dict)
             pd.DataFrame(data,
                          columns=["detect_scene_row", "detect_scene_column", "scene_id", "is_vessel", "is_fishing",
@@ -190,6 +192,7 @@ def parse_args():
     arg('--drop_path',type=float, default=None)   
     arg('--pretrained', type=str, default='default')
     arg('--classifier_lr', type=float, default=None)   
+    arg('--warmup_epochs', type=int, default=None)   
     arg("--test", action='store_true', default=False)
     args = parser.parse_args()
 
@@ -228,7 +231,7 @@ def make_folder(p):
         os.mkdir(p)
 def main():
     args = parse_args()
-    args.fp16 = False
+    # args.fp16 = False
     if args.local_rank == 0:
         make_folder(args.output_dir)
         make_folder(args.logdir)
