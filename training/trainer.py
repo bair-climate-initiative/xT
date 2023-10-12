@@ -3,14 +3,17 @@ import logging
 import math
 import os
 import re
+import time
 from abc import ABC, abstractmethod
 from numbers import Number
-from typing import Dict, List, Any
+from typing import Any, Dict, List
 
 import torch
 import torch.distributed
 import torch.distributed as dist
 import torch.nn as nn
+import wandb
+from fvcore.nn import FlopCountAnalysis
 from tensorboardX import SummaryWriter
 from timm.utils import AverageMeter
 from torch.nn import DataParallel, SyncBatchNorm
@@ -24,12 +27,9 @@ from training import losses
 from training.config import load_config
 from training.losses import LossCalculator
 from training.sampler import DistributedWeightedRandomSampler
-from training.utils import create_optimizer, SmoothedValue,wandb_dump_images
-import wandb
+from training.utils import SmoothedValue, create_optimizer, wandb_dump_images
 
-from fvcore.nn import FlopCountAnalysis
 from .tiling import build_tiling
-import time
 
 
 @dataclasses.dataclass
@@ -179,7 +179,7 @@ class PytorchTrainer(ABC):
                         self.summary_writer.add_scalar(
                             "val/{}".format(k), float(v), global_step=self.current_epoch
                         )
-    
+
     def scale_learning_rate(self):
         # linear scale the learning rate according to total batch size, may not be optimal
         config = self.conf["optimizer"]
@@ -188,8 +188,10 @@ class PytorchTrainer(ABC):
         lr = config["learning_rate"] * eff_batch_size / 8.0
         classifier_lr = config["classifier_lr"] * eff_batch_size / 8.0
         if self.train_config.local_rank == 0:
-            print(f"Effective batch size of {eff_batch_size} " \
-                  f"lr: {config['learning_rate']} --> {lr}")
+            print(
+                f"Effective batch size of {eff_batch_size} "
+                f"lr: {config['learning_rate']} --> {lr}"
+            )
         config["learning_rate"] = lr
         self.conf["optimizer"] = config
 
@@ -233,18 +235,25 @@ class PytorchTrainer(ABC):
         for x in dataloader:
             old_dim = x["image"].shape[-1]
             n = old_dim // self.input_size
-            for (i,j,k) in build_tiling(n,self.tiling):
-                    new_payload = {k:v[...,self.input_size*i:self.input_size*(i+1),self.input_size*j:self.input_size*(j+1)] for k,v in x.items() if k != 'name' }
-                    new_payload['name'] = x['name']
-                    new_payload["context_id"] = k['context_id']
-                    new_payload['mem_only'] = k.get('mem_only',False)
-                    yield new_payload
-
+            for i, j, k in build_tiling(n, self.tiling):
+                new_payload = {
+                    k: v[
+                        ...,
+                        self.input_size * i : self.input_size * (i + 1),
+                        self.input_size * j : self.input_size * (j + 1),
+                    ]
+                    for k, v in x.items()
+                    if k != "name"
+                }
+                new_payload["name"] = x["name"]
+                new_payload["context_id"] = k["context_id"]
+                new_payload["mem_only"] = k.get("mem_only", False)
+                yield new_payload
 
     def _run_one_epoch_train(self, loader: DataLoader):
         torch.autograd.set_detect_anomaly(True)
         iterator = loader
-        #data_time = SmoothedValue(fmt="{avg:.4f}")
+        # data_time = SmoothedValue(fmt="{avg:.4f}")
         loss_meter = AverageMeter()
         # forward_time = SmoothedValue(fmt="{avg:.4f}")
         # backward_time = SmoothedValue(fmt="{avg:.4f}")
@@ -258,28 +267,28 @@ class PytorchTrainer(ABC):
         extra_context = self.model.module.extra_context
         if extra_context:
             iterator = self.build_iterator(iterator)
-            iter_scale = (self.conf['crop_size'] // self.input_size)**2
-            if 'two_stream' in self.tiling:
+            iter_scale = (self.conf["crop_size"] // self.input_size) ** 2
+            if "two_stream" in self.tiling:
                 iter_scale *= 2
         else:
             iter_scale = 1
-#         total_n = iter_scale * len(loader)
-#         if self.train_config.local_rank == 0:
-#             t = tqdm(total=total_n)
-#         loader = iter(loader)
+        #         total_n = iter_scale * len(loader)
+        #         if self.train_config.local_rank == 0:
+        #             t = tqdm(total=total_n)
+        #         loader = iter(loader)
 
-#         for i in range(total_n):
-#             end = time.time()
-#             sample = next(loader)
-#             data_time.update(time.time() - end)
-#             if self.train_config.local_rank == 0:
-#                 t.update()
-            # Sliced Images with context_id
-            # todo: make configurable
+        #         for i in range(total_n):
+        #             end = time.time()
+        #             sample = next(loader)
+        #             data_time.update(time.time() - end)
+        #             if self.train_config.local_rank == 0:
+        #                 t.update()
+        # Sliced Images with context_id
+        # todo: make configurable
         if self.train_config.local_rank == 0:
-            iterator = tqdm(iterator,total=iter_scale* len(loader))
+            iterator = tqdm(iterator, total=iter_scale * len(loader))
         # Broken, temporaily disable time logging
-        for i,sample in enumerate(iterator):
+        for i, sample in enumerate(iterator):
             imgs = sample["image"].cuda()
             if extra_context:
                 if sample["context_id"] == 0:
@@ -289,29 +298,29 @@ class PytorchTrainer(ABC):
             self.optimizer.zero_grad()
             with torch.cuda.amp.autocast(enabled=self.train_config.fp16):
                 with torch.autograd.detect_anomaly():
-                    if extra_context and sample['mem_only']:
+                    if extra_context and sample["mem_only"]:
                         with torch.no_grad():
-                            output,context = self.model(imgs,context)
+                            output, context = self.model(imgs, context)
                         continue
                     elif extra_context:
-                        output,context = self.model(imgs,context)
+                        output, context = self.model(imgs, context)
                     else:
                         output = self.model(imgs)
-                    #forward_time.update(time.time() - end)
+                    # forward_time.update(time.time() - end)
                     # if i % 400 == 0:
-                        # visualize
-                        # if self.train_config.local_rank == 0:
-                        #     all_keys = []
-                        #     all_imgs = [imgs[0][0].detach().cpu()]
-                        #     all_keys.append('input')
-                        #     for k,v in output.items():
-                        #         all_imgs.append(v[0][0].detach().cpu())
-                        #         all_imgs.append(sample[k][0][0].detach().cpu())
-                        #         short_k = k.replace('_mask','')
-                        #         all_keys.append(k)
-                        #         all_keys.append(k+'_GT')
+                    # visualize
+                    # if self.train_config.local_rank == 0:
+                    #     all_keys = []
+                    #     all_imgs = [imgs[0][0].detach().cpu()]
+                    #     all_keys.append('input')
+                    #     for k,v in output.items():
+                    #         all_imgs.append(v[0][0].detach().cpu())
+                    #         all_imgs.append(sample[k][0][0].detach().cpu())
+                    #         short_k = k.replace('_mask','')
+                    #         all_keys.append(k)
+                    #         all_keys.append(k+'_GT')
 
-                        #     wandb_dump_images(all_imgs,keys=all_keys)
+                    #     wandb_dump_images(all_imgs,keys=all_keys)
                     total_loss = 0
                     for loss_def in self.losses:
                         l = loss_def.loss.calculate_loss(output, sample)
@@ -337,7 +346,7 @@ class PytorchTrainer(ABC):
                 wandb.log(payload)
 
             # Run backward pass
-            #end = time.time()
+            # end = time.time()
             if self.train_config.fp16:
                 self.gscaler.scale(total_loss).backward()
                 self.gscaler.unscale_(self.optimizer)
@@ -348,7 +357,7 @@ class PytorchTrainer(ABC):
                 total_loss.backward()
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), 5)
                 self.optimizer.step()
-            #backward_time.update(time.time() - end)
+            # backward_time.update(time.time() - end)
 
             torch.cuda.synchronize()
             if self.train_config.distributed:

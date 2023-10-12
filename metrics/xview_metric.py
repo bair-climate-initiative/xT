@@ -6,13 +6,11 @@ from scipy.optimize import linear_sum_assignment
 from scipy.spatial import KDTree, distance_matrix
 from tqdm import tqdm
 
-
 # UTM pixel-to-meter conversion value
 PIX_TO_M = 10
 
 # Maximum object length
 MAX_OBJECT_LENGTH_M = 500
-
 
 
 def drop_low_confidence_preds(pred, gt, distance_tolerance=200, costly_dist=False):
@@ -41,15 +39,19 @@ def drop_low_confidence_preds(pred, gt, distance_tolerance=200, costly_dist=Fals
         pred_sc = pred[pred["scene_id"] == scene_id]
         gt_sc = gt[gt["scene_id"] == scene_id]
         low_inds_scene = match_low_confidence_preds(
-            pred_sc, gt_sc, distance_tolerance=distance_tolerance, costly_dist=costly_dist
+            pred_sc,
+            gt_sc,
+            distance_tolerance=distance_tolerance,
+            costly_dist=costly_dist,
         )
 
         low_inds += low_inds_scene
 
     # Check matched pairs came from "LOW" labels
     for pair in low_inds:
-        assert gt.iloc[pair["gt_idx"]][
-                   "confidence"] == "LOW", f"Index {pair['gt_idx']} is {gt.iloc[pair['gt_idx']]['confidence']}"
+        assert (
+            gt.iloc[pair["gt_idx"]]["confidence"] == "LOW"
+        ), f"Index {pair['gt_idx']} is {gt.iloc[pair['gt_idx']]['confidence']}"
 
     low_pred_inds = [a["pred_idx"] for a in low_inds]
 
@@ -98,7 +100,8 @@ def match_low_confidence_preds(preds, gt, distance_tolerance=200, costly_dist=Fa
     low_inds = [
         {"pred_idx": preds.index[rows[ii]], "gt_idx": gt.index[cols[ii]]}
         for ii in range(len(rows))
-        if (dist_mat[rows[ii], cols[ii]] < distance_tolerance) and (gt.index[cols[ii]] in low_gt_inds)
+        if (dist_mat[rows[ii], cols[ii]] < distance_tolerance)
+        and (gt.index[cols[ii]] in low_gt_inds)
     ]
 
     return low_inds
@@ -323,9 +326,7 @@ def compute_length_performance(preds, gt, tp_inds):
         # at MAX_OBJECT_LENGTH_M, which by default is 500m
         gt_pred = min(gt[pair["gt_idx"]], MAX_OBJECT_LENGTH_M)
         inf_pred = min(preds[pair["pred_idx"]], MAX_OBJECT_LENGTH_M)
-        pct_error += (
-                np.abs(inf_pred - gt_pred) / gt_pred
-        )
+        pct_error += np.abs(inf_pred - gt_pred) / gt_pred
         num_valid_gt += 1
 
     if num_valid_gt == 0:
@@ -375,7 +376,7 @@ def calculate_p_r_f(tp_inds, fp_inds, fn_inds):
 
 
 def aggregate_f(
-        loc_fscore, length_acc, vessel_fscore, fishing_fscore, loc_fscore_shore
+    loc_fscore, length_acc, vessel_fscore, fishing_fscore, loc_fscore_shore
 ):
     """
     Compute aggregate metric for xView3 scoring
@@ -395,15 +396,17 @@ def aggregate_f(
     # Note: should be between zero and one, and score should be heavily weighted on
     # overall maritime object detection!
     aggregate = (
-            loc_fscore
-            * (1 + length_acc + vessel_fscore + fishing_fscore + loc_fscore_shore)
-            / 5
+        loc_fscore
+        * (1 + length_acc + vessel_fscore + fishing_fscore + loc_fscore_shore)
+        / 5
     )
 
     return aggregate
 
 
-def score(pred, gt, shore_root, distance_tolerance=200, shore_tolerance=2, costly_dist=False):
+def score(
+    pred, gt, shore_root, distance_tolerance=200, shore_tolerance=2, costly_dist=False
+):
     """Compute xView3 aggregate score from
 
     Args:
@@ -428,8 +431,15 @@ def score(pred, gt, shore_root, distance_tolerance=200, shore_tolerance=2, costl
     for scene_id in tqdm(gt["scene_id"].unique()):
         pred_sc = pred[pred["scene_id"] == scene_id]
         gt_sc = gt[gt["scene_id"] == scene_id]
-        tp_inds_sc, fp_inds_sc, fn_inds_sc, = compute_loc_performance(
-            pred_sc, gt_sc, distance_tolerance=distance_tolerance, costly_dist=costly_dist
+        (
+            tp_inds_sc,
+            fp_inds_sc,
+            fn_inds_sc,
+        ) = compute_loc_performance(
+            pred_sc,
+            gt_sc,
+            distance_tolerance=distance_tolerance,
+            costly_dist=costly_dist,
         )
 
         tp_inds += tp_inds_sc
@@ -451,7 +461,7 @@ def score(pred, gt, shore_root, distance_tolerance=200, shore_tolerance=2, costl
             gt_sc_shore = gt[
                 (gt["scene_id"] == scene_id)
                 & (gt["distance_from_shore_km"] <= shore_tolerance)
-                ]
+            ]
             pred_sc_shore = get_shore_preds(
                 pred_sc,
                 shore_root,
@@ -469,20 +479,23 @@ def score(pred, gt, shore_root, distance_tolerance=200, shore_tolerance=2, costl
                     fp_inds_sc_shore,
                     fn_inds_sc_shore,
                 ) = compute_loc_performance(
-                    pred_sc_shore, gt_sc_shore, distance_tolerance=distance_tolerance, costly_dist=costly_dist
+                    pred_sc_shore,
+                    gt_sc_shore,
+                    distance_tolerance=distance_tolerance,
+                    costly_dist=costly_dist,
                 )
                 tp_inds_shore += tp_inds_sc_shore
                 fp_inds_shore += fp_inds_sc_shore
                 fn_inds_shore += fn_inds_sc_shore
 
         if (
-                len(
-                    gt[
-                        (gt["scene_id"].isin(list(pred["scene_id"].unique())))
-                        & (gt["distance_from_shore_km"] <= shore_tolerance)
-                    ]
-                )
-                > 0
+            len(
+                gt[
+                    (gt["scene_id"].isin(list(pred["scene_id"].unique())))
+                    & (gt["distance_from_shore_km"] <= shore_tolerance)
+                ]
+            )
+            > 0
         ):
             # Compute precision, recall, F1 for close-to-shore maritime object detection
             loc_precision_shore, loc_recall_shore, loc_fscore_shore = calculate_p_r_f(
@@ -527,9 +540,15 @@ def score(pred, gt, shore_root, distance_tolerance=200, shore_tolerance=2, costl
         loc_fscore, length_acc, vessel_fscore, fishing_fscore, loc_fscore_shore
     )
     print(f"Loc P: {loc_precision:.04f} R: {loc_recall:.04f} F1: {loc_fscore:.04f}")
-    print(f"Loc Shore P: {loc_precision_shore:.04f} R: {loc_recall_shore:.04f} F1: {loc_fscore_shore:.04f}")
-    print(f"Vessel P: {vessel_precision:.04f} R: {vessel_recall:.04f} F1: {vessel_fscore:.04f}")
-    print(f"Fishing P: {fishing_precision:.04f} R: {fishing_recall:.04f} F1: {fishing_fscore:.04f}")
+    print(
+        f"Loc Shore P: {loc_precision_shore:.04f} R: {loc_recall_shore:.04f} F1: {loc_fscore_shore:.04f}"
+    )
+    print(
+        f"Vessel P: {vessel_precision:.04f} R: {vessel_recall:.04f} F1: {vessel_fscore:.04f}"
+    )
+    print(
+        f"Fishing P: {fishing_precision:.04f} R: {fishing_recall:.04f} F1: {fishing_fscore:.04f}"
+    )
     # Creating score dictionary
     scores = {
         "loc_fscore": loc_fscore,
@@ -559,7 +578,7 @@ def evaluate_xview_metric(args):
         inference = inference[inference["scene_id"] == args.scene_id].reset_index()
         ground_truth = ground_truth[
             ground_truth["scene_id"] == args.scene_id
-            ].reset_index()
+        ].reset_index()
     else:
         ground_truth = ground_truth[
             ground_truth["scene_id"].isin(inference["scene_id"].unique())
@@ -568,8 +587,12 @@ def evaluate_xview_metric(args):
     # By default we only score on high and medium confidence labels
     if not args.score_all:
         if args.drop_low_detect:
-            inference = drop_low_confidence_preds(inference, ground_truth, distance_tolerance=args.distance_tolerance,
-                                                  costly_dist=args.costly_dist)
+            inference = drop_low_confidence_preds(
+                inference,
+                ground_truth,
+                distance_tolerance=args.distance_tolerance,
+                costly_dist=args.costly_dist,
+            )
         ground_truth = ground_truth[
             ground_truth["confidence"].isin(["HIGH", "MEDIUM"])
         ].reset_index()
@@ -587,9 +610,11 @@ def evaluate_xview_metric(args):
         json.dump(out, fl)
     return out
 
+
 def create_metric_arg_parser():
     global parser
     import argparse
+
     parser = argparse.ArgumentParser(description="Scoring xView3 model.")
     parser.add_argument(
         "--scene_id", help="Scene ID to run evaluations for", default=None

@@ -1,57 +1,73 @@
 import argparse
 import os
+
+
 def get_str(fpath):
     with open(fpath) as f:
         data = f.read()
     return data
 
+
 def read_config(cfg_sh):
     lines = get_str(cfg_sh)
-    lines = lines.split('\n')
+    lines = lines.split("\n")
     out = {}
     for r in lines:
-       args = r.split('=')
-       if len(args)==2:
-           k,v = args
-           if v[0] == '"' and v[-1] ==v[0]:
-               v = v[1:-1]
-           out[k]=v
-    return out       
+        args = r.split("=")
+        if len(args) == 2:
+            k, v = args
+            if v[0] == '"' and v[-1] == v[0]:
+                v = v[1:-1]
+            out[k] = v
+    return out
+
 
 MAX_GPU_PER_MACHINE = 2
-def compile(template,cfg_sh):
+
+
+def compile(template, cfg_sh):
     cfgs = read_config("base_project_config.sh")
     cfgs.update(read_config(cfg_sh))
-    n_gpus = int(cfgs['NUM_GPUS'])
-    cfgs['DEVICES']=','.join([str(x) for x in range(n_gpus)])
+    n_gpus = int(cfgs["NUM_GPUS"])
+    cfgs["DEVICES"] = ",".join([str(x) for x in range(n_gpus)])
     if n_gpus > MAX_GPU_PER_MACHINE:
-        cfgs['NPROC_PER_NODE'] = str(MAX_GPU_PER_MACHINE)
-        cfgs['NNODES'] = str(n_gpus // MAX_GPU_PER_MACHINE)
-        cfgs['DEVICES']=','.join([str(x) for x in range(MAX_GPU_PER_MACHINE)])
+        cfgs["NPROC_PER_NODE"] = str(MAX_GPU_PER_MACHINE)
+        cfgs["NNODES"] = str(n_gpus // MAX_GPU_PER_MACHINE)
+        cfgs["DEVICES"] = ",".join([str(x) for x in range(MAX_GPU_PER_MACHINE)])
         cmd = get_str("run_cluster_multinode.sh")
     else:
         cmd = get_str("run_cluster.sh")
     # OVERWRITE
-    cfgs['NAME'] = cfg_sh.replace('/','_').replace('\\','_').replace('.sh','') #+ '---' #+  cfgs['NAME'] 
+    cfgs["NAME"] = (
+        cfg_sh.replace("/", "_").replace("\\", "_").replace(".sh", "")
+    )  # + '---' #+  cfgs['NAME']
     items = list(cfgs.items())
-    items = sorted(items,key=lambda x:-len(x[0]) )
-    for k,v in items:
-        cmd = cmd.replace(f'${k}',v)
-    return cmd,cfgs
+    items = sorted(items, key=lambda x: -len(x[0]))
+    for k, v in items:
+        cmd = cmd.replace(f"${k}", v)
+    return cmd, cfgs
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('-c','--config',type=str,default="exps/512/swin_l_bs_4_lr_3e-5_ep60.sh")
-    parser.add_argument('-t','--template',type=str,default="main_exp_cluster.template")
-    parser.add_argument('-o','--output',type=str,default="")
+    parser.add_argument(
+        "-c", "--config", type=str, default="exps/512/swin_l_bs_4_lr_3e-5_ep60.sh"
+    )
+    parser.add_argument(
+        "-t", "--template", type=str, default="main_exp_cluster.template"
+    )
+    parser.add_argument("-o", "--output", type=str, default="")
     args = parser.parse_args()
     TEMPLATE = get_str(args.template)
-    cmd,cfgs = compile(TEMPLATE,args.config)
+    cmd, cfgs = compile(TEMPLATE, args.config)
     if args.output:
-        out_dir = os.path.join('build',
-                               f"gpu_{cfgs['REQUIRED_VRAM']}X{cfgs['NUM_GPUS']}")
-        os.makedirs(out_dir,exist_ok=True)
-        with open(os.path.join(out_dir,args.output.replace('/','_').replace('\\','_')),'w') as f:
+        out_dir = os.path.join(
+            "build", f"gpu_{cfgs['REQUIRED_VRAM']}X{cfgs['NUM_GPUS']}"
+        )
+        os.makedirs(out_dir, exist_ok=True)
+        with open(
+            os.path.join(out_dir, args.output.replace("/", "_").replace("\\", "_")), "w"
+        ) as f:
             f.write(cmd)
     else:
         print(cmd)
