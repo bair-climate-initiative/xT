@@ -107,27 +107,30 @@ def predict_scene_and_return_mm(models: List[nn.Module], dataset_dir, scene_id: 
                     else:
                         output = model(batch)
                     sigmoid_keys = ["fishing_mask", "vessel_mask"]
-                    for k in sigmoid_keys:
-                        output[k] = torch.sigmoid(output[k])
-                    if rotate:
-                        if extra_context:
-                            out180 = model_foward(torch.rot90(batch, 2, dims=(2, 3)))
-                        else:
-                            out180 = model(torch.rot90(batch, 2, dims=(2, 3)))
-                        for key in list(output.keys()):
-                            val = torch.rot90(out180[key], 2, dims=(2, 3))
-                            if key in sigmoid_keys:
-                                val = torch.sigmoid(val)
-                            output[key] += val
-                            output[key] *= 0.5
-                    outputs.append(output)
+                # perform sigmoid  not in amp
+            for k in sigmoid_keys:
+                output[k] = torch.sigmoid(output[k].float())
+            if rotate:
+                with torch.cuda.amp.autocast(enabled=use_fp16):
+                    if extra_context:
+                        out180 = model_foward(torch.rot90(batch, 2, dims=(2, 3)))
+                    else:
+                        out180 = model(torch.rot90(batch, 2, dims=(2, 3)))
+                for key in list(output.keys()):
+                    val = torch.rot90(out180[key], 2, dims=(2, 3))
+                    if key in sigmoid_keys:
+                        val = torch.sigmoid(val.float())
+                output[key] += val
+                output[key] *= 0.5
+            outputs.append(output)
+
             output = {}
             for k in outputs[0].keys():
                 vs = [o[k][:, :3] for o in outputs]
                 output[k] = sum(vs) / len(models)
             vessel_mask = (output["vessel_mask"][0][0] * 255).cpu().numpy().astype(np.uint8)
             fishing_mask = (output["fishing_mask"][0][0] * 255).cpu().numpy().astype(np.uint8)
-            center_mask = torch.clamp(output["center_mask"][0][0], 0, 255).cpu().numpy().astype(np.uint8)
+            center_mask = torch.clamp(output["center_mask"][0][0].float(), 0, 255).cpu().numpy().astype(np.uint8)
             length_mask = output["length_mask"][0][0].cpu().numpy().astype(np.float16)
         tiler.update_crop(vessel_preds, vessel_mask, slice)
         tiler.update_crop(fishing_preds, fishing_mask, slice)
@@ -145,7 +148,6 @@ def predict_scene_and_return_mm(models: List[nn.Module], dataset_dir, scene_id: 
         "center_mask": center_preds,
         "vessel_mask": vessel_preds,
         "fishing_mask": fishing_preds,
-
         "length_mask": length_preds,
     }
 
