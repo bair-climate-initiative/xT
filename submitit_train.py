@@ -17,7 +17,7 @@ import submitit
 
 
 def parse_args():
-    segmentor_parser = segmentor.parse_args()
+    segmentor_parser = segmentor.get_args_parser()
     parser = argparse.ArgumentParser("Submitit for Segmentor Train+Val", parents=[segmentor_parser])
     parser.add_argument("--ngpus", default=8, type=int, help="Number of gpus to request on each node")
     parser.add_argument("--nodes", default=1, type=int, help="Number of nodes to request")
@@ -103,8 +103,8 @@ def main():
     num_gpus_per_node = args.ngpus
     nodes = args.nodes
     timeout_min = args.timeout
+    qos = args.qos
 
-    partition = args.partition
     kwargs = {}
     if args.comment:
         kwargs['slurm_comment'] = args.comment
@@ -119,7 +119,8 @@ def main():
         nodes=nodes,
         timeout_min=timeout_min,
         # Below are cluster dependent parameters
-        slurm_partition=partition,
+        # slurm_partition=partition,
+        slurm_qos=qos,
         slurm_signal_delay_s=120,
         **kwargs
     )

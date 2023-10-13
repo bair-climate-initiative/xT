@@ -212,8 +212,8 @@ class XviewEvaluator(Evaluator):
         return improved
 
 
-def parse_args():
-    parser = argparse.ArgumentParser("Pipeline")
+def get_args_parser():
+    parser = argparse.ArgumentParser("Pipeline", add_help=False)
     arg = parser.add_argument
     arg(
         "--config",
@@ -263,9 +263,8 @@ def parse_args():
     arg("--classifier_lr", type=float, default=None)
     arg("--warmup_epochs", type=int, default=None)
     arg("--test", action="store_true", default=False)
-    args = parser.parse_args()
 
-    return args
+    return parser
 
 
 def create_data_datasets(args):
@@ -369,5 +368,5 @@ def main(args):
 
 
 if __name__ == "__main__":
-    args = parse_args()
+    args = get_args_parser().parse_args()
     main(args)

@@ -11,9 +11,9 @@ DATA_DIR=/home/group/xview3
 # WANDB_MODE=disabled \
 python submitit_train.py \
     --job_dir $HOME/logs/$EXP_NAME \
-    --ngpus 8 \
-    --nodelist em3,em4,em8,em9 \
-    --qos medium \
+    --ngpus 10 \
+    --nodelist em4 \
+    --qos low \
     --distributed \
     --workers 1 \
     --data-dir $DATA_DIR \
