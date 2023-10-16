@@ -20,9 +20,10 @@ from training.config import load_config
 
 warnings.filterwarnings("ignore")
 import argparse
-from training.utils import load_checkpoint
 
 import pandas as pd
+
+from training.utils import load_checkpoint
 
 
 def process_scene(models: List[torch.nn.Module], args):

@@ -4,21 +4,25 @@ import re
 from collections import deque
 
 import cv2
+import numpy as np
 import torch
 from madgrad import MADGRAD
 from timm.models import inception_v3
 from timm.optim import AdamW
-from torch import optim, nn
+from torch import nn, optim
 from torch.distributed import get_world_size
 from torch.optim import lr_scheduler
 from torch.optim.adamw import AdamW
-from torch.optim.lr_scheduler import MultiStepLR, CyclicLR, CosineAnnealingLR
+from torch.optim.lr_scheduler import CosineAnnealingLR, CyclicLR, MultiStepLR
 from torch.optim.rmsprop import RMSprop
 from torch.utils.data import Subset
 from warmup_scheduler import GradualWarmupScheduler
 from training.schedulers import ExponentialLRScheduler, PolyLR, LRStepScheduler
 import numpy as np
 from einops import rearrange
+
+from training.schedulers import ExponentialLRScheduler, LRStepScheduler, PolyLR
+
 cv2.ocl.setUseOpenCL(False)
 cv2.setNumThreads(0)
 import torch.distributed as dist
@@ -162,12 +166,18 @@ def create_optimizer(optimizer_config, model, num_samples: int, num_gpus: int = 
             )
 
         scheduler = lr_scheduler.LambdaLR(optimizer, linear_lr)
-    
-    if optimizer_config['schedule'].get('warmup_epoches',0):
-        scheduler = GradualWarmupScheduler(optimizer, multiplier=1, 
-        total_epoch=int(optimizer_config['schedule']['warmup_epoches'] * num_samples / (num_gpus * train_bs)), 
-        after_scheduler=scheduler)
 
+    if optimizer_config["schedule"].get("warmup_epoches", 0):
+        scheduler = GradualWarmupScheduler(
+            optimizer,
+            multiplier=1,
+            total_epoch=int(
+                optimizer_config["schedule"]["warmup_epoches"]
+                * num_samples
+                / (num_gpus * train_bs)
+            ),
+            after_scheduler=scheduler,
+        )
 
     return optimizer, scheduler
 
@@ -319,10 +329,14 @@ class SmoothedValue:
             max=self.max,
             value=self.value,
         )
+
+
+import torch
 import wandb
 from matplotlib import pyplot as plt
-import torch
-def wandb_dump_images(imgs, name="vis",keys=None,epoch=0):
+
+
+def wandb_dump_images(imgs, name="vis", keys=None, epoch=0):
     """
     x: H X W X C
     y: H X W X C
@@ -336,6 +350,7 @@ def wandb_dump_images(imgs, name="vis",keys=None,epoch=0):
             axes[idx].imshow(img)
             if keys:
                 axes[idx].title.set_text(keys[idx])
+        fig.tight_layout()
         wandb.log({name: wandb.Image(fig), "epoch": epoch})
         plt.close(fig)
 

@@ -1,0 +1,32 @@
+{
+  "network": "TimmUnet",
+  "encoder_params": {
+    "encoder": "nfnet_l0",
+    "in_chans": 2,
+    "pretrained": false,
+    "drop_path_rate": 0.25,
+    "channels_last": false
+  },
+  "crop_size": 1792,
+  "multiplier": 64,
+  "optimizer": {
+    "train_bs": 3,
+    "val_bs": 1,
+    "type": "SGD",
+    "learning_rate": 0.01,
+    "momentum": 0.9,
+    "nesterov": true,
+    "weight_decay": 1e-4,
+    "schedule": {
+      "type": "cosine",
+      "mode": "step",
+      "epochs": 120,
+      "params": {
+        "eta_min": 3e-4
+      }
+    }
+  },
+   "losses": [
+
+  ]
+}

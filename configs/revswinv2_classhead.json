@@ -13,17 +13,17 @@
     "train_bs": 8,
     "val_bs": 4,
     "type": "SGD",
-    "learning_rate": 0.0001,
+    "learning_rate": 0.0003,
     "weight_decay": 1e-4,
     "nesterov": true,
     "momentum": 0.9,
-    "classifier_lr": 0.01,
+    "classifier_lr": 0.003,
     "schedule": {
       "type": "cosine",
       "mode": "step",
       "epochs": 120,
       "params": {
-        "eta_min": 4e-4
+        "eta_min": 3e-5
       }
     }
   },

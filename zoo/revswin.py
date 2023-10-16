@@ -27,13 +27,21 @@ from torch.autograd import Function as Function
 # except:
 WindowProcess = None
 WindowProcessReverse = None
-print("[Warning] Fused window process have not been installed. Please refer to get_started.md for installation.")
+print(
+    "[Warning] Fused window process have not been installed. Please refer to get_started.md for installation."
+)
+
 
 class Mlp(nn.Module):
     """Multilayer perceptron."""
 
     def __init__(
-        self, in_features, hidden_features=None, out_features=None, act_layer=nn.GELU, drop=0.0
+        self,
+        in_features,
+        hidden_features=None,
+        out_features=None,
+        act_layer=nn.GELU,
+        drop=0.0,
     ):
         super().__init__()
         out_features = out_features or in_features
@@ -70,25 +78,17 @@ class TwoStreamFusion(nn.Module):
         self.mode = mode
         self.dim = dim
         if mode == "add":
-            self.fuse_fn = lambda x: torch.stack(torch.chunk(x, 2, dim=2)).sum(
-                dim=0
-            )
+            self.fuse_fn = lambda x: torch.stack(torch.chunk(x, 2, dim=2)).sum(dim=0)
         elif mode == "max":
             self.fuse_fn = (
-                lambda x: torch.stack(torch.chunk(x, 2, dim=2))
-                .max(dim=0)
-                .values
+                lambda x: torch.stack(torch.chunk(x, 2, dim=2)).max(dim=0).values
             )
         elif mode == "min":
             self.fuse_fn = (
-                lambda x: torch.stack(torch.chunk(x, 2, dim=2))
-                .min(dim=0)
-                .values
+                lambda x: torch.stack(torch.chunk(x, 2, dim=2)).min(dim=0).values
             )
         elif mode == "avg":
-            self.fuse_fn = lambda x: torch.stack(torch.chunk(x, 2, dim=2)).mean(
-                dim=0
-            )
+            self.fuse_fn = lambda x: torch.stack(torch.chunk(x, 2, dim=2)).mean(dim=0)
         elif mode == "concat":
             # x itself is the channel concat version
             self.fuse_fn = lambda x: x
@@ -133,7 +133,7 @@ class TwoStreamFusion(nn.Module):
 
         else:
             raise NotImplementedError
-    
+
     def init_weights(self):
         "Purely for overriding the proj initialization"
         if "proj" in self.mode:
@@ -142,13 +142,14 @@ class TwoStreamFusion(nn.Module):
             # nn.init.eye_(proj.weight[:, :self.dim])
             # nn.init.eye_(proj.weight[:, self.dim:])
             with torch.no_grad():
-                torch.diagonal(proj.weight.data[:, :self.dim]).add_(0.5)
-                torch.diagonal(proj.weight.data[:, self.dim:]).add_(0.5)
+                torch.diagonal(proj.weight.data[:, : self.dim]).add_(0.5)
+                torch.diagonal(proj.weight.data[:, self.dim :]).add_(0.5)
                 # proj.weight += torch.randn(*proj.weight.shape)*0.02
                 # proj.weight /= 2 # normalize outgoing variance
 
     def forward(self, x):
         return self.fuse_fn(x)
+
 
 def window_partition(x, window_size):
     """
@@ -159,10 +160,10 @@ def window_partition(x, window_size):
         windows: (num_windows*B, window_size, window_size, C)
     """
     B, H, W, C = x.shape
-    x = x.view(B, H // window_size, window_size,
-               W // window_size, window_size, C)
-    windows = x.permute(0, 1, 3, 2, 4, 5).contiguous(
-    ).view(-1, window_size, window_size, C)
+    x = x.view(B, H // window_size, window_size, W // window_size, window_size, C)
+    windows = (
+        x.permute(0, 1, 3, 2, 4, 5).contiguous().view(-1, window_size, window_size, C)
+    )
     return windows
 
 
@@ -177,8 +178,9 @@ def window_reverse(windows, window_size, H, W):
         x: (B, H, W, C)
     """
     B = int(windows.shape[0] / (H * W / window_size / window_size))
-    x = windows.view(B, H // window_size, W // window_size,
-                     window_size, window_size, -1)
+    x = windows.view(
+        B, H // window_size, W // window_size, window_size, window_size, -1
+    )
     x = x.permute(0, 1, 3, 2, 4, 5).contiguous().view(B, H, W, -1)
     return x
 
@@ -206,18 +208,16 @@ class WindowAttention(nn.Module):
         attn_drop=0.0,
         proj_drop=0.0,
     ):
-
         super().__init__()
         self.dim = dim
         self.window_size = window_size  # Wh, Ww
         self.num_heads = num_heads
         head_dim = dim // num_heads
-        self.scale = qk_scale or head_dim ** -0.5
+        self.scale = qk_scale or head_dim**-0.5
 
         # define a parameter table of relative position bias
         self.relative_position_bias_table = nn.Parameter(
-            torch.zeros((2 * window_size[0] - 1)
-                        * (2 * window_size[1] - 1), num_heads)
+            torch.zeros((2 * window_size[0] - 1) * (2 * window_size[1] - 1), num_heads)
         )  # 2*Wh-1 * 2*Ww-1, nH
 
         # get pair-wise relative position index for each token inside the window
@@ -225,17 +225,17 @@ class WindowAttention(nn.Module):
         coords_w = torch.arange(self.window_size[1])
         coords = torch.stack(torch.meshgrid([coords_h, coords_w]))  # 2, Wh, Ww
         coords_flatten = torch.flatten(coords, 1)  # 2, Wh*Ww
-        relative_coords = coords_flatten[:, :, None] - \
-            coords_flatten[:, None, :]  # 2, Wh*Ww, Wh*Ww
+        relative_coords = (
+            coords_flatten[:, :, None] - coords_flatten[:, None, :]
+        )  # 2, Wh*Ww, Wh*Ww
         relative_coords = relative_coords.permute(
-            1, 2, 0).contiguous()  # Wh*Ww, Wh*Ww, 2
-        relative_coords[:, :, 0] += self.window_size[0] - \
-            1  # shift to start from 0
+            1, 2, 0
+        ).contiguous()  # Wh*Ww, Wh*Ww, 2
+        relative_coords[:, :, 0] += self.window_size[0] - 1  # shift to start from 0
         relative_coords[:, :, 1] += self.window_size[1] - 1
         relative_coords[:, :, 0] *= 2 * self.window_size[1] - 1
         relative_position_index = relative_coords.sum(-1)  # Wh*Ww, Wh*Ww
-        self.register_buffer("relative_position_index",
-                             relative_position_index)
+        self.register_buffer("relative_position_index", relative_position_index)
 
         self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias)
         self.attn_drop = nn.Dropout(attn_drop)
@@ -266,8 +266,9 @@ class WindowAttention(nn.Module):
         relative_position_bias = self.relative_position_bias_table[
             self.relative_position_index.view(-1)
         ].view(
-            self.window_size[0] * self.window_size[1], self.window_size[0] *
-            self.window_size[1], -1
+            self.window_size[0] * self.window_size[1],
+            self.window_size[0] * self.window_size[1],
+            -1,
         )  # Wh*Ww,Wh*Ww,nH
         relative_position_bias = relative_position_bias.permute(
             2, 0, 1
@@ -276,8 +277,9 @@ class WindowAttention(nn.Module):
 
         if mask is not None:
             nW = mask.shape[0]
-            attn = attn.view(B_ // nW, nW, self.num_heads, N,
-                             N) + mask.unsqueeze(1).unsqueeze(0)
+            attn = attn.view(B_ // nW, nW, self.num_heads, N, N) + mask.unsqueeze(
+                1
+            ).unsqueeze(0)
             attn = attn.view(-1, self.num_heads, N, N)
             attn = self.softmax(attn)
         else:
@@ -331,7 +333,9 @@ class ReversibleSwinTransformerBlock(nn.Module):
         self.window_size = window_size
         self.shift_size = shift_size
         self.mlp_ratio = mlp_ratio
-        assert 0 <= self.shift_size < self.window_size, "shift_size must in 0-window_size"
+        assert (
+            0 <= self.shift_size < self.window_size
+        ), "shift_size must in 0-window_size"
         self.norm1 = norm_layer(dim)
         self.attn = WindowAttention(
             dim,
@@ -343,12 +347,14 @@ class ReversibleSwinTransformerBlock(nn.Module):
             proj_drop=drop,
         )
 
-        self.drop_path = DropPath(
-            drop_path) if drop_path > 0.0 else nn.Identity()
+        self.drop_path = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
         self.norm2 = norm_layer(dim)
         mlp_hidden_dim = int(dim * mlp_ratio)
         self.mlp = Mlp(
-            in_features=dim, hidden_features=mlp_hidden_dim, act_layer=act_layer, drop=drop
+            in_features=dim,
+            hidden_features=mlp_hidden_dim,
+            act_layer=act_layer,
+            drop=drop,
         )
 
         self.H = None
@@ -383,11 +389,11 @@ class ReversibleSwinTransformerBlock(nn.Module):
         torch.manual_seed(self.seeds[key])
 
     def forward_attn(self, x, mask_matrix):
-        """ Forward function for windowed attention. No drop_path.
-         Args:
-            x: Input feature, tensor size (B, H*W, C).
-            H, W: Spatial resolution of the input feature.
-            mask_matrix: Attention mask for cyclic shift.       
+        """Forward function for windowed attention. No drop_path.
+        Args:
+           x: Input feature, tensor size (B, H*W, C).
+           H, W: Spatial resolution of the input feature.
+           mask_matrix: Attention mask for cyclic shift.
         """
         B, L, C = x.shape
         H, W = self.H, self.W
@@ -407,38 +413,54 @@ class ReversibleSwinTransformerBlock(nn.Module):
         if self.shift_size > 0:
             attn_mask = mask_matrix
             if not self.fused_window_process:
-                shifted_x = torch.roll(x, shifts=(-self.shift_size, -self.shift_size), dims=(1, 2))
+                shifted_x = torch.roll(
+                    x, shifts=(-self.shift_size, -self.shift_size), dims=(1, 2)
+                )
                 # partition windows
-                x_windows = window_partition(shifted_x, self.window_size)  # nW*B, window_size, window_size, C
+                x_windows = window_partition(
+                    shifted_x, self.window_size
+                )  # nW*B, window_size, window_size, C
             else:
-                x_windows = WindowProcess.apply(x, B, H, W, C, -self.shift_size, self.window_size)
+                x_windows = WindowProcess.apply(
+                    x, B, H, W, C, -self.shift_size, self.window_size
+                )
         else:
             attn_mask = None
             shifted_x = x
             # partition windows
-            x_windows = window_partition(shifted_x, self.window_size)  # nW*B, window_size, window_size, C
+            x_windows = window_partition(
+                shifted_x, self.window_size
+            )  # nW*B, window_size, window_size, C
 
-        x_windows = x_windows.view(-1, self.window_size * self.window_size, C)  # nW*B, window_size*window_size, C
+        x_windows = x_windows.view(
+            -1, self.window_size * self.window_size, C
+        )  # nW*B, window_size*window_size, C
 
         # W-MSA/SW-MSA
         # nW*B, window_size*window_size, C
         attn_windows = self.attn(x_windows, mask=attn_mask)
 
         # merge windows
-        attn_windows = attn_windows.view(-1,
-                                         self.window_size, self.window_size, C)
-        shifted_x = window_reverse(
-            attn_windows, self.window_size, Hp, Wp)  # B H' W' C
+        attn_windows = attn_windows.view(-1, self.window_size, self.window_size, C)
+        shifted_x = window_reverse(attn_windows, self.window_size, Hp, Wp)  # B H' W' C
 
         # reverse cyclic shift
         if self.shift_size > 0:
             if not self.fused_window_process:
-                shifted_x = window_reverse(attn_windows, self.window_size, H, W)  # B H' W' C
-                x = torch.roll(shifted_x, shifts=(self.shift_size, self.shift_size), dims=(1, 2))
+                shifted_x = window_reverse(
+                    attn_windows, self.window_size, H, W
+                )  # B H' W' C
+                x = torch.roll(
+                    shifted_x, shifts=(self.shift_size, self.shift_size), dims=(1, 2)
+                )
             else:
-                x = WindowProcessReverse.apply(attn_windows, B, H, W, C, self.shift_size, self.window_size)
+                x = WindowProcessReverse.apply(
+                    attn_windows, B, H, W, C, self.shift_size, self.window_size
+                )
         else:
-            shifted_x = window_reverse(attn_windows, self.window_size, H, W)  # B H' W' C
+            shifted_x = window_reverse(
+                attn_windows, self.window_size, H, W
+            )  # B H' W' C
             x = shifted_x
 
         if pad_r > 0 or pad_b > 0:
@@ -449,7 +471,7 @@ class ReversibleSwinTransformerBlock(nn.Module):
         return x
 
     def forward_mlp(self, x):
-        """ Forward function for mlp. """
+        """Forward function for mlp."""
         return self.mlp(self.norm2(x))
 
     def forward(self, X1, X2, mask_matrix):
@@ -494,7 +516,6 @@ class ReversibleSwinTransformerBlock(nn.Module):
         # temporarily record intermediate activation for G
         # and use them for gradient calculcation of G
         with torch.enable_grad():
-
             Y_1.requires_grad = True
 
             torch.manual_seed(self.seeds["mlp"])
@@ -508,7 +529,6 @@ class ReversibleSwinTransformerBlock(nn.Module):
         # activation recomputation is by design and not part of
         # the computation graph in forward pass.
         with torch.no_grad():
-
             X_2 = Y_2 - g_Y_1
             del g_Y_1
 
@@ -530,7 +550,6 @@ class ReversibleSwinTransformerBlock(nn.Module):
         # propagate reverse computed acitvations at the start of
         # the previou block for backprop.s
         with torch.no_grad():
-
             X_1 = Y_1 - f_X_2
 
             del f_X_2, Y_1
@@ -684,7 +703,6 @@ class RevBackProp(Function):
         attn_mask = ctx.attn_mask
 
         for _, blk in enumerate(blocks[::-1]):
-
             X_1, X_2, dX_1, dX_2 = blk.backward_pass(
                 Y_1=X_1,
                 Y_2=X_2,
@@ -698,6 +716,7 @@ class RevBackProp(Function):
         del dX_1, dX_2, X_1, X_2
 
         return dx, None, None
+
 
 class RevBackPropFast(RevBackProp):
     @staticmethod
@@ -723,11 +742,7 @@ class RevBackPropFast(RevBackProp):
         # Initial pass
         with torch.cuda.stream(s1):
             layer = layers[-1]
-            prev = layer.backward_pass_recover(
-                Y_1=X_1,
-                Y_2=X_2,
-                mask_matrix=attn_mask
-            )
+            prev = layer.backward_pass_recover(Y_1=X_1, Y_2=X_2, mask_matrix=attn_mask)
 
             events["f0"].record(s1)
 
@@ -759,9 +774,7 @@ class RevBackPropFast(RevBackProp):
                 events[f"f{i}"].synchronize()
 
                 prev = next_layer.backward_pass_recover(
-                    Y_1=prev[0],
-                    Y_2=prev[1],
-                    mask_matrix=attn_mask
+                    Y_1=prev[0], Y_2=prev[1], mask_matrix=attn_mask
                 )
 
                 events[f"f{i+1}"].record(stream2)
@@ -772,7 +785,7 @@ class RevBackPropFast(RevBackProp):
         else:
             stream2 = s2
         next_layer = layers[0]
-            
+
         with torch.cuda.stream(stream2):
             # stream2.wait_event(events[f"b{len(layers)-2}_end"])
             events[f"b{len(layers)-2}"].synchronize()
@@ -831,7 +844,7 @@ class ReversibleLayer(nn.Module):
         fused_window_process=False,
         lateral_fusion="avg",
         two_stream_input=True,
-        fast_backprop=False
+        fast_backprop=False,
     ):
         super().__init__()
         self.window_size = window_size
@@ -852,15 +865,15 @@ class ReversibleLayer(nn.Module):
                     qk_scale=qk_scale,
                     drop=drop,
                     attn_drop=attn_drop,
-                    drop_path=drop_path[i] if isinstance(
-                        drop_path, list) else drop_path,
+                    drop_path=drop_path[i]
+                    if isinstance(drop_path, list)
+                    else drop_path,
                     norm_layer=norm_layer,
                     fused_window_process=fused_window_process,
                 )
                 for i in range(depth)
             ]
         )
-
 
         # patch merging layer
         if downsample is not None:
@@ -879,7 +892,7 @@ class ReversibleLayer(nn.Module):
     @staticmethod
     def vanilla_backward(h, blocks, buffer):
         """
-        Use rev layers without rev backprop, for debugging. Use w/ self.use_vanilla_backward 
+        Use rev layers without rev backprop, for debugging. Use w/ self.use_vanilla_backward
         """
         # split into hidden states (h) and attention_output (a)
         H, W, attn_mask, use_checkpoint = buffer
@@ -925,14 +938,13 @@ class ReversibleLayer(nn.Module):
         mask_windows = window_partition(
             img_mask, self.window_size
         )  # nW, window_size, window_size, 1
-        mask_windows = mask_windows.view(-1,
-                                         self.window_size * self.window_size)
+        mask_windows = mask_windows.view(-1, self.window_size * self.window_size)
         attn_mask = mask_windows.unsqueeze(1) - mask_windows.unsqueeze(2)
         attn_mask = attn_mask.masked_fill(attn_mask != 0, float(-100.0)).masked_fill(
             attn_mask == 0, float(0.0)
         )
 
-        if not self.two_stream_input: 
+        if not self.two_stream_input:
             x = torch.cat([x, x], dim=-1)
 
         if self.use_vanilla_backward:
@@ -942,8 +954,7 @@ class ReversibleLayer(nn.Module):
         else:
             executing_fn = RevBackProp.apply
 
-        x = executing_fn(
-            x, self.blocks, (H, W, attn_mask, self.use_checkpoint))
+        x = executing_fn(x, self.blocks, (H, W, attn_mask, self.use_checkpoint))
 
         # for blk in self.blocks:
         #     blk.H, blk.W = H, W
@@ -981,8 +992,9 @@ class PatchEmbed(nn.Module):
         self.in_chans = in_chans
         self.embed_dim = embed_dim
 
-        self.proj = nn.Conv2d(in_chans, embed_dim,
-                              kernel_size=patch_size, stride=patch_size)
+        self.proj = nn.Conv2d(
+            in_chans, embed_dim, kernel_size=patch_size, stride=patch_size
+        )
         if norm_layer is not None:
             self.norm = norm_layer(embed_dim)
         else:
@@ -995,8 +1007,7 @@ class PatchEmbed(nn.Module):
         if W % self.patch_size[1] != 0:
             x = F.pad(x, (0, self.patch_size[1] - W % self.patch_size[1]))
         if H % self.patch_size[0] != 0:
-            x = F.pad(
-                x, (0, 0, 0, self.patch_size[0] - H % self.patch_size[0]))
+            x = F.pad(x, (0, 0, 0, self.patch_size[0] - H % self.patch_size[0]))
 
         x = self.proj(x)  # B C Wh Ww
         if self.norm is not None:
@@ -1060,7 +1071,7 @@ class ReversibleSwinTransformer(nn.Module):
         fused_window_process=False,
         lateral_fusion="avg",
         fast_backprop=False,
-        **kwargs
+        **kwargs,
     ):
         super().__init__()
 
@@ -1076,9 +1087,11 @@ class ReversibleSwinTransformer(nn.Module):
         if input_dim == in_chans:
             self.input_ada = nn.Identity()
         elif input_dim < in_chans:
-            self.input_ada = nn.Conv2d(input_dim,in_chans,1,1)
+            self.input_ada = nn.Conv2d(input_dim, in_chans, 1, 1)
         else:
-            raise ValueError("input dim must <= in_chans, otherwise consider change in_chans!")
+            raise ValueError(
+                "input dim must <= in_chans, otherwise consider change in_chans!"
+            )
 
         # split image into non-overlapping patches
         self.patch_embed = PatchEmbed(
@@ -1098,8 +1111,7 @@ class ReversibleSwinTransformer(nn.Module):
             ]
 
             self.absolute_pos_embed = nn.Parameter(
-                torch.zeros(
-                    1, embed_dim, patches_resolution[0], patches_resolution[1])
+                torch.zeros(1, embed_dim, patches_resolution[0], patches_resolution[1])
             )
             trunc_normal_(self.absolute_pos_embed, std=0.02)
 
@@ -1112,21 +1124,21 @@ class ReversibleSwinTransformer(nn.Module):
 
         # Initialize global stream for device
         if fast_backprop:
-            global s1, s2 
+            global s1, s2
             s1 = torch.cuda.Stream(device=torch.cuda.current_device())
             s2 = torch.cuda.Stream(device=torch.cuda.current_device())
 
         # build layers
         self.feature_info = []
         self.layers = nn.ModuleList()
-        self.feature_info += [dict(num_chs=embed_dim, reduction=2, module=f'patch_embed')]
+        self.feature_info += [
+            dict(num_chs=embed_dim, reduction=2, module=f"patch_embed")
+        ]
         self.upsample = nn.ModuleList()
-        self.upsample.append(
-            nn.ConvTranspose2d(embed_dim,embed_dim,2,2)
-        )
+        self.upsample.append(nn.ConvTranspose2d(embed_dim, embed_dim, 2, 2))
         for i_layer in range(self.num_layers):
             layer = ReversibleLayer(
-                dim=int(embed_dim * 2 ** i_layer),
+                dim=int(embed_dim * 2**i_layer),
                 depth=depths[i_layer],
                 num_heads=num_heads[i_layer],
                 window_size=window_size,
@@ -1135,10 +1147,9 @@ class ReversibleSwinTransformer(nn.Module):
                 qk_scale=qk_scale,
                 drop=drop_rate,
                 attn_drop=attn_drop_rate,
-                drop_path=dpr[sum(depths[:i_layer]):sum(depths[: i_layer + 1])],
+                drop_path=dpr[sum(depths[:i_layer]) : sum(depths[: i_layer + 1])],
                 norm_layer=norm_layer,
-                downsample=PatchMerging if (
-                    i_layer < self.num_layers - 1) else None,
+                downsample=PatchMerging if (i_layer < self.num_layers - 1) else None,
                 use_checkpoint=use_checkpoint,
                 fused_window_process=fused_window_process,
                 lateral_fusion=lateral_fusion,
@@ -1146,22 +1157,28 @@ class ReversibleSwinTransformer(nn.Module):
                 fast_backprop=fast_backprop,
             )
             self.layers.append(layer)
-            scaling = (1 if (i_layer < self.num_layers - 1) else 0)
+            scaling = 1 if (i_layer < self.num_layers - 1) else 0
             # num_chs = int(embed_dim * 2 ** (i_layer+scaling ))
             # always + 1 since we have 2x channels in rev at the end
             num_chs = int(embed_dim * 2 ** (i_layer + 1))
             if scaling:
-                self.upsample.append(nn.ConvTranspose2d(num_chs,num_chs,2,2))
+                self.upsample.append(nn.ConvTranspose2d(num_chs, num_chs, 2, 2))
             else:
                 self.upsample.append(nn.Identity())
-            self.feature_info += [dict(num_chs=num_chs, reduction=4 * 2 ** i_layer, module=f'layers.{i_layer}')]
+            self.feature_info += [
+                dict(
+                    num_chs=num_chs,
+                    reduction=4 * 2**i_layer,
+                    module=f"layers.{i_layer}",
+                )
+            ]
 
         # num_features = [int(embed_dim * 2 ** i)
         #                 for i in range(self.num_layers)]
         # self.num_features = num_features
-        # if not rev, then self.num_features = [int(embed_dim * 2 ** (self.num_layers - 1))] 
+        # if not rev, then self.num_features = [int(embed_dim * 2 ** (self.num_layers - 1))]
         # but rev has 2x channels, so features is * 2 as last layer isn't downsampled
-        self.num_features = int(embed_dim * 2 ** self.num_layers)
+        self.num_features = int(embed_dim * 2**self.num_layers)
         self.mlp_ratio = mlp_ratio
 
         # add a norm layer for each output
@@ -1176,7 +1193,7 @@ class ReversibleSwinTransformer(nn.Module):
         self.apply(self._init_weights)
         for layer in self.layers:
             if layer.downsample is not None:
-                layer.lateral_fuse.init_weights() 
+                layer.lateral_fuse.init_weights()
         # self._freeze_stages()
 
     def _freeze_stages(self):
@@ -1202,7 +1219,7 @@ class ReversibleSwinTransformer(nn.Module):
     #         pretrained (str, optional): Path to pre-trained weights.
     #             Defaults to None.
     #     """
-    
+
     def _init_weights(self, m):
         if isinstance(m, nn.Linear):
             trunc_normal_(m.weight, std=0.02)
@@ -1215,12 +1232,12 @@ class ReversibleSwinTransformer(nn.Module):
     def reshape(self, x):
         _, hw, d = x.shape
         r = int(np.sqrt(hw))
-        x_reshaped = x.view(-1,r,r,d).permute(0,3,1,2).contiguous()
+        x_reshaped = x.view(-1, r, r, d).permute(0, 3, 1, 2).contiguous()
         return x_reshaped
 
     def forward_features(self, x):
         """Forward function."""
-        #print(x.shape)
+        # print(x.shape)
         x = self.input_ada(x)
         x = self.patch_embed(x)
 
@@ -1244,7 +1261,7 @@ class ReversibleSwinTransformer(nn.Module):
             layer = self.layers[i]
             x, Wh, Ww = layer(x, Wh, Ww)
 
-            #print(x.shape)
+            # print(x.shape)
             outs.append(self.reshape(x))
             # if i in self.out_indices:
             #     norm_layer = getattr(self, f"norm{i}")
@@ -1254,11 +1271,11 @@ class ReversibleSwinTransformer(nn.Module):
             #                      self.num_features[i]).permute(0, 3, 1, 2).contiguous()
             #     outs["res{}".format(i + 2)] = out
 
-        #print("out shapes after upsamples")
+        # print("out shapes after upsamples")
         for idx, ox in enumerate(outs[:]):
             outs[idx] = self.upsample[idx](ox)
-            #print(outs[idx].shape)
-        
+            # print(outs[idx].shape)
+
         return outs
 
     def forward(self, x):
@@ -1277,24 +1294,30 @@ class ReversibleSwinTransformer(nn.Module):
         x = self.head(x)
         return x
 
+
 # Trained on patch4_window7_224
 def revswinv1_tiny_window7_224_xview(pretrained=False, **kwargs):
-    """
-    """
+    """ """
     model_kwargs = dict(
-        window_size=16, embed_dim=96, depths=(2, 2, 6, 2), num_heads=(3, 6, 12, 24), **kwargs)
-    model =  ReversibleSwinTransformer(**model_kwargs)
+        window_size=16,
+        embed_dim=96,
+        depths=(2, 2, 6, 2),
+        num_heads=(3, 6, 12, 24),
+        **kwargs,
+    )
+    model = ReversibleSwinTransformer(**model_kwargs)
     if pretrained:
-        ckpt = torch.load(pretrained,map_location='cpu')
+        ckpt = torch.load(pretrained, map_location="cpu")
         state_dict = model.state_dict()
         filtered = {}
-        for k,v in ckpt.items():
+        for k, v in ckpt.items():
             if k in state_dict and state_dict[k].shape != v.shape:
                 print(f"Skipped {k} for size mismatch")
                 continue
-            filtered[k]=v
-        model.load_state_dict(filtered,strict=False)
+            filtered[k] = v
+        model.load_state_dict(filtered, strict=False)
     return model
+
 
 REVSWIN_CFG = dict(
     revswinv1_tiny_window7_224_xview=revswinv1_tiny_window7_224_xview,

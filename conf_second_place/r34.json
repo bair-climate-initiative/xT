@@ -1,0 +1,9 @@
+{
+  "network": "TimmUnet",
+  "encoder_params": {
+    "encoder": "resnet34",
+    "in_chans": 2,
+    "pretrained": false,
+    "channels_last": false
+  }
+}

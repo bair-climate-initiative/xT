@@ -3,6 +3,8 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+slurm/
+
 # C extensions
 *.so
 
@@ -127,13 +129,13 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
-output**
+output/**
 weights
 
 
 **.pth
 **/**.pth
-output**
+output/**
 pred**
 **.png
 logs/

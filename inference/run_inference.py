@@ -6,7 +6,7 @@ import numpy as np
 import tifffile
 import torch
 from torch import nn
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
 from inference.tiling import Tiler, TileSlice
@@ -14,22 +14,24 @@ from training.val_dataset import normalize_band
 
 
 class SliceDataset(Dataset):
-    file_cache = {
+    file_cache = {}
 
-    }
-    def __init__(self, scene_dir: str, tiler: Tiler,cache=True) -> None:
+    def __init__(self, scene_dir: str, tiler: Tiler, cache=True) -> None:
         super().__init__()
         self.scene_dir = scene_dir
         self.tiler = tiler
         self.slices = tiler.generate_slices()
         if scene_dir in SliceDataset.file_cache:
-            self.vv_full,self.vh_full = SliceDataset.file_cache[scene_dir]
+            self.vv_full, self.vh_full = SliceDataset.file_cache[scene_dir]
             self.vv_full = self.vv_full.copy()
             self.vh_full = self.vh_full.copy()
         else:
             self.vv_full = tifffile.imread(os.path.join(self.scene_dir, "VV_dB.tif"))
             self.vh_full = tifffile.imread(os.path.join(self.scene_dir, "VH_dB.tif"))
-            SliceDataset.file_cache[scene_dir] = (self.vv_full.copy(),self.vh_full.copy())
+            SliceDataset.file_cache[scene_dir] = (
+                self.vv_full.copy(),
+                self.vh_full.copy(),
+            )
 
     def __getitem__(self, index):
         slice = self.slices[index]
@@ -43,8 +45,8 @@ class SliceDataset(Dataset):
     def __len__(self):
         return len(self.slices)
 
-class SliceDatasetPanda(Dataset):
 
+class SliceDatasetPanda(Dataset):
     def __init__(self, full_img: str, tiler: Tiler) -> None:
         super().__init__()
         self.full_img = full_img.cpu().numpy()
@@ -54,32 +56,53 @@ class SliceDatasetPanda(Dataset):
 
     def __getitem__(self, index):
         slice = self.slices[index]
-        img = np.stack([self.tiler.get_crop(self.full_img[i], slice) for i in range(self.channels)])
+        img = np.stack(
+            [self.tiler.get_crop(self.full_img[i], slice) for i in range(self.channels)]
+        )
         return img, np.array([slice.row, slice.column, slice.y, slice.x])
 
     def __len__(self):
         return len(self.slices)
+
+
 import rasterio
 
-def predict_scene_and_return_mm(models: List[nn.Module], dataset_dir, scene_id: str, use_fp16: bool = False,
-                                rotate=False, output_dir=None,num_workers=8,
-                                crop_size = 3584,overlap=704, extra_context = False,iter_function=None,position=0):
+
+def predict_scene_and_return_mm(
+    models: List[nn.Module],
+    dataset_dir,
+    scene_id: str,
+    use_fp16: bool = False,
+    rotate=False,
+    output_dir=None,
+    num_workers=8,
+    crop_size=3584,
+    overlap=704,
+    extra_context=False,
+    iter_function=None,
+    position=0,
+):
     vh_full = rasterio.open(os.path.join(dataset_dir, scene_id, "VH_dB.tif"))
 
     height, width = vh_full.shape
     vh_full.close()
-    vh_full = np.zeros((height, width),dtype=np.uint8)
+    vh_full = np.zeros((height, width), dtype=np.uint8)
     tiler = Tiler(height, width, crop_size, overlap)
     vessel_preds = np.zeros_like(vh_full, dtype=np.uint8)
     fishing_preds = np.zeros_like(vh_full, dtype=np.uint8)
     length_preds = np.zeros_like(vh_full, dtype=np.float16)
     center_preds = np.zeros_like(vh_full, dtype=np.uint8)
-    #print(os.path.join(dataset_dir, scene_id))
+    # print(os.path.join(dataset_dir, scene_id))
     slice_dataset = SliceDataset(os.path.join(dataset_dir, scene_id), tiler)
     slice_loader = DataLoader(
-        slice_dataset, batch_size=1, shuffle=False, num_workers=num_workers, pin_memory=False
+        slice_dataset,
+        batch_size=1,
+        shuffle=False,
+        num_workers=num_workers,
+        pin_memory=False,
     )
-    if extra_context: # XL inner loop
+    if extra_context:  # XL inner loop
+
         def model_foward(x):
             mem = set()
             output = None
@@ -89,20 +112,26 @@ def predict_scene_and_return_mm(models: List[nn.Module], dataset_dir, scene_id: 
                 local_output,mem = model(batch_new,context=context,mem=mem)
                 if mem_only:
                     continue
-                context_id = k['context_id']    
+                context_id = k["context_id"]
                 if output is None:
-                    output = {k:torch.zeros(*(v.shape[:-2]),hh,ww,dtype=v.dtype,device='cpu') for k,v in local_output.items()}
-                for k,v in output.items():
-                    output[k][...,x0:x1,y0:y1] = local_output[k].cpu()
+                    output = {
+                        k: torch.zeros(
+                            *(v.shape[:-2]), hh, ww, dtype=v.dtype, device="cpu"
+                        )
+                        for k, v in local_output.items()
+                    }
+                for k, v in output.items():
+                    output[k][..., x0:x1, y0:y1] = local_output[k].cpu()
             return output
-    for batch, slice_vals in tqdm(slice_loader,position=position):
+
+    for batch, slice_vals in tqdm(slice_loader, position=position):
         slice = TileSlice(*slice_vals[0])
         print("----------------FSDP:LOCK INFERENCE------------")
         with torch.no_grad():
             batch = batch
             with torch.cuda.amp.autocast(enabled=False):
                 outputs = []
-                for model in models: 
+                for model in models:
                     if extra_context:
                         output = model_foward(batch)
                     else:
@@ -110,27 +139,39 @@ def predict_scene_and_return_mm(models: List[nn.Module], dataset_dir, scene_id: 
                         output = model(batch)
                         print("Post Inf")
                     sigmoid_keys = ["fishing_mask", "vessel_mask"]
-                    for k in sigmoid_keys:
-                        output[k] = torch.sigmoid(output[k])
-                    if rotate:
-                        if extra_context:
-                            out180 = model_foward(torch.rot90(batch, 2, dims=(2, 3)))
-                        else:
-                            out180 = model(torch.rot90(batch, 2, dims=(2, 3)))
-                        for key in list(output.keys()):
-                            val = torch.rot90(out180[key], 2, dims=(2, 3))
-                            if key in sigmoid_keys:
-                                val = torch.sigmoid(val)
-                            output[key] += val
-                            output[key] *= 0.5
-                    outputs.append(output)
+                # perform sigmoid  not in amp
+            for k in sigmoid_keys:
+                output[k] = torch.sigmoid(output[k].float())
+            if rotate:
+                with torch.cuda.amp.autocast(enabled=use_fp16):
+                    if extra_context:
+                        out180 = model_foward(torch.rot90(batch, 2, dims=(2, 3)))
+                    else:
+                        out180 = model(torch.rot90(batch, 2, dims=(2, 3)))
+                for key in list(output.keys()):
+                    val = torch.rot90(out180[key], 2, dims=(2, 3))
+                    if key in sigmoid_keys:
+                        val = torch.sigmoid(val.float())
+                output[key] += val
+                output[key] *= 0.5
+            outputs.append(output)
+
             output = {}
             for k in outputs[0].keys():
                 vs = [o[k][:, :3] for o in outputs]
                 output[k] = sum(vs) / len(models)
-            vessel_mask = (output["vessel_mask"][0][0] * 255).cpu().numpy().astype(np.uint8)
-            fishing_mask = (output["fishing_mask"][0][0] * 255).cpu().numpy().astype(np.uint8)
-            center_mask = torch.clamp(output["center_mask"][0][0], 0, 255).cpu().numpy().astype(np.uint8)
+            vessel_mask = (
+                (output["vessel_mask"][0][0] * 255).cpu().numpy().astype(np.uint8)
+            )
+            fishing_mask = (
+                (output["fishing_mask"][0][0] * 255).cpu().numpy().astype(np.uint8)
+            )
+            center_mask = (
+                torch.clamp(output["center_mask"][0][0].float(), 0, 255)
+                .cpu()
+                .numpy()
+                .astype(np.uint8)
+            )
             length_mask = output["length_mask"][0][0].cpu().numpy().astype(np.float16)
         tiler.update_crop(vessel_preds, vessel_mask, slice)
         tiler.update_crop(fishing_preds, fishing_mask, slice)
@@ -148,14 +189,18 @@ def predict_scene_and_return_mm(models: List[nn.Module], dataset_dir, scene_id: 
         "center_mask": center_preds,
         "vessel_mask": vessel_preds,
         "fishing_mask": fishing_preds,
-
         "length_mask": length_preds,
     }
 
 
-def predict_whole_image_panda(models: List[nn.Module], img_full, use_fp16: bool = False,
-                                rotate=False, output_dir=None):
-    _,height, width = img_full.shape
+def predict_whole_image_panda(
+    models: List[nn.Module],
+    img_full,
+    use_fp16: bool = False,
+    rotate=False,
+    output_dir=None,
+):
+    _, height, width = img_full.shape
 
     tiler = Tiler(height, width, 3584, overlap=704)
     mask_predict = np.zeros((height, width), dtype=np.uint8)
@@ -171,14 +216,14 @@ def predict_whole_image_panda(models: List[nn.Module], img_full, use_fp16: bool 
                 outputs = []
                 for model in models:
                     output = model(batch)
-                    mask = torch.softmax(output['mask'],1)  # N X C X H X W
-                    output['label_map'] = mask
+                    mask = torch.softmax(output["mask"], 1)  # N X C X H X W
+                    output["label_map"] = mask
                     outputs.append(output)
             output = {}
             for k in outputs[0].keys():
                 vs = [o[k][:, :] for o in outputs]
                 output[k] = sum(vs) / len(models)
-            label_map = output['label_map'].argmax(1)[0].cpu().numpy().astype(np.uint8)
+            label_map = output["label_map"].argmax(1)[0].cpu().numpy().astype(np.uint8)
         tiler.update_crop(mask_predict, label_map, slice)
         # tiler.update_crop(conf_preds, conf_mask, slice)
     # if output_dir:

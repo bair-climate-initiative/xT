@@ -3,11 +3,10 @@ from abc import ABC, abstractmethod
 import torch
 import torch.nn.functional as F
 from torch import nn, topk
-from torch.nn import NLLLoss2d, MSELoss, BCEWithLogitsLoss
+from torch.nn import BCEWithLogitsLoss, MSELoss, NLLLoss2d
 
 
 class LossCalculator(ABC):
-
     @abstractmethod
     def calculate_loss(self, outputs, sample):
         pass
@@ -17,12 +16,11 @@ def r2_loss(output, target):
     eps = 1e-6
     ss_tot = torch.sum((target - target.mean()) ** 2)
     ss_res = torch.sum((target - output) ** 2)
-    r2 = (ss_res + eps) / (ss_tot.clamp(1.) + eps)
+    r2 = (ss_res + eps) / (ss_tot.clamp(1.0) + eps)
     return r2
 
 
 class R2Loss(LossCalculator):
-
     def __init__(self, field):
         super().__init__()
         self.field = field
@@ -71,10 +69,9 @@ class BceMaskLoss(LossCalculator):
 
 
 class CenterLossCalculator(LossCalculator):
-
     def __init__(self, **kwargs):
         super().__init__()
-        self.mse = MSELoss(**kwargs, reduction='none')
+        self.mse = MSELoss(**kwargs, reduction="none")
 
     def calculate_loss(self, outputs, sample):
         with torch.cuda.amp.autocast(enabled=False):
@@ -91,7 +88,6 @@ class CenterLossCalculator(LossCalculator):
 
 
 class LengthLoss(LossCalculator):
-
     def __init__(self, **kwargs):
         super().__init__()
         self.mse = MSELoss(**kwargs)
@@ -104,6 +100,7 @@ class LengthLoss(LossCalculator):
             if torch.sum(targets >= 0).item() == 0:
                 return 0 * pred.mean()
             return (torch.abs(pred[mask] - targets[mask]) / targets[mask]).mean()
+
 
 def dice_round(preds, trues, t=0.5):
     preds = (preds > t).float()
@@ -118,11 +115,13 @@ def soft_dice_loss(outputs, targets):
     union = torch.sum(dice_output) + torch.sum(dice_target) + eps
     if union < 5:
         return 0
-    loss = (1 - (2 * intersection + eps) / union)
+    loss = 1 - (2 * intersection + eps) / union
     return loss.mean()
 
 
-def jaccard(outputs, targets, per_image=False, non_empty=False, min_pixels=5, reduce=True):
+def jaccard(
+    outputs, targets, per_image=False, non_empty=False, min_pixels=5, reduce=True
+):
     batch_size = outputs.size()[0]
     eps = 1e-5
     if not per_image:
@@ -131,7 +130,9 @@ def jaccard(outputs, targets, per_image=False, non_empty=False, min_pixels=5, re
     dice_output = outputs.contiguous().view(batch_size, -1)
     target_sum = torch.sum(dice_target, dim=1)
     intersection = torch.sum(dice_output * dice_target, dim=1)
-    losses = 1 - (intersection + eps) / (torch.sum(dice_output + dice_target, dim=1) - intersection + eps)
+    losses = 1 - (intersection + eps) / (
+        torch.sum(dice_output + dice_target, dim=1) - intersection + eps
+    )
     if non_empty:
         assert per_image == True
         non_empty_images = 0
@@ -154,7 +155,7 @@ class DiceLoss(nn.Module):
     def __init__(self, weight=None, size_average=True):
         super().__init__()
         self.size_average = size_average
-        self.register_buffer('weight', weight)
+        self.register_buffer("weight", weight)
 
     def forward(self, input, target):
         return soft_dice_loss(input, target)
@@ -164,7 +165,7 @@ class LogCoshDiceLoss(nn.Module):
     def __init__(self, weight=None, size_average=True):
         super().__init__()
         self.size_average = size_average
-        self.register_buffer('weight', weight)
+        self.register_buffer("weight", weight)
 
     def forward(self, input, target):
         x = soft_dice_loss(input, target)
@@ -197,11 +198,18 @@ class BceDiceLoss(nn.Module):
 
 
 class JaccardLoss(nn.Module):
-    def __init__(self, weight=None, size_average=True, per_image=False, non_empty=False, apply_sigmoid=False,
-                 min_pixels=5):
+    def __init__(
+        self,
+        weight=None,
+        size_average=True,
+        per_image=False,
+        non_empty=False,
+        apply_sigmoid=False,
+        min_pixels=5,
+    ):
         super().__init__()
         self.size_average = size_average
-        self.register_buffer('weight', weight)
+        self.register_buffer("weight", weight)
         self.per_image = per_image
         self.non_empty = non_empty
         self.apply_sigmoid = apply_sigmoid
@@ -210,7 +218,13 @@ class JaccardLoss(nn.Module):
     def forward(self, input, target):
         if self.apply_sigmoid:
             input = torch.sigmoid(input)
-        return jaccard(input, target, per_image=self.per_image, non_empty=self.non_empty, min_pixels=self.min_pixels)
+        return jaccard(
+            input,
+            target,
+            per_image=self.per_image,
+            non_empty=self.non_empty,
+            min_pixels=self.min_pixels,
+        )
 
 
 class BinaryFocalLoss(nn.Module):
@@ -220,14 +234,21 @@ class BinaryFocalLoss(nn.Module):
         self.eps = eps
 
     def forward(self, inputs, targets):
-        BCE_loss = F.binary_cross_entropy_with_logits(inputs, targets, reduction='none')
+        BCE_loss = F.binary_cross_entropy_with_logits(inputs, targets, reduction="none")
         pt = torch.exp(-BCE_loss)
         F_loss = (1 - pt) ** self.gamma * BCE_loss
         return F_loss.mean()
 
 
 class ComboLoss(nn.Module):
-    def __init__(self, weights, per_image=False, skip_empty=False, channel_weights=[1] * 15, channel_losses=None):
+    def __init__(
+        self,
+        weights,
+        per_image=False,
+        skip_empty=False,
+        channel_weights=[1] * 15,
+        channel_losses=None,
+    ):
         super().__init__()
         self.bce = BCEWithLogitsLoss()
         self.dice = DiceLoss()
@@ -236,14 +257,16 @@ class ComboLoss(nn.Module):
         self.jaccard = JaccardLoss(per_image=per_image)
         self.focal = BinaryFocalLoss()
         self.weights = weights
-        self.mapping = {'bce': self.bce,
-                        'dice': self.dice,
-                        'lcdice': self.lcdice,
-                        'nrdice': self.nrdice,
-                        'focal': self.focal,
-                        'jaccard': self.jaccard}
-        self.expect_sigmoid = {'dice', 'jaccard', 'lcdice', "nrdice"}
-        self.per_channel = {'dice', 'jaccard', 'lcdice', "nrdice"}
+        self.mapping = {
+            "bce": self.bce,
+            "dice": self.dice,
+            "lcdice": self.lcdice,
+            "nrdice": self.nrdice,
+            "focal": self.focal,
+            "jaccard": self.jaccard,
+        }
+        self.expect_sigmoid = {"dice", "jaccard", "lcdice", "nrdice"}
+        self.per_channel = {"dice", "jaccard", "lcdice", "nrdice"}
         self.values = {}
         self.channel_weights = channel_weights
         self.channel_losses = channel_losses
@@ -271,14 +294,19 @@ class ComboLoss(nn.Module):
                         c_targets = c_targets[non_ignored]
                         c_outputs = c_outputs[non_ignored]
                         val += self.channel_weights[c] * self.mapping[k](
-                            c_sigmoid_input if k in self.expect_sigmoid else c_outputs, c_targets)
+                            c_sigmoid_input if k in self.expect_sigmoid else c_outputs,
+                            c_targets,
+                        )
 
             else:
                 non_ignored = targets.view(-1) < 200
 
                 val = self.mapping[k](
-                    sigmoid_input.view(-1)[non_ignored] if k in self.expect_sigmoid else outputs.view(-1)[non_ignored],
-                    targets.view(-1)[non_ignored])
+                    sigmoid_input.view(-1)[non_ignored]
+                    if k in self.expect_sigmoid
+                    else outputs.view(-1)[non_ignored],
+                    targets.view(-1)[non_ignored],
+                )
 
             self.values[k] = val
             loss += self.weights[k] * val
@@ -299,8 +327,16 @@ class FocalDiceLossCalculator(ABC):
 
 
 class FocalLossWithDice(nn.Module):
-    def __init__(self, num_classes, ignore_index=255, gamma=2, ce_weight=10., d_weight=1., weight=None,
-                 size_average=True):
+    def __init__(
+        self,
+        num_classes,
+        ignore_index=255,
+        gamma=2,
+        ce_weight=10.0,
+        d_weight=1.0,
+        weight=None,
+        size_average=True,
+    ):
         super().__init__()
         self.num_classes = num_classes
         self.d_weight = d_weight
@@ -313,13 +349,25 @@ class FocalLossWithDice(nn.Module):
 
     def forward(self, outputs, targets):
         probas = F.softmax(outputs, dim=1)
-        ce_loss = self.nll_loss((1 - probas) ** self.gamma * F.log_softmax(outputs, dim=1), targets)
-        d_loss = soft_dice_loss_mc(outputs, targets, self.num_classes, ignore_index=self.ignore_index)
+        ce_loss = self.nll_loss(
+            (1 - probas) ** self.gamma * F.log_softmax(outputs, dim=1), targets
+        )
+        d_loss = soft_dice_loss_mc(
+            outputs, targets, self.num_classes, ignore_index=self.ignore_index
+        )
         return self.ce_w * ce_loss + self.d_weight * d_loss
 
 
-def soft_dice_loss_mc(outputs, targets, num_classes, per_image=False, only_existing_classes=False, ignore_index=255,
-                      minimum_class_pixels=3, reduce_batch=True):
+def soft_dice_loss_mc(
+    outputs,
+    targets,
+    num_classes,
+    per_image=False,
+    only_existing_classes=False,
+    ignore_index=255,
+    minimum_class_pixels=3,
+    reduce_batch=True,
+):
     batch_size = outputs.size()[0]
     eps = 1e-5
     outputs = F.softmax(outputs, dim=1)
@@ -335,24 +383,31 @@ def soft_dice_loss_mc(outputs, targets, num_classes, per_image=False, only_exist
             intersection = (dice_output * dice_target).sum()
             if dice_target.sum() > minimum_class_pixels:
                 union = dice_output.sum() + dice_target.sum() + eps
-                loss += (1 - (2 * intersection + eps) / union)
+                loss += 1 - (2 * intersection + eps) / union
                 non_empty_classes += 1
         if only_existing_classes:
-            loss /= (non_empty_classes + eps)
+            loss /= non_empty_classes + eps
         else:
-            loss /= (num_classes - 1)
+            loss /= num_classes - 1
         return loss
 
     if per_image:
         if reduce_batch:
             loss = 0
             for i in range(batch_size):
-                loss += _soft_dice_loss(torch.unsqueeze(outputs[i], 0), torch.unsqueeze(targets[i], 0))
+                loss += _soft_dice_loss(
+                    torch.unsqueeze(outputs[i], 0), torch.unsqueeze(targets[i], 0)
+                )
             loss /= batch_size
         else:
             loss = torch.Tensor(
-                [_soft_dice_loss(torch.unsqueeze(outputs[i], 0), torch.unsqueeze(targets[i], 0)) for i in
-                 range(batch_size)])
+                [
+                    _soft_dice_loss(
+                        torch.unsqueeze(outputs[i], 0), torch.unsqueeze(targets[i], 0)
+                    )
+                    for i in range(batch_size)
+                ]
+            )
     else:
         loss = _soft_dice_loss(outputs, targets)
 
@@ -396,10 +451,13 @@ class CropJaccardLossCalculator(LossCalculator):
 
 
 class CropCenterLossCalculator(LossCalculator):
-    def __init__(self, ohem_fraction=0.5, ):
+    def __init__(
+        self,
+        ohem_fraction=0.5,
+    ):
         super().__init__()
         self.ohem_fraction = ohem_fraction
-        self.mse = MSELoss(reduction='none')
+        self.mse = MSELoss(reduction="none")
 
     def calculate_loss(self, outputs, sample):
         outputs = outputs["center_mask"]
@@ -423,18 +481,21 @@ class CropCenterLossCalculator(LossCalculator):
 
         all_crops = torch.cat(all_crops, dim=0)
         k = int(len(all_crops) * self.ohem_fraction)
-        mse_loss = topk(self.mse(out_crops.flatten(1), all_crops.flatten(1)).mean(1), k=k, sorted=False)[0].mean()
+        mse_loss = topk(
+            self.mse(out_crops.flatten(1), all_crops.flatten(1)).mean(1),
+            k=k,
+            sorted=False,
+        )[0].mean()
         return mse_loss
 
 
 class CrossEntrophy(LossCalculator):
-
     def __init__(self, field):
         super().__init__()
         self.field = field
         self.ce = nn.CrossEntropyLoss()
 
     def calculate_loss(self, outputs, sample):
-        targets = sample[self.field].cuda().long() # Label map
+        targets = sample[self.field].cuda().long()  # Label map
         pred = outputs[self.field]
-        return self.ce(pred,targets)
+        return self.ce(pred, targets)

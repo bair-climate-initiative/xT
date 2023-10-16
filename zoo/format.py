@@ -5,10 +5,10 @@ import torch
 
 
 class Format(str, Enum):
-    NCHW = 'NCHW'
-    NHWC = 'NHWC'
-    NCL = 'NCL'
-    NLC = 'NLC'
+    NCHW = "NCHW"
+    NHWC = "NHWC"
+    NCL = "NCL"
+    NLC = "NLC"
 
 
 FormatT = Union[str, Format]
