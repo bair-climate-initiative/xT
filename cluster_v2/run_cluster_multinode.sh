@@ -3,9 +3,7 @@ module load singularity
 NAME=example_experiment
 NUM_GPUS=1
 CONFIG=swin
-
 FOLD=77
-PORT=10025
 NAME=NO_NAME
 BS=4
 EPOCH=240
@@ -44,4 +42,4 @@ pbsdsh -v -- bash -l -c "module load singularity && CUDA_VISIBLE_DEVICES=$DEVICE
         --bs $BS \
         --lr $LR \
         --wd $WD \
-        --pretrained $PRETRAINED ${@:2};
+        --pretrained $PRETRAINED ${@:1};

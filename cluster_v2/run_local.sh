@@ -1,12 +1,11 @@
 #!/bin/bash
 MAIN_CMD=torchrun
 NUM_GPUS="${NUM_GPUS:=8}"
-PORT="${PORT:=10025}"
+PORT="${PORT:=10085}"
 eval $MAIN_CMD  \
         --nproc_per_node $NUM_GPUS  \
         --master_port $PORT \
         train_val_segmentor.py  \
-        --world-size $NUM_GPUS   \
         --distributed  \
         --config configs/${CONFIG}.yaml  \
         --workers 1  \
@@ -25,4 +24,4 @@ eval $MAIN_CMD  \
         --bs $BS \
         --lr $LR \
         --wd $WD \
-        --pretrained $PRETRAINED ${@:2};
+        --pretrained $PRETRAINED ${@:1};
