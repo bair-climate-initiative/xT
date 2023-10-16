@@ -1,5 +1,5 @@
 import json
-
+import yaml
 DEFAULTS = {
     "network": "dpn",
     "encoder": "dpn92",
@@ -35,10 +35,24 @@ def _merge(src, dst):
         else:
             dst[k] = v
 
+def _load_config_file(config_file):
+    with open(config_file, "r") as fd:
+        if config_file.endswith('.json'):
+            config = json.load(fd)
+        else:
+            config = yaml.safe_load(fd)
+
+    if base_file:= config.get('__base__'):
+        _merge(_load_config_file(base_file),config)
+    return config
 
 def load_config(config_file, defaults=DEFAULTS,args=None):
-    with open(config_file, "r") as fd:
-        config = json.load(fd)
+    # with open(config_file, "r") as fd:
+    #     if config_file.endswith('.json'):
+    #         config = json.load(fd)
+    #     else:
+    #         config = yaml.safe_load(fd)
+    config =_load_config_file(config_file)
     _merge(defaults, config)
     if args is not None:
         if args.crop_size is not None:

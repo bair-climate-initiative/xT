@@ -1,5 +1,5 @@
-from timm.models.swin_transformer_v2 import BasicLayer,PatchMerging
-
+from timm.models.swin_transformer_v2 import SwinTransformerV2Block,PatchMerging
+BasicLayer = SwinTransformerV2Block
 import math
 from typing import Tuple, Optional
 

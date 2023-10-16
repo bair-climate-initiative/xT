@@ -8,7 +8,10 @@ os.environ["MKL_NUM_THREADS"] = "1"
 os.environ["NUMEXPR_NUM_THREADS"] = "1"
 os.environ["OMP_NUM_THREADS"] = "1"
 import cv2
-
+import logging
+logging.basicConfig(
+    level=os.environ.get('LOGLEVEL', 'INFO').upper()
+)
 cv2.ocl.setUseOpenCL(False)
 cv2.setNumThreads(0)
 
@@ -117,22 +120,25 @@ class XviewEvaluator(Evaluator):
     @torch.no_grad()
     def validate(self, dataloader: DataLoader, model: torch.nn.Module, distributed: bool = False, local_rank: int = 0,
                  snapshot_name: str = "") -> Dict:
+        print("HH")
         conf_name = os.path.splitext(os.path.basename(self.args.config))[0]
         val_dir = os.path.join(self.args.val_dir, conf_name, str(self.args.fold))
         os.makedirs(val_dir, exist_ok=True)
         dataset_dir = os.path.join(self.args.data_dir, self.dataset_dir)
-        extra_context = model.module.extra_context
-        # if self.args.local_rank == 0:
-        #     csv_paths = glob.glob(os.path.join(val_dir, "*.csv"))
-        #     for csv_file in csv_paths:
-        #         os.remove(csv_file)
+        extra_context = False
+        if self.args.local_rank == 0 and self.args.test_reset:
+            csv_paths = glob.glob(os.path.join(val_dir, "*.csv"))
+            for csv_file in csv_paths:
+                os.remove(csv_file)
         if distributed:
             dist.barrier()
+        rank = self.args.local_rank
         for sample in tqdm(dataloader,position=0):
             scene_id = sample["name"][0]
             tgt_path = os.path.join(val_dir, f"{scene_id}.csv")
-            # if os.path.exists(tgt_path) and datetime.datetime.fromtimestamp(os.path.getmtime(tgt_path) )> datetime.datetime.now() - datetime.timedelta(hours=10):
-            #     continue
+            logging.debug(f"{rank}:Evaluating {scene_id} ")
+            if self.args.test and os.path.exists(tgt_path) and datetime.datetime.fromtimestamp(os.path.getmtime(tgt_path) )> datetime.datetime.now() - datetime.timedelta(hours=10):
+                continue
             mask_dict = predict_scene_and_return_mm([model], scene_id=scene_id, dataset_dir=dataset_dir,
                                                     use_fp16=self.args.fp16, rotate=True,
                                                     crop_size = self.crop_size,overlap=self.overlap,
@@ -202,7 +208,7 @@ def parse_args():
     arg('--from-zero', action='store_true', default=False)
     arg('--fp16', action='store_true', default=False)
     arg('--distributed', action='store_true', default=False)
-    arg("--local_rank", default=0, type=int)
+    arg("--local-rank", default=0, type=int)
     arg("--world-size", default=1, type=int)
     arg("--test_every", type=int, default=1)
     arg('--freeze-epochs', type=int, default=0)
@@ -219,6 +225,7 @@ def parse_args():
     arg('--drop_path',type=float, default=None)   
     arg('--pretrained', type=str, default='default')
     arg("--test", action='store_true', default=False)
+    arg("--test_reset", action='store_true', default=False)
     args = parser.parse_args()
 
     return args

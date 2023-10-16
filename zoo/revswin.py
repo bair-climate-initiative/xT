@@ -1185,8 +1185,8 @@ class ReversibleSwinTransformer(nn.Module):
             for param in self.patch_embed.parameters():
                 param.requires_grad = False
 
-        if self.frozen_stages >= 1 and self.ape:
-            self.absolute_pos_embed.requires_grad = False
+        # if self.frozen_stages >= 1 and self.ape:
+        #     self.absolute_pos_embed.requires_grad = False
 
         if self.frozen_stages >= 2:
             self.pos_drop.eval()

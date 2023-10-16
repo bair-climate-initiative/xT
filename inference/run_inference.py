@@ -97,15 +97,18 @@ def predict_scene_and_return_mm(models: List[nn.Module], dataset_dir, scene_id: 
             return output
     for batch, slice_vals in tqdm(slice_loader,position=position):
         slice = TileSlice(*slice_vals[0])
+        print("----------------FSDP:LOCK INFERENCE------------")
         with torch.no_grad():
-            batch = batch.cuda()
-            with torch.cuda.amp.autocast(enabled=use_fp16):
+            batch = batch
+            with torch.cuda.amp.autocast(enabled=False):
                 outputs = []
                 for model in models: 
                     if extra_context:
                         output = model_foward(batch)
                     else:
+                        print("Pre Inf")
                         output = model(batch)
+                        print("Post Inf")
                     sigmoid_keys = ["fishing_mask", "vessel_mask"]
                     for k in sigmoid_keys:
                         output[k] = torch.sigmoid(output[k])

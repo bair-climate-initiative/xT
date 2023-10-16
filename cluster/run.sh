@@ -5,7 +5,7 @@ eval $MAIN_CMD  \
         train_val_segmentor.py  \
         --world-size $NUM_GPUS   \
         --distributed  \
-        --config configs/${CONFIG}.json  \
+        --config configs/${CONFIG}.yaml  \
         --workers 1  \
         --data-dir=$DATA_DIR  \
         --shoreline-dir $SHORE_DIR \

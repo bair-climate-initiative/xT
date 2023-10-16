@@ -31,6 +31,18 @@ from fvcore.nn import FlopCountAnalysis
 from .tiling import build_tiling
 import time
 from einops import rearrange
+import yaml
+import logging
+logging.basicConfig(
+    level=os.environ.get('LOGLEVEL', 'INFO').upper()
+)
+from torch.distributed.fsdp.wrap import size_based_auto_wrap_policy
+from torch.distributed.fsdp import MixedPrecision
+
+from torch.distributed.fsdp import (
+   FullyShardedDataParallel,
+   CPUOffload,
+)
 
 @dataclasses.dataclass
 class TrainConfiguration:
@@ -110,6 +122,15 @@ class PytorchTrainer(ABC):
                 name=train_config.name,
                 config=self.conf,
             )
+            artifact = wandb.Artifact(
+                "config_file",
+                type="config_file",
+            )
+            config_dump_path =  os.path.join(self.train_config.output_dir,'config.yaml')
+            with open(config_dump_path, 'w') as outfile:
+                yaml.dump(self.conf, outfile)
+            artifact.add_file(config_dump_path)
+            wandb.log_artifact(artifact)
             wandb.init(**wandb_args)
             self.wandb_id = wandb.run.id
         self._init_distributed()
@@ -121,10 +142,11 @@ class PytorchTrainer(ABC):
         self.context_patch_len = self.conf.get('context_patch_len',100)
 
         self.losses = self._init_loss_functions()
+
+        self._init_amp()
         self.optimizer, self.scheduler = create_optimizer(
             self.conf["optimizer"], self.model, len(train_data), train_config.world_size
         )
-        self._init_amp()
         self.train_data = train_data
         self.val_data = val_data
         if self.train_config.local_rank == 0:
@@ -136,6 +158,8 @@ class PytorchTrainer(ABC):
         # self._profile_model((1, 2, self.conf["crop_size"], self.conf["crop_size"]))
 
     def validate(self, test_loader=None):
+        if self.train_config.distributed:
+                dist.barrier()
         self.model.eval()
         metrics = self.evaluator.validate(
             test_loader if test_loader is not None else self.get_val_loader(),
@@ -152,14 +176,23 @@ class PytorchTrainer(ABC):
         for epoch in range(
             self.current_epoch, self.conf["optimizer"]["schedule"]["epochs"]
         ):
+            rank  = self.train_config.local_rank
+            logging.debug(f"{ rank}: epoch start")
+            if self.train_config.distributed:
+                dist.barrier()
             self.current_epoch = epoch
+            logging.debug(f"{ rank}: set train mode")
             self.model.train()
             self._freeze()
             self._run_one_epoch_train(self.get_train_loader())
+            torch.cuda.synchronize()
+            if self.train_config.distributed:
+                dist.barrier()
             self.model.eval()
-            if self.train_config.local_rank == 0:
-                self._save_last()
+            self._save_last()
+            logging.debug(f"{rank} Epoch finished")
             if (self.current_epoch + 1) % self.train_config.test_every == 0:
+                logging.debug(f"{rank} eval launched")
                 metrics = self.evaluator.validate(
                     self.get_val_loader(),
                     self.model,
@@ -167,20 +200,22 @@ class PytorchTrainer(ABC):
                     local_rank=self.train_config.local_rank,
                     snapshot_name=self.snapshot_name,
                 )
+                logging.debug(f"{rank} eval done")
                 if self.train_config.local_rank == 0 and wandb.run is not None:
                     metrics["epoch"] = epoch
                     wandb.log(metrics)
+                improved_metrics = None
                 if self.train_config.local_rank == 0:
                     improved_metrics = self.evaluator.get_improved_metrics(
                         self.current_metrics, metrics
                     )
                     self.current_metrics.update(improved_metrics)
-                    self._save_best(improved_metrics)
+                self._save_best(improved_metrics)
+                if self.train_config.local_rank == 0:
                     for k, v in metrics.items():
                         self.summary_writer.add_scalar(
                             "val/{}".format(k), float(v), global_step=self.current_epoch
                         )
-
     def _profile_model(self, shape):
         input = torch.randn(shape).cuda()
         flops = FlopCountAnalysis(self.model, input)
@@ -188,34 +223,41 @@ class PytorchTrainer(ABC):
         print(r)
         print(dict(total_flops=sum(r.values())))
 
+    def _get_state_dict(self):
+        state_dict =  self.model.state_dict()
+        return state_dict
+        #return {k:v.cpu() for k,v in state_dict.items()}
     def _save_last(self):
-        self.model = self.model.eval()
-        torch.save(
-            {
+        #self.model = self.model.eval()
+        payload = {
                 "epoch": self.current_epoch,
-                "state_dict": self.model.state_dict(),
+                "state_dict": self._get_state_dict(),
                 "metrics": self.current_metrics,
-            },
-            os.path.join(
-                self.train_config.output_dir,
-                self.snapshot_name + "_" + str(self.wandb_id) + "_" "_last",
-            ),
-        )
-
-    def _save_best(self, improved_metrics: Dict):
-        self.model = self.model.eval()
-        for metric_name in improved_metrics.keys():
+        }
+        if self.train_config.local_rank == 0:
             torch.save(
-                {
-                    "epoch": self.current_epoch,
-                    "state_dict": self.model.state_dict(),
-                    "metrics": self.current_metrics,
-                },
+                payload,
                 os.path.join(
                     self.train_config.output_dir,
-                    self.snapshot_name + "_" + str(self.wandb_id) + "_" + metric_name,
+                    self.snapshot_name + "_" + str(self.wandb_id) + "_" "_last",
                 ),
             )
+
+    def _save_best(self, improved_metrics: Dict):
+        payload = {
+                "epoch": self.current_epoch,
+                "state_dict": self._get_state_dict(),
+                "metrics": self.current_metrics,
+        }
+        if self.train_config.local_rank == 0:
+            for metric_name in improved_metrics.keys():
+                torch.save(
+                    payload,
+                    os.path.join(
+                        self.train_config.output_dir,
+                        self.snapshot_name + "_" + str(self.wandb_id) + "_" + metric_name,
+                    ),
+                )
 
     def build_iterator(self, dataloader):
         for x in dataloader:
@@ -280,6 +322,8 @@ class PytorchTrainer(ABC):
         iterator = tqdm(iterator,total=iter_scale* len(loader))
         # Broken, temporaily disable time logging
         for i,sample in enumerate(iterator):
+            # if i > 2:
+            #     break
             imgs = sample["image"].cuda().float()
             if extra_context:
                 if sample["context_id"] == 0:
@@ -292,7 +336,7 @@ class PytorchTrainer(ABC):
                     raw_indices=sample['raw_indices'] 
                 )
             self.optimizer.zero_grad()
-            with torch.cuda.amp.autocast(enabled=self.train_config.fp16):
+            with torch.cuda.amp.autocast(enabled=False):
                 with torch.autograd.detect_anomaly():
                     if extra_context and sample['mem_only']:
                         with torch.no_grad():
@@ -462,15 +506,28 @@ class PytorchTrainer(ABC):
     def _init_amp(self):
         self.gscaler = torch.cuda.amp.GradScaler()
 
-        if self.train_config.distributed:
-            self.model = DistributedDataParallel(
+        if self.train_config.distributed and True:
+            self.model = FullyShardedDataParallel(
                 self.model,
-                device_ids=[self.train_config.local_rank],
-                output_device=self.train_config.local_rank,
-                find_unused_parameters=False,
+                auto_wrap_policy=size_based_auto_wrap_policy,
+                #sharding_strategy=size_based_auto_wrap_policy,
+                #fsdp_auto_wrap_policy=default_auto_wrap_policy,
+                cpu_offload=CPUOffload(offload_params=True),
+               # mixed_precision=MixedPrecision(param_dtype=torch.float16)
+                # device_id=self.train_config.local_rank,
+                # output_device=self.train_config.local_rank,
+                # find_unused_parameters=False,
             )
-        else:
-            self.model = DataParallel(self.model).cuda()
+        #else:
+        #    raise NotImplemented
+            # self.model = DataParallel(self.model).cuda()
+
+            #         self.model = DistributedDataParallel(
+            #     self.model,
+            #     device_ids=[self.train_config.local_rank],
+            #     output_device=self.train_config.local_rank,
+            #     find_unused_parameters=False,
+            # )
 
     def _init_distributed(self):
         if self.train_config.distributed:
