@@ -565,8 +565,8 @@ class PytorchTrainer(ABC):
         if self.train_config.distributed:
             self.pg = dist.init_process_group(
                 backend="nccl",
-                rank=self.train_config.local_rank,
-                world_size=self.train_config.world_size,
+                # rank=self.train_config.local_rank, set to torchrun
+                # world_size=self.train_config.world_size,
             )
 
             torch.cuda.set_device(self.train_config.local_rank)

@@ -64,13 +64,15 @@ class XviewEvaluator(Evaluator):
         self.args = args
         if args.test:
             mode = "public"
-        self.crop_size = args.crop_size_val
+        conf = load_config(args.config, args=args)
+        
         self.conf = load_config(args.config,args=args)
+        self.crop_size =  self.conf['crop_size_val']
         self.tiling = self.conf.get('tiling','naive')
         self.input_size = self.conf.get('encoder_crop_size',self.conf['crop_size'])
         self.patch_size = self.conf.get('patch_size',16)
         self.context_patch_len = self.conf.get('context_patch_len',100)
-        self.overlap = args.overlap_val
+        self.overlap = self.conf['overlap_val'] 
         if mode == "public":
             self.dataset_dir = "images/public"
             self.annotation_dir = "labels/public.csv"
@@ -232,8 +234,8 @@ def get_args_parser():
     arg('--output-dir', type=str, default='weights/')
     arg('--resume', type=str, default='')
     arg('--fold', type=int, default=0)
-    arg('--crop_size_val', type=int, default=3584)
-    arg('--overlap_val', type=int, default=704)
+    arg('--crop_size_val', type=int, default=None)
+    arg('--overlap_val', type=int, default=None)
     arg('--prefix', type=str, default='val_')
     arg('--data-dir', type=str, default="/mnt/viper/xview3/")
     arg('--shoreline-dir', type=str, default="")
@@ -245,6 +247,7 @@ def get_args_parser():
     arg('--fp16', action='store_true', default=False)
     arg('--distributed', action='store_true', default=False)
     arg("--local-rank", default=0, type=int)
+    arg("--rank", default=0, type=int)
     arg("--world-size", default=1, type=int)
     arg("--test_every", type=int, default=1)
     arg('--freeze-epochs', type=int, default=0)
@@ -252,8 +255,8 @@ def get_args_parser():
     arg("--val", action='store_true', default=False)
     arg("--name", type=str, default='')
     arg("--freeze-bn", action='store_true', default=False)
-    arg('--crop_size', type=int, default=1024)
-    arg('--positive_ratio', type=float, default=0.5)
+    arg('--crop_size', type=int, default=None)
+    #arg('--positive_ratio', type=float, default=0.5)
     arg('--epoch', type=int, default=None)
     arg('--bs', type=int, default=None)
     arg('--lr', type=float, default=None)
@@ -295,7 +298,7 @@ def create_data_datasets(args):
             annotation_csv=train_annotations,
             crop_size=conf["crop_size"],
             multiplier=conf["multiplier"],
-            positive_ratio=args.positive_ratio,
+            positive_ratio=conf['positive_ratio'],
         )
         val_dataset = XviewValDataset(
             mode="val",
