@@ -1,14 +1,12 @@
 """ ViT backbone taken from detectron2 implementation of ViTDet. """
-from functools import partial
 import logging
 import math
+from functools import partial
+
 import fvcore.nn.weight_init as weight_init
 import torch
 import torch.nn as nn
 from torch.nn import Conv2d, LayerNorm
-
-# from detectron2.layers import CNNBlockBase, Conv2d, get_norm
-# from detectron2.modeling.backbone.fpn import _assert_strides_are_log2_contiguous
 
 from .vit_d2_utils import (
     PatchEmbed,
@@ -17,6 +15,10 @@ from .vit_d2_utils import (
     window_partition,
     window_unpartition,
 )
+
+# from detectron2.layers import CNNBlockBase, Conv2d, get_norm
+# from detectron2.modeling.backbone.fpn import _assert_strides_are_log2_contiguous
+
 
 logger = logging.getLogger(__name__)
 
@@ -67,23 +69,32 @@ class Attention(nn.Module):
     def forward(self, x):
         B, H, W, _ = x.shape
         # qkv with shape (3, B, nHead, H * W, C)
-        qkv = self.qkv(x).reshape(B, H * W, 3, self.num_heads, -1).permute(2, 0, 3, 1, 4)
+        qkv = (
+            self.qkv(x).reshape(B, H * W, 3, self.num_heads, -1).permute(2, 0, 3, 1, 4)
+        )
         # q, k, v with shape (B * nHead, H * W, C)
         q, k, v = qkv.reshape(3, B * self.num_heads, H * W, -1).unbind(0)
 
         attn = (q * self.scale) @ k.transpose(-2, -1)
 
         if self.use_rel_pos:
-            attn = add_decomposed_rel_pos(attn, q, self.rel_pos_h, self.rel_pos_w, (H, W), (H, W))
+            attn = add_decomposed_rel_pos(
+                attn, q, self.rel_pos_h, self.rel_pos_w, (H, W), (H, W)
+            )
 
         attn = attn.softmax(dim=-1)
-        x = (attn @ v).view(B, self.num_heads, H, W, -1).permute(0, 2, 3, 1, 4).reshape(B, H, W, -1)
+        x = (
+            (attn @ v)
+            .view(B, self.num_heads, H, W, -1)
+            .permute(0, 2, 3, 1, 4)
+            .reshape(B, H, W, -1)
+        )
         x = self.proj(x)
 
         return x
 
 
-class ResBottleneckBlock():
+class ResBottleneckBlock:
     """
     The standard bottleneck residual block without the last activation layer.
     It contains 3 conv layers with kernels 1x1, 3x3, 1x1.
@@ -192,7 +203,9 @@ class Block(nn.Module):
 
         self.drop_path = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
         self.norm2 = norm_layer(dim)
-        self.mlp = Mlp(in_features=dim, hidden_features=int(dim * mlp_ratio), act_layer=act_layer)
+        self.mlp = Mlp(
+            in_features=dim, hidden_features=int(dim * mlp_ratio), act_layer=act_layer
+        )
 
         self.window_size = window_size
 
@@ -259,7 +272,7 @@ class ViT(nn.Module):
         pretrain_img_size=224,
         pretrain_use_cls_token=True,
         out_feature="last_feat",
-        input_dim=2
+        input_dim=2,
     ):
         """
         Args:
@@ -290,9 +303,11 @@ class ViT(nn.Module):
         if input_dim == in_chans:
             self.input_ada = nn.Identity()
         elif input_dim < in_chans:
-            self.input_ada = nn.Conv2d(input_dim,in_chans,1,1)
+            self.input_ada = nn.Conv2d(input_dim, in_chans, 1, 1)
         else:
-            raise ValueError("input dim must <= in_chans, otherwise consider change in_chans!")
+            raise ValueError(
+                "input dim must <= in_chans, otherwise consider change in_chans!"
+            )
 
         self.pretrain_use_cls_token = pretrain_use_cls_token
 
@@ -305,7 +320,9 @@ class ViT(nn.Module):
 
         if use_abs_pos:
             # Initialize absolute positional embedding with pretrain image size.
-            num_patches = (pretrain_img_size // patch_size) * (pretrain_img_size // patch_size)
+            num_patches = (pretrain_img_size // patch_size) * (
+                pretrain_img_size // patch_size
+            )
             num_positions = (num_patches + 1) if pretrain_use_cls_token else num_patches
             self.pos_embed = nn.Parameter(torch.zeros(1, num_positions, embed_dim))
         else:
@@ -356,7 +373,7 @@ class ViT(nn.Module):
             nn.init.constant_(m.weight, 1.0)
 
     def forward(self, x):
-        x = self.input_ada(x) # * added
+        x = self.input_ada(x)  # * added
         x = self.patch_embed(x)
         if self.pos_embed is not None:
             x = x + get_abs_pos(
@@ -410,7 +427,9 @@ class SimpleFeaturePyramid(nn.Module):
         self.scale_factors = scale_factors
 
         input_shapes = net.output_shape()
-        strides = [int(input_shapes[in_feature].stride / scale) for scale in scale_factors]
+        strides = [
+            int(input_shapes[in_feature].stride / scale) for scale in scale_factors
+        ]
         # _assert_strides_are_log2_contiguous(strides)
 
         dim = input_shapes[in_feature].channels
@@ -466,7 +485,9 @@ class SimpleFeaturePyramid(nn.Module):
         self.in_feature = in_feature
         self.top_block = top_block
         # Return feature names are "p<stage>", like ["p2", "p3", ..., "p6"]
-        self._out_feature_strides = {"p{}".format(int(math.log2(s))): s for s in strides}
+        self._out_feature_strides = {
+            "p{}".format(int(math.log2(s))): s for s in strides
+        }
         # top block output feature maps.
         if self.top_block is not None:
             for s in range(stage, stage + self.top_block.num_levels):
@@ -507,7 +528,9 @@ class SimpleFeaturePyramid(nn.Module):
             if self.top_block.in_feature in bottom_up_features:
                 top_block_in_feature = bottom_up_features[self.top_block.in_feature]
             else:
-                top_block_in_feature = results[self._out_features.index(self.top_block.in_feature)]
+                top_block_in_feature = results[
+                    self._out_features.index(self.top_block.in_feature)
+                ]
             results.extend(self.top_block(top_block_in_feature))
         assert len(self._out_features) == len(results)
         return {f: res for f, res in zip(self._out_features, results)}
@@ -541,13 +564,13 @@ def vit_small_patch16(pretrained=False, img_size=1024, input_dim=2):
         patch_size=16,
         embed_dim=768,
         depth=12,
-        num_heads=12, 
+        num_heads=12,
         window_size=14,
         mlp_ratio=4,
         qkv_bias=True,
         norm_layer=partial(nn.LayerNorm, eps=1e-6),
         window_block_indexes=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
-        residual_block_indexes=[2, 5, 8, 11], 
+        residual_block_indexes=[2, 5, 8, 11],
         use_rel_pos=True,
         out_feature="last_feature",
         input_dim=2,

@@ -14,10 +14,18 @@ def process_confidence(scene_id, input_dir, mask_dict=None):
         center_preds = mask_dict["center_mask"]
     else:
         try:
-            fishing_preds = np.load(os.path.join(input_dir, scene_id, "fishing_preds.npy"))
-            vessel_preds = np.load(os.path.join(input_dir, scene_id, "vessel_preds.npy"))
-            length_preds = np.load(os.path.join(input_dir, scene_id, "length_preds.npy"))
-            center_preds = np.load(os.path.join(input_dir, scene_id, "center_preds.npy"))
+            fishing_preds = np.load(
+                os.path.join(input_dir, scene_id, "fishing_preds.npy")
+            )
+            vessel_preds = np.load(
+                os.path.join(input_dir, scene_id, "vessel_preds.npy")
+            )
+            length_preds = np.load(
+                os.path.join(input_dir, scene_id, "length_preds.npy")
+            )
+            center_preds = np.load(
+                os.path.join(input_dir, scene_id, "center_preds.npy")
+            )
         except:
             return data
 
@@ -39,5 +47,20 @@ def process_confidence(scene_id, input_dir, mask_dict=None):
         mean_center = np.mean(c)
         is_vessel = np.count_nonzero(vessel > 100) > 8
         is_fishing = np.count_nonzero(fishing > 100) > 8
-        data.append([int(y0), int(x0), scene_id, is_vessel, is_fishing, length.max(), 127, 127, mean_vessel, mean_fishing, mean_length, mean_center])
+        data.append(
+            [
+                int(y0),
+                int(x0),
+                scene_id,
+                is_vessel,
+                is_fishing,
+                length.max(),
+                127,
+                127,
+                mean_vessel,
+                mean_fishing,
+                mean_length,
+                mean_center,
+            ]
+        )
     return data

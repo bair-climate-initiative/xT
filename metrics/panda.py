@@ -1,13 +1,13 @@
-import numpy as np
 from collections import Counter
 from typing import List
+
+import numpy as np
 import torch
 from torch import Tensor
 
-
 gleason_to_isup = {
     # majority + minority -> ISUP
-    '0+0': 0,
+    "0+0": 0,
     "3+3": 1,
     "3+4": 2,
     "4+3": 3,
@@ -19,9 +19,10 @@ gleason_to_isup = {
     "5+5": 5,
 }
 
+
 def score_image(gleason_scores: List[str]):
     return Counter(gleason_scores).most_common(3)
-    
+
 
 def quadratic_kappa_coefficient(output: Tensor, target: Tensor):
     """
