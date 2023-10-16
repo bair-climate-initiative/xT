@@ -1,5 +1,7 @@
 #!/bin/bash
 MAIN_CMD=torchrun
+NUM_GPUS="${NUM_GPUS:=8}"
+PORT="${PORT:=10025}"
 eval $MAIN_CMD  \
         --nproc_per_node $NUM_GPUS  \
         --master_port $PORT \
