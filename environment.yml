@@ -8,3 +8,4 @@ dependencies:
   - pytorch==1.13.1=py3.9_cuda11.6_cudnn8.3.2_0 
   - torchvision==0.14.1 
   - pytorch-cuda=11.6 
+  - scikit-image
