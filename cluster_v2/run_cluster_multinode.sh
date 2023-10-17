@@ -1,15 +1,15 @@
 ID=$(cat /proc/sys/kernel/random/uuid | sed 's/[-]//g' | head -c 5)
 module load singularity
 NAME=example_experiment
-NUM_GPUS=1
-CONFIG=swin
+NUM_GPUS=8
+CONFIG=mae_hier
 FOLD=77
-NAME=NO_NAME
+NAME=mae_h_hpc
 BS=4
-EPOCH=240
-LR=0.003
+EPOCH=800
+LR=0.0003
 WD=1.0e-4
-PRETRAINED=default
+PRETRAINED=false
 TEST_EVERY=20
 
 pbsdsh -v -- bash -l -c "module load singularity && CUDA_VISIBLE_DEVICES=$DEVICES singularity exec --nv --bind $WORKDIR:$WORKDIR $HOME/detectron2.sif \
