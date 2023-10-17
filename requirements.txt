@@ -16,3 +16,4 @@ torchgeo==0.4.1
 classy-vision==0.6.0
 tensorboard
 opencv-python
+einops
