@@ -265,6 +265,12 @@ def get_args_parser():
     arg('--pretrained', type=str, default='default')
     arg("--test", action='store_true', default=False)
     arg("--test_reset", action='store_true', default=False)
+    arg('--eta_min',type=float, default=None)   
+    arg('--classifier_lr',type=float, default=None)   
+    arg('--warmup_epochs',type=int, default=None)   
+
+
+    
     args = parser.parse_args()
 
     return parser
@@ -298,7 +304,7 @@ def create_data_datasets(args):
             annotation_csv=train_annotations,
             crop_size=conf["crop_size"],
             multiplier=conf["multiplier"],
-            positive_ratio=conf['positive_ratio'],
+            positive_ratio=conf['data']['positive_ratio'],
         )
         val_dataset = XviewValDataset(
             mode="val",
@@ -352,7 +358,9 @@ def main(args):
     )
     if args.test:
         sampler = torch.utils.data.distributed.DistributedSampler(
-            data_val, shuffle=False
+            data_val, shuffle=False,
+            num_replicas=int(os.environ['LOCAL_WORLD_SIZE']),
+            rank=trainer_config.local_rank,
         )
         test_loader = DataLoader(
             data_val,
@@ -372,4 +380,7 @@ def main(args):
 
 if __name__ == "__main__":
     args = get_args_parser().parse_args()
+    args.local_rank = int(os.environ['LOCAL_RANK'])
+    args.rank = int(os.environ['RANK'])
+    args.world_size = int(os.environ['WORLD_SIZE'])
     main(args)

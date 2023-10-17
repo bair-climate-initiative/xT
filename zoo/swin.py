@@ -21,8 +21,8 @@ from timm.models.layers import (
     trunc_normal_,
 )
 from timm.models.registry import register_model
-from timm.models.swin_transformer_v2 import BasicLayer, PatchMerging
-
+from timm.models.swin_transformer_v2 import SwinTransformerV2Block, PatchMerging
+BasicLayer = SwinTransformerV2Block
 
 class SwinTransformerV2Xview(nn.Module):
     r"""Swin Transformer V2

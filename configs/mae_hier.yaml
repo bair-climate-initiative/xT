@@ -1,8 +1,8 @@
 crop_size: 3072
+crop_size_val: 3072
+overlap_val: 10
 data:
   positive_ratio: 0.85
-  crop_size_val: 3072
-  overlap_val: 10
 # encoder_crop_size: 512
 encoder_params:
   channels_last: true

@@ -131,8 +131,9 @@ class PytorchTrainer(ABC):
             with open(config_dump_path, 'w') as outfile:
                 yaml.dump(self.conf, outfile)
             artifact.add_file(config_dump_path)
-            wandb.log_artifact(artifact)
+            
             wandb.init(**wandb_args)
+            wandb.log_artifact(artifact)
             self.wandb_id = wandb.run.id
         self._init_distributed()
         self.evaluator = evaluator
@@ -418,12 +419,14 @@ class PytorchTrainer(ABC):
 
             # Run backward pass
             # end = time.time()
-            if self.train_config.fp16:
-                self.gscaler.scale(total_loss).backward()
-                self.gscaler.unscale_(self.optimizer)
+            #print(total_loss.dtype,'hh')
+            if self.train_config.fp16 and False: # sth happened here, really need to check whats wrong
+                print(total_loss.device,'hh')
+                #self.gscaler.scale(total_loss).backward()
+                #self.gscaler.unscale_(self.optimizer)
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), 5)
-                self.gscaler.step(self.optimizer)
-                self.gscaler.update()
+                #self.gscaler.step(self.optimizer)
+                #self.gscaler.update()
             else:
                 total_loss.backward()
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), 5)
@@ -491,7 +494,9 @@ class PytorchTrainer(ABC):
         val_sampler = None
         if self.train_config.distributed:
             val_sampler = torch.utils.data.distributed.DistributedSampler(
-                self.val_data, shuffle=False
+                self.val_data, shuffle=False,
+                num_replicas=int(os.environ['LOCAL_WORLD_SIZE']),
+                rank=self.train_config.local_rank,
             )
         val_data_loader = DataLoader(
             self.val_data,
