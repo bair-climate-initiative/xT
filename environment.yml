@@ -9,3 +9,6 @@ dependencies:
   - torchvision==0.14.1 
   - pytorch-cuda=11.6 
   - scikit-image
+  - rasterio==1.2.10
+  - gdal
+  - shapely

@@ -12,10 +12,12 @@ pytest-cov>=2.4,<4
 types-requests>=2.28.9,<2.30.0
 types-python-dateutil>=2.8.19,<2.9.0
 kornia==0.6.7
-torchgeo==0.4.1
+torchgeo
 classy-vision==0.6.0
 tensorboard
 opencv-python
 einops
 albumentations
 tensorboardX
+madgrad
+warmup_scheduler
