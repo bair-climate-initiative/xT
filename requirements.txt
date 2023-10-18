@@ -1,5 +1,5 @@
 numpy>=1.21.0,<2.0.0
-timm==0.6.12
+timm==0.9.7
 wandb
 pre-commit>=2.15.0,<3.0.0
 black[jupyter]>=21.8,<23
@@ -16,3 +16,6 @@ torchgeo==0.4.1
 classy-vision==0.6.0
 tensorboard
 opencv-python
+einops
+albumentations
+tensorboardX
