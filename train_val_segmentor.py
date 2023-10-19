@@ -268,11 +268,7 @@ def get_args_parser():
     arg('--eta_min',type=float, default=None)   
     arg('--classifier_lr',type=float, default=None)   
     arg('--warmup_epochs',type=int, default=None)   
-
-
     
-    args = parser.parse_args()
-
     return parser
 
 
@@ -296,6 +292,7 @@ def create_data_datasets(args):
         val_dataset = TestDataset(os.path.join(args.data_dir, "images/public"))
     else:
         train_annotations = os.path.join(args.data_dir, "labels/validation.csv")
+        # TODO!! fix positive ratio config setting
         train_dataset = XviewValDataset(
             mode="train",
             dataset_dir=args.data_dir,
