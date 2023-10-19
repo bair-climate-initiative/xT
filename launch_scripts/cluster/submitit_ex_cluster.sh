@@ -21,13 +21,13 @@ python submitit_train_cluster.py \
     --constraint viz \
     --qos frontier \
     --account ODEFN5169CYFZ \
-    --nodes 2 \
+    --nodes 1 \
     --distributed \
     --workers 1 \
     --data-dir $DATA_DIR \
     --shoreline-dir $DATA_DIR/shoreline/validation \
-    --val-dir output/$EXP_NAME \
     --output-dir $HOME/logs/$EXP_NAME \
+    --log-dir $HOME/logs/$EXP_NAME \
     --folds-csv $PROJECT_DIR/meta/folds.csv \
     --fold 77 \
     --name $EXP_NAME \
