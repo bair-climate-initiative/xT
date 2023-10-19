@@ -123,12 +123,13 @@ class PytorchTrainer(ABC):
                 resume="allow",
                 name=train_config.name,
                 config=self.conf,
+                dir=train_config.log_dir,
             )
             artifact = wandb.Artifact(
                 "config_file",
                 type="config_file",
             )
-            config_dump_path =  os.path.join(self.train_config.output_dir,'config.yaml')
+            config_dump_path =  os.path.join(self.train_config.output_dir, 'config.yaml')
             with open(config_dump_path, 'w') as outfile:
                 yaml.dump(self.conf, outfile)
             artifact.add_file(config_dump_path)

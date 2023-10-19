@@ -128,7 +128,7 @@ class XviewEvaluator(Evaluator):
                  snapshot_name: str = "") -> Dict:
         print("HH")
         conf_name = os.path.splitext(os.path.basename(self.args.config))[0]
-        val_dir = os.path.join(self.args.val_dir, conf_name, str(self.args.fold))
+        val_dir = os.path.join(self.args.output_dir, conf_name, str(self.args.fold))
         os.makedirs(val_dir, exist_ok=True)
         dataset_dir = os.path.join(self.args.data_dir, self.dataset_dir)
         extra_context = False
@@ -203,7 +203,7 @@ class XviewEvaluator(Evaluator):
             metric_args.costly_dist = True
             metric_args.drop_low_detect = True
             metric_args.distance_tolerance = 200
-            metric_args.output = os.path.join(self.args.logdir, "out.json")
+            metric_args.output = os.path.join(self.args.log_dir, "out.json")
             output = xview_metric.evaluate_xview_metric(metric_args)
             xview = output["aggregate"]
         if distributed:
@@ -237,9 +237,8 @@ def get_args_parser():
     arg('--prefix', type=str, default='val_')
     arg('--data-dir', type=str, default="/mnt/viper/xview3/")
     arg('--shoreline-dir', type=str, default="")
-    arg('--val-dir', type=str, default="/mnt/viper/xview3/oof")
     arg('--folds-csv', type=str, default='folds4val.csv')
-    arg('--logdir', type=str, default='logs')
+    arg('--log-dir', type=str, default='logs')
     arg('--zero-score', action='store_true', default=False)
     arg('--from-zero', action='store_true', default=False)
     arg('--fp16', action='store_true', default=False)
@@ -321,7 +320,7 @@ def make_folder(p):
 def main(args):
     if args.local_rank == 0:
         make_folder(args.output_dir)
-        make_folder(args.logdir)
+        make_folder(args.log_dir)
     trainer_config = TrainConfiguration(
         config_path=args.config,
         crop_size=args.crop_size,
@@ -333,7 +332,7 @@ def main(args):
         local_rank=args.local_rank,
         distributed=args.distributed,
         freeze_epochs=args.freeze_epochs,
-        log_dir=args.logdir,
+        log_dir=args.log_dir,
         output_dir=args.output_dir,
         workers=args.workers,
         from_zero=args.from_zero,
