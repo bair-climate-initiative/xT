@@ -15,8 +15,8 @@
 ### change WORLD_SIZE as gpus/node * num_nodes
 export MASTER_PORT=56001
 export NNODES=1
-export GPUS_PER_NODE=4
-export WORLD_SIZE=4
+export GPUS_PER_NODE=1
+export WORLD_SIZE=1
 
 ### get the first node name as master address - customized for vgg slurm
 ### e.g. master(gnodee[2-5],gnoded1) == gnodee2
@@ -28,8 +28,6 @@ echo "MASTER_ADDR="$MASTER_ADDR
 ### init virtual environment if needed  
 source /p/home/ritwik/miniconda3/etc/profile.d/conda.sh
 conda activate scale
-
-echo "Python version= " `python -V`
 
 ID=$(cat /proc/sys/kernel/random/uuid | sed 's/[-]//g' | head -c 5)
 NAME=example_experiment
@@ -60,7 +58,7 @@ torchrun \
         --test_every 1 \
         --shoreline-dir $XVIEW_ROOT/shoreline/validation \
         --val-dir $HOME/output-$NAME-$ID  \
-        --output-dir $HOME/output-$NAME-$ID \
+        --output-dir $HOME/logs/output-$NAME-$ID \
         --folds-csv meta/folds.csv \
         --prefix val_only_  \
         --fold $FOLD    \

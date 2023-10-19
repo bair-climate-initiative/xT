@@ -7,14 +7,21 @@
     "pretrained": "ckpts/swinv2_tiny_window16_256.pth",
     "channels_last": true,
     "context_mode": "transformer_xl",
-    "transformer_xl":{
-      "no_memory":false,
-      "n_layer":12
+    "transformer_xl": {
+      "no_memory": false,
+      "n_layer": 12
     }
   },
-  "tiling":"naive",
-  "crop_size": 4096,
-  "encoder_crop_size":1024,
+  "tiling": "naive",
+  "train": {
+    "crop_size": 4096
+  },
+  "val": {
+    "crop_size": 4096,
+    "overlap": 10
+  },
+  "encoder_crop_size": 1024,
+  "positive_ratio": 0.8,
   "multiplier": 64,
   "optimizer": {
     "train_bs": 2,
@@ -33,7 +40,7 @@
       }
     }
   },
-   "losses": [
+  "losses": [
     {
       "name": "msk_v",
       "type": "ComboLossCalculator",
@@ -67,17 +74,14 @@
       "type": "CenterLossCalculator",
       "weight": 3e-7,
       "display": true,
-      "params": {
-      }
+      "params": {}
     },
     {
       "name": "length",
       "type": "LengthLoss",
       "weight": 2,
       "display": true,
-      "params": {
-      }
+      "params": {}
     }
-   
   ]
 }

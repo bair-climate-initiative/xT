@@ -67,12 +67,12 @@ class XviewEvaluator(Evaluator):
         conf = load_config(args.config, args=args)
         
         self.conf = load_config(args.config,args=args)
-        self.crop_size =  self.conf['crop_size_val']
+        self.crop_size =  self.conf['val']['crop_size']
         self.tiling = self.conf.get('tiling','naive')
         self.input_size = self.conf.get('encoder_crop_size',self.conf['crop_size'])
         self.patch_size = self.conf.get('patch_size',16)
         self.context_patch_len = self.conf.get('context_patch_len',100)
-        self.overlap = self.conf['overlap_val'] 
+        self.overlap = self.conf['val']['overlap'] 
         if mode == "public":
             self.dataset_dir = "images/public"
             self.annotation_dir = "labels/public.csv"
@@ -234,8 +234,6 @@ def get_args_parser():
     arg('--output-dir', type=str, default='weights/')
     arg('--resume', type=str, default='')
     arg('--fold', type=int, default=0)
-    arg('--crop_size_val', type=int, default=None)
-    arg('--overlap_val', type=int, default=None)
     arg('--prefix', type=str, default='val_')
     arg('--data-dir', type=str, default="/mnt/viper/xview3/")
     arg('--shoreline-dir', type=str, default="")
@@ -269,10 +267,6 @@ def get_args_parser():
     arg('--classifier_lr',type=float, default=None)   
     arg('--warmup_epochs',type=int, default=None)   
 
-
-    
-    args = parser.parse_args()
-
     return parser
 
 
@@ -304,7 +298,7 @@ def create_data_datasets(args):
             annotation_csv=train_annotations,
             crop_size=conf["crop_size"],
             multiplier=conf["multiplier"],
-            positive_ratio=conf['data']['positive_ratio'],
+            positive_ratio=conf['positive_ratio'],
         )
         val_dataset = XviewValDataset(
             mode="val",
