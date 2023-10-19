@@ -21,7 +21,7 @@ python submitit_train_cluster.py \
     --constraint viz \
     --qos frontier \
     --account ODEFN5169CYFZ \
-    --nodes 1 \
+    --nodes 2 \
     --distributed \
     --workers 1 \
     --data-dir $DATA_DIR \

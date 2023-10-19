@@ -85,13 +85,22 @@ class Trainer(object):
     def _setup_gpu_args(self):
         import submitit
         from pathlib import Path
+        import os
 
         job_env = submitit.JobEnvironment()
+        dist_env = submitit.helpers.TorchDistributedEnvironment().export()
         self.args.output_dir = Path(str(self.args.output_dir).replace("%j", str(job_env.job_id)))
         self.args.log_dir = self.args.output_dir
         self.args.gpu = job_env.local_rank
         self.args.rank = job_env.global_rank
         self.args.world_size = job_env.num_tasks
+
+        # These are needed because submitit errors out otherwise.
+        # I thought these were deprecated? Who knows.
+        #os.environ["RANK"] = str(self.args.rank)
+        #os.environ["WORLD_SIZE"] = str(self.args.world_size)
+
+        print(f"master: {dist_env.master_addr}:{dist_env.master_port}")
         print(f"Process group: {job_env.num_tasks} tasks, rank: {job_env.global_rank}")
 
 

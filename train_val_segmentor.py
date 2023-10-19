@@ -243,6 +243,7 @@ def get_args_parser():
     arg('--zero-score', action='store_true', default=False)
     arg('--from-zero', action='store_true', default=False)
     arg('--fp16', action='store_true', default=False)
+    arg('--fsdp', action='store_true', default=False)
     arg('--distributed', action='store_true', default=False)
     arg("--local-rank", default=0, type=int)
     arg("--rank", default=0, type=int)
@@ -265,7 +266,7 @@ def get_args_parser():
     arg("--test_reset", action='store_true', default=False)
     arg('--eta_min',type=float, default=None)   
     arg('--classifier_lr',type=float, default=None)   
-    arg('--warmup_epochs',type=int, default=None)   
+    arg('--warmup_epochs',type=int, default=None)
 
     return parser
 
@@ -337,6 +338,7 @@ def main(args):
         from_zero=args.from_zero,
         zero_score=args.zero_score,
         fp16=args.fp16,
+        fsdp=args.fsdp,
         freeze_bn=args.freeze_bn,
         name=args.name if args.name else None,
     )
