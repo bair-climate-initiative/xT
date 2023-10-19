@@ -62,6 +62,7 @@ class TrainConfiguration:
     workers: int = 8
     log_dir: str = "logs"
     fp16: bool = True
+    fsdp: float = False
     freeze_bn: bool = False
     name: str = None
     crop_size: int = None
@@ -543,7 +544,7 @@ class PytorchTrainer(ABC):
     def _init_amp(self):
         self.gscaler = torch.cuda.amp.GradScaler()
 
-        if self.train_config.distributed and True:
+        if self.train_config.distributed and self.train_config.fsdp:
             self.model = FullyShardedDataParallel(
                 self.model,
                 auto_wrap_policy=size_based_auto_wrap_policy,
@@ -555,16 +556,15 @@ class PytorchTrainer(ABC):
                 # output_device=self.train_config.local_rank,
                 # find_unused_parameters=False,
             )
-        #else:
-        #    raise NotImplemented
-            # self.model = DataParallel(self.model).cuda()
-
-            #         self.model = DistributedDataParallel(
-            #     self.model,
-            #     device_ids=[self.train_config.local_rank],
-            #     output_device=self.train_config.local_rank,
-            #     find_unused_parameters=False,
-            # )
+        elif self.train_config.distributed:
+            self.model = DistributedDataParallel(
+                self.model,
+                device_ids=[self.train_config.local_rank],
+                output_device=self.train_config.local_rank,
+                find_unused_parameters=False,
+            )
+        else:
+            self.model = DataParallel(self.model).cuda()
 
     def _init_distributed(self):
         if self.train_config.distributed:
