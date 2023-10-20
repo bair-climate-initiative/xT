@@ -1,4 +1,5 @@
-from timm.models.swin_transformer_v2 import SwinTransformerV2Block,PatchMerging
+from timm.models.swin_transformer_v2 import PatchMerging, SwinTransformerV2Block
+
 BasicLayer = SwinTransformerV2Block
 import math
 from typing import Optional, Tuple
@@ -21,8 +22,10 @@ from timm.models.layers import (
     trunc_normal_,
 )
 from timm.models.registry import register_model
-from timm.models.swin_transformer_v2 import SwinTransformerV2Block, PatchMerging
+from timm.models.swin_transformer_v2 import PatchMerging, SwinTransformerV2Block
+
 BasicLayer = SwinTransformerV2Block
+
 
 class SwinTransformerV2Xview(nn.Module):
     r"""Swin Transformer V2
@@ -138,9 +141,13 @@ class SwinTransformerV2Xview(nn.Module):
                 qkv_bias=qkv_bias,
                 drop=drop_rate,
                 attn_drop=attn_drop_rate,
-                drop_path=dpr[sum(depths[:i_layer]) : sum(depths[: i_layer + 1])],
+                drop_path=dpr[
+                    sum(depths[:i_layer]) : sum(depths[: i_layer + 1])
+                ],
                 norm_layer=norm_layer,
-                downsample=PatchMerging if (i_layer < self.num_layers - 1) else None,
+                downsample=PatchMerging
+                if (i_layer < self.num_layers - 1)
+                else None,
                 pretrained_window_size=pretrained_window_sizes[i_layer],
             )
             self.layers.append(layer)
@@ -177,7 +184,11 @@ class SwinTransformerV2Xview(nn.Module):
             if any(
                 [
                     kw in n
-                    for kw in ("cpb_mlp", "logit_scale", "relative_position_bias_table")
+                    for kw in (
+                        "cpb_mlp",
+                        "logit_scale",
+                        "relative_position_bias_table",
+                    )
                 ]
             ):
                 nod.add(n)

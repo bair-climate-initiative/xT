@@ -10,7 +10,9 @@ CUDA_MINOR = int(torch.version.cuda.split(".")[1])
 
 
 class ProjectedAdaptiveLogSoftmax(nn.Module):
-    def __init__(self, n_token, d_embed, d_proj, cutoffs, div_val=1, keep_order=False):
+    def __init__(
+        self, n_token, d_embed, d_proj, cutoffs, div_val=1, keep_order=False
+    ):
         super(ProjectedAdaptiveLogSoftmax, self).__init__()
 
         self.n_token = n_token
@@ -37,7 +39,9 @@ class ProjectedAdaptiveLogSoftmax(nn.Module):
         if div_val == 1:
             for i in range(len(self.cutoffs)):
                 if d_proj != d_embed:
-                    self.out_projs.append(nn.Parameter(torch.Tensor(d_proj, d_embed)))
+                    self.out_projs.append(
+                        nn.Parameter(torch.Tensor(d_proj, d_embed))
+                    )
                 else:
                     self.out_projs.append(None)
 
@@ -47,7 +51,9 @@ class ProjectedAdaptiveLogSoftmax(nn.Module):
                 l_idx, r_idx = self.cutoff_ends[i], self.cutoff_ends[i + 1]
                 d_emb_i = d_embed // (div_val**i)
 
-                self.out_projs.append(nn.Parameter(torch.Tensor(d_proj, d_emb_i)))
+                self.out_projs.append(
+                    nn.Parameter(torch.Tensor(d_proj, d_emb_i))
+                )
 
                 self.out_layers.append(nn.Linear(d_emb_i, r_idx - l_idx))
 
@@ -75,7 +81,8 @@ class ProjectedAdaptiveLogSoftmax(nn.Module):
 
         if hidden.size(0) != target.size(0):
             raise RuntimeError(
-                "Input and target should have the same size " "in the batch dimension."
+                "Input and target should have the same size "
+                "in the batch dimension."
             )
 
         if self.n_clusters == 0:
@@ -86,7 +93,9 @@ class ProjectedAdaptiveLogSoftmax(nn.Module):
                 self.out_projs[0],
             )
             nll = (
-                -F.log_softmax(logit, dim=-1).gather(1, target.unsqueeze(1)).squeeze(1)
+                -F.log_softmax(logit, dim=-1)
+                .gather(1, target.unsqueeze(1))
+                .squeeze(1)
             )
         else:
             # construct weights and biases
@@ -107,12 +116,20 @@ class ProjectedAdaptiveLogSoftmax(nn.Module):
                 weights.append(weight_i)
                 biases.append(bias_i)
 
-            head_weight, head_bias, head_proj = weights[0], biases[0], self.out_projs[0]
+            head_weight, head_bias, head_proj = (
+                weights[0],
+                biases[0],
+                self.out_projs[0],
+            )
 
-            head_logit = self._compute_logit(hidden, head_weight, head_bias, head_proj)
+            head_logit = self._compute_logit(
+                hidden, head_weight, head_bias, head_proj
+            )
             head_logprob = F.log_softmax(head_logit, dim=1)
 
-            nll = torch.zeros_like(target, dtype=hidden.dtype, device=hidden.device)
+            nll = torch.zeros_like(
+                target, dtype=hidden.dtype, device=hidden.device
+            )
 
             offset = 0
             cutoff_values = [0] + self.cutoffs
@@ -129,9 +146,15 @@ class ProjectedAdaptiveLogSoftmax(nn.Module):
                 head_logprob_i = head_logprob.index_select(0, indices_i)
 
                 if i == 0:
-                    logprob_i = head_logprob_i.gather(1, target_i[:, None]).squeeze(1)
+                    logprob_i = head_logprob_i.gather(
+                        1, target_i[:, None]
+                    ).squeeze(1)
                 else:
-                    weight_i, bias_i, proj_i = weights[i], biases[i], self.out_projs[i]
+                    weight_i, bias_i, proj_i = (
+                        weights[i],
+                        biases[i],
+                        self.out_projs[i],
+                    )
 
                     hidden_i = hidden.index_select(0, indices_i)
 
@@ -144,7 +167,9 @@ class ProjectedAdaptiveLogSoftmax(nn.Module):
                         1, target_i[:, None]
                     ).squeeze(1)
 
-                if (hasattr(self, "keep_order") and self.keep_order) or keep_order:
+                if (
+                    hasattr(self, "keep_order") and self.keep_order
+                ) or keep_order:
                     nll.index_copy_(0, indices_i, -logprob_i)
                 else:
                     nll[offset : offset + logprob_i.size(0)].copy_(-logprob_i)

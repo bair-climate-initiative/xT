@@ -30,9 +30,9 @@ def quadratic_kappa_coefficient(output: Tensor, target: Tensor):
     """
     output, target = output.type(torch.float32), target.type(torch.float32)
     n_classes = target.shape[-1]
-    weights = torch.arange(0, n_classes, dtype=torch.float32, device=output.device) / (
-        n_classes - 1
-    )
+    weights = torch.arange(
+        0, n_classes, dtype=torch.float32, device=output.device
+    ) / (n_classes - 1)
     weights = (weights - torch.unsqueeze(weights, -1)) ** 2
 
     C = (output.t() @ target).t()  # confusion matrix

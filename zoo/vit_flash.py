@@ -30,7 +30,10 @@ def load_checkpoint(model, pretrained: str):
     # checkpoint_model = checkpoint['model']
     state_dict = model.state_dict()
     for k in ["head.weight", "head.bias"]:
-        if k in checkpoint_model and checkpoint_model[k].shape != state_dict[k].shape:
+        if (
+            k in checkpoint_model
+            and checkpoint_model[k].shape != state_dict[k].shape
+        ):
             print(f"Removing key {k} from pretrained checkpoint")
             del checkpoint_model[k]
 
@@ -75,10 +78,14 @@ class Block(nn.Module):
             use_flash_attn=flash_attn,
         )
         self.ls1 = (
-            LayerScale(dim, init_values=init_values) if init_values else nn.Identity()
+            LayerScale(dim, init_values=init_values)
+            if init_values
+            else nn.Identity()
         )
         # NOTE: drop path for stochastic depth, we shall see if this is better than dropout here
-        self.drop_path1 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
+        self.drop_path1 = (
+            DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
+        )
 
         self.norm2 = norm_layer(dim)
         self.mlp = Mlp(
@@ -88,9 +95,13 @@ class Block(nn.Module):
             drop=drop,
         )
         self.ls2 = (
-            LayerScale(dim, init_values=init_values) if init_values else nn.Identity()
+            LayerScale(dim, init_values=init_values)
+            if init_values
+            else nn.Identity()
         )
-        self.drop_path2 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
+        self.drop_path2 = (
+            DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
+        )
 
     def forward(self, x):
         x = x + self.drop_path1(self.ls1(self.attn(self.norm1(x))))
@@ -118,7 +129,12 @@ class VisionTransformer(timm.models.vision_transformer.VisionTransformer):
 
 def vit_base_patch16(pretrained=False, **kwargs):
     model = VisionTransformer(
-        patch_size=16, embed_dim=768, depth=12, num_heads=12, mlp_ratio=4, **kwargs
+        patch_size=16,
+        embed_dim=768,
+        depth=12,
+        num_heads=12,
+        mlp_ratio=4,
+        **kwargs,
     )
     del model.fc_norm
     model.forward = model.forward_features
@@ -129,7 +145,12 @@ def vit_base_patch16(pretrained=False, **kwargs):
 
 def vit_large_patch16(pretrained=False, channels_last=True, **kwargs):
     model = VisionTransformer(
-        patch_size=16, embed_dim=1024, depth=24, num_heads=16, mlp_ratio=4, **kwargs
+        patch_size=16,
+        embed_dim=1024,
+        depth=24,
+        num_heads=16,
+        mlp_ratio=4,
+        **kwargs,
     )
     if pretrained:
         model = load_checkpoint(model, pretrained)
@@ -138,7 +159,12 @@ def vit_large_patch16(pretrained=False, channels_last=True, **kwargs):
 
 def vit_huge_patch14(pretrained=False, channels_last=True, **kwargs):
     model = VisionTransformer(
-        patch_size=14, embed_dim=1280, depth=32, num_heads=16, mlp_ratio=4, **kwargs
+        patch_size=14,
+        embed_dim=1280,
+        depth=32,
+        num_heads=16,
+        mlp_ratio=4,
+        **kwargs,
     )
     if pretrained:
         model = load_checkpoint(model, pretrained)

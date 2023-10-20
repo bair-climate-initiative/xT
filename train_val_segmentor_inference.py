@@ -70,7 +70,9 @@ class XviewEvaluator(Evaluator):
         snapshot_name: str = "",
     ) -> Dict:
         conf_name = os.path.splitext(os.path.basename(self.args.config))[0]
-        val_dir = os.path.join(self.args.val_dir, conf_name, str(self.args.fold))
+        val_dir = os.path.join(
+            self.args.val_dir, conf_name, str(self.args.fold)
+        )
         os.makedirs(val_dir, exist_ok=True)
         dataset_dir = os.path.join(self.args.data_dir, "images/public")
         for sample in tqdm(dataloader):
@@ -144,7 +146,9 @@ class XviewEvaluator(Evaluator):
         empty_cache()
         return {"xview": xview, **output}
 
-    def get_improved_metrics(self, prev_metrics: Dict, current_metrics: Dict) -> Dict:
+    def get_improved_metrics(
+        self, prev_metrics: Dict, current_metrics: Dict
+    ) -> Dict:
         improved = {}
         if current_metrics["xview"] > prev_metrics["xview"]:
             print(
@@ -183,7 +187,11 @@ def parse_args():
     arg("--fold", type=int, default=0)
     arg("--prefix", type=str, default="val_")
     arg("--data-dir", type=str, default="/mnt/viper/xview3/")
-    arg("--shoreline-dir", type=str, default="/mnt/viper/xview3/shore/validation")
+    arg(
+        "--shoreline-dir",
+        type=str,
+        default="/mnt/viper/xview3/shore/validation",
+    )
     arg("--val-dir", type=str, default="/mnt/viper/xview3/oof")
     arg("--folds-csv", type=str, default="folds4val.csv")
     arg("--crop_size_val", type=int, default=3584)
@@ -258,7 +266,9 @@ def main():
         train_data=data_train,
         val_data=data_val,
     )
-    sampler = torch.utils.data.distributed.DistributedSampler(data_val, shuffle=False)
+    sampler = torch.utils.data.distributed.DistributedSampler(
+        data_val, shuffle=False
+    )
     test_loader = DataLoader(
         data_val,
         batch_size=1,

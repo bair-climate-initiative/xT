@@ -57,7 +57,9 @@ print(image_folder)
 
 skf = StratifiedKFold(5, shuffle=True, random_state=42)
 df_train["fold"] = -1
-for i, (train_idx, valid_idx) in enumerate(skf.split(df_train, df_train["isup_grade"])):
+for i, (train_idx, valid_idx) in enumerate(
+    skf.split(df_train, df_train["isup_grade"])
+):
     df_train.loc[valid_idx, "fold"] = i
 df_train.head()
 
@@ -92,11 +94,19 @@ def get_tiles(img, mode=0):
 
     img2 = np.pad(
         img,
-        [[pad_h // 2, pad_h - pad_h // 2], [pad_w // 2, pad_w - pad_w // 2], [0, 0]],
+        [
+            [pad_h // 2, pad_h - pad_h // 2],
+            [pad_w // 2, pad_w - pad_w // 2],
+            [0, 0],
+        ],
         constant_values=255,
     )
     img3 = img2.reshape(
-        img2.shape[0] // tile_size, tile_size, img2.shape[1] // tile_size, tile_size, 3
+        img2.shape[0] // tile_size,
+        tile_size,
+        img2.shape[1] // tile_size,
+        tile_size,
+        3,
     )
 
     img3 = img3.transpose(0, 2, 1, 3, 4).reshape(-1, tile_size, tile_size, 3)
@@ -157,7 +167,9 @@ class PANDADataset(Dataset):
             idxes = list(range(self.n_tiles))
 
         n_row_tiles = int(np.sqrt(self.n_tiles))
-        images = np.zeros((image_size * n_row_tiles, image_size * n_row_tiles, 3))
+        images = np.zeros(
+            (image_size * n_row_tiles, image_size * n_row_tiles, 3)
+        )
         for h in range(n_row_tiles):
             for w in range(n_row_tiles):
                 i = h * n_row_tiles + w
@@ -166,7 +178,9 @@ class PANDADataset(Dataset):
                     this_img = tiles[idxes[i]]["img"]
                 else:
                     this_img = (
-                        np.ones((self.image_size, self.image_size, 3)).astype(np.uint8)
+                        np.ones((self.image_size, self.image_size, 3)).astype(
+                            np.uint8
+                        )
                         * 255
                     )
                 this_img = 255 - this_img
@@ -287,8 +301,12 @@ valid_idx = np.where((df_train["fold"] == fold))[0]
 df_this = df_train.loc[train_idx]
 df_valid = df_train.loc[valid_idx]
 
-dataset_train = PANDADataset(df_this, image_size, n_tiles, transform=transforms_train)
-dataset_valid = PANDADataset(df_valid, image_size, n_tiles, transform=transforms_val)
+dataset_train = PANDADataset(
+    df_this, image_size, n_tiles, transform=transforms_train
+)
+dataset_valid = PANDADataset(
+    df_valid, image_size, n_tiles, transform=transforms_val
+)
 
 train_loader = torch.utils.data.DataLoader(
     dataset_train,
@@ -337,7 +355,9 @@ for epoch in range(1, n_epochs + 1):
     train_loss = train_epoch(train_loader, optimizer)
     val_loss, acc, qwk = val_epoch(valid_loader)
     if wandb.run is not None:
-        wandb.log(dict(acc=acc, qwk=qwk, val_loss=val_loss, train_loss=train_loss))
+        wandb.log(
+            dict(acc=acc, qwk=qwk, val_loss=val_loss, train_loss=train_loss)
+        )
     content = (
         time.ctime()
         + " "
@@ -348,8 +368,12 @@ for epoch in range(1, n_epochs + 1):
         appender.write(content + "\n")
 
     if qwk > qwk_max:
-        print("score2 ({:.6f} --> {:.6f}).  Saving model ...".format(qwk_max, qwk))
+        print(
+            "score2 ({:.6f} --> {:.6f}).  Saving model ...".format(qwk_max, qwk)
+        )
         torch.save(model.state_dict(), best_file)
         qwk_max = qwk
 
-torch.save(model.state_dict(), os.path.join(f"{kernel_type}_final_fold{fold}.pth"))
+torch.save(
+    model.state_dict(), os.path.join(f"{kernel_type}_final_fold{fold}.pth")
+)

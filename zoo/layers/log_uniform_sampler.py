@@ -21,7 +21,9 @@ class LogUniformSampler(object):
             # print('P', self.dist.numpy().tolist()[-30:])
 
             self.log_q = (
-                (-(-self.dist.double().log1p_() * 2 * n_sample).expm1_()).log_().float()
+                (-(-self.dist.double().log1p_() * 2 * n_sample).expm1_())
+                .log_()
+                .float()
             )
 
         self.n_sample = n_sample
@@ -78,7 +80,9 @@ def sample_logits(embedding, bias, labels, inputs, sampler):
         torch.einsum("ijk,ijk->ij", [true_w, inputs]) + true_b - true_log_probs
     )
     sample_logits = (
-        torch.einsum("lk,ijk->ijl", [sample_w, inputs]) + sample_b - samp_log_probs
+        torch.einsum("lk,ijk->ijl", [sample_w, inputs])
+        + sample_b
+        - samp_log_probs
     )
     sample_logits.masked_fill_(hit, -1e30)
     logits = torch.cat([true_logits[:, :, None], sample_logits], -1)

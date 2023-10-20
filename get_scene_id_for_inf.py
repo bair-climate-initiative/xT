@@ -4,7 +4,9 @@ import numpy as np
 import pandas as pd
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--src", default="/shared/ritwik/data/xview3/labels/public.csv")
+parser.add_argument(
+    "--src", default="/shared/ritwik/data/xview3/labels/public.csv"
+)
 
 args = parser.parse_args()
 df = pd.read_csv(args.src)

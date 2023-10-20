@@ -2,6 +2,7 @@ import math
 import os
 import random
 import time
+from dataclasses import dataclass
 
 import albumentations as A
 import cv2
@@ -13,23 +14,19 @@ import torch
 from rasterio.windows import Window
 from torch.utils.data import Dataset
 
+from train_val_segmentor import XviewConfig
+
+from .utils import is_main_process
+
+cv2.ocl.setUseOpenCL(False)
+cv2.setNumThreads(0)
+
+
 # VV mean: -15.830463789539426
 # VV std:  6.510123043441801
 
 # VH mean: -24.66130160959856
 # VH std:  6.684547156770566
-
-
-def normalize_band(band, ignored_mask=0):
-    band[band < -32760] = -100
-    ignored_idx = band == -100
-    if np.count_nonzero(band != -100) == 0:
-        band[:, :] = ignored_mask
-    else:
-        band = (band + 40) / 15
-        band[ignored_idx] = ignored_mask
-    return band
-
 
 train_transforms = A.Compose(
     [
@@ -45,6 +42,95 @@ train_transforms = A.Compose(
         "center_mask": "mask",
     },
 )
+
+
+@dataclass
+class DataConfig:
+    dataset: str
+    dir: str
+    num_workers: int = 8
+    test: bool = False
+    crop_size: int = 512
+    val_crop_size: int = 512
+    overlap: int = 10
+
+
+@dataclass
+class Xview3Config(DataConfig):
+    dataset: str = "xview3"
+    dir: str = "data/xview3"
+    shoreline_dir: str = "data/xview3/shoreline/validation"
+    fold: int = 0
+    folds_csv: str = "meta/folds.csv"
+    positive_ratio: float = 0.85
+    multiplier: int = 64
+
+
+def normalize_band(band, ignored_mask=0):
+    band[band < -32760] = -100
+    ignored_idx = band == -100
+    if np.count_nonzero(band != -100) == 0:
+        band[:, :] = ignored_mask
+    else:
+        band = (band + 40) / 15
+        band[ignored_idx] = ignored_mask
+    return band
+
+
+def create_data_datasets(config: XviewConfig):
+    if is_main_process():
+        print("dataset config crop size", config.crop_size)
+        if config.shoreline_dir:
+            print("Legacy Warning:shoreline_dir is no longer used")
+    if config.test:
+        train_annotations = os.path.join(config.data_dir, "labels/public.csv")
+        train_dataset = XviewValDataset(
+            mode="train",
+            dataset_dir=config.data_dir,
+            fold=12345,
+            folds_csv=config.folds_csv,
+            annotation_csv=train_annotations,
+            crop_size=config.crop_size,
+            multiplier=config.multiplier,
+        )
+        val_dataset = TestDataset(
+            os.path.join(config.data_dir, "images/public")
+        )
+    else:
+        train_annotations = os.path.join(
+            config.data_dir, "labels/validation.csv"
+        )
+        train_dataset = XviewValDataset(
+            mode="train",
+            dataset_dir=config.data_dir,
+            fold=config.fold,
+            folds_csv=config.folds_csv,
+            annotation_csv=train_annotations,
+            crop_size=config.crop_size,
+            multiplier=config.multiplier,
+            positive_ratio=config.positive_ratio,
+        )
+        val_dataset = XviewValDataset(
+            mode="val",
+            dataset_dir=config.data_dir,
+            fold=config.fold,
+            folds_csv=config.folds_csv,
+            annotation_csv=train_annotations,
+            crop_size=config.crop_size,
+        )
+    return train_dataset, val_dataset
+
+
+class TestDataset(Dataset):
+    def __init__(self, root_dir):
+        super().__init__()
+        self.names = os.listdir(root_dir)
+
+    def __getitem__(self, index):
+        return dict(name=self.names[index])
+
+    def __len__(self):
+        return len(self.names)
 
 
 class XviewValDataset(Dataset):
@@ -91,10 +177,14 @@ class XviewValDataset(Dataset):
         crop_size = self.crop_size
 
         vv_full = rasterio.open(
-            os.path.join(self.dataset_dir, "images/validation", name, "VV_dB.tif")
+            os.path.join(
+                self.dataset_dir, "images/validation", name, "VV_dB.tif"
+            )
         )
         vh_full = rasterio.open(
-            os.path.join(self.dataset_dir, "images/validation", name, "VH_dB.tif")
+            os.path.join(
+                self.dataset_dir, "images/validation", name, "VH_dB.tif"
+            )
         )
         h, w = vv_full.shape
 
@@ -106,8 +196,12 @@ class XviewValDataset(Dataset):
             point = points[point_idx]
             y, x = point.detect_scene_row, point.detect_scene_column
             max_shift_pad = 32
-            min_x_start = min(max(x - crop_size + max_shift_pad, 0), w - crop_size - 32)
-            min_y_start = min(max(y - crop_size + max_shift_pad, 0), h - crop_size - 32)
+            min_x_start = min(
+                max(x - crop_size + max_shift_pad, 0), w - crop_size - 32
+            )
+            min_y_start = min(
+                max(y - crop_size + max_shift_pad, 0), h - crop_size - 32
+            )
             max_x_start = max(min(x - max_shift_pad, w - crop_size - 1), 0)
             max_y_start = max(min(y - max_shift_pad, h - crop_size - 1), 0)
 
@@ -122,10 +216,16 @@ class XviewValDataset(Dataset):
             # vh = vh_full[h_start: h_end, w_start: w_end].astype(np.float32)
             # vv = vv_full[h_start: h_end, w_start: w_end].astype(np.float32)
             vh = vh_full.read(
-                1, window=Window(w_start, h_start, w_end - w_start, h_end - h_start)
+                1,
+                window=Window(
+                    w_start, h_start, w_end - w_start, h_end - h_start
+                ),
             )
             vv = vv_full.read(
-                1, window=Window(w_start, h_start, w_end - w_start, h_end - h_start)
+                1,
+                window=Window(
+                    w_start, h_start, w_end - w_start, h_end - h_start
+                ),
             )
         else:
             for i in range(5):
@@ -136,10 +236,16 @@ class XviewValDataset(Dataset):
                 w_end = w_start + crop_size
                 # vh = vh_full[h_start: h_end, w_start: w_end].astype(np.float32)
                 vh = vh_full.read(
-                    1, window=Window(w_start, h_start, w_end - w_start, h_end - h_start)
+                    1,
+                    window=Window(
+                        w_start, h_start, w_end - w_start, h_end - h_start
+                    ),
                 )
                 vv = vv_full.read(
-                    1, window=Window(w_start, h_start, w_end - w_start, h_end - h_start)
+                    1,
+                    window=Window(
+                        w_start, h_start, w_end - w_start, h_end - h_start
+                    ),
                 )
                 known_pixels = np.count_nonzero(vh > -1000)
                 # vv = vv_full[h_start: h_end, w_start: w_end].astype(np.float32)
@@ -257,7 +363,9 @@ class XviewValDataset(Dataset):
                         and y1 > 32
                         and y2 < self.crop_size - 32
                     ):
-                        crop_coords[crop_coords_idx] = np.array([x1, y1, x2, y2])
+                        crop_coords[crop_coords_idx] = np.array(
+                            [x1, y1, x2, y2]
+                        )
                         crop_coords_idx += 1
 
         vv = normalize_band(band=vv, ignored_mask=0)

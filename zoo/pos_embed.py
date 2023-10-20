@@ -31,7 +31,9 @@ def get_2d_sincos_pos_embed(embed_dim, grid_size, cls_token=False):
     grid = grid.reshape([2, 1, grid_size, grid_size])
     pos_embed = get_2d_sincos_pos_embed_from_grid(embed_dim, grid)
     if cls_token:
-        pos_embed = np.concatenate([np.zeros([1, embed_dim]), pos_embed], axis=0)
+        pos_embed = np.concatenate(
+            [np.zeros([1, embed_dim]), pos_embed], axis=0
+        )
     return pos_embed
 
 
@@ -39,8 +41,12 @@ def get_2d_sincos_pos_embed_from_grid(embed_dim, grid):
     assert embed_dim % 2 == 0
 
     # use half of dimensions to encode grid_h
-    emb_h = get_1d_sincos_pos_embed_from_grid(embed_dim // 2, grid[0])  # (H*W, D/2)
-    emb_w = get_1d_sincos_pos_embed_from_grid(embed_dim // 2, grid[1])  # (H*W, D/2)
+    emb_h = get_1d_sincos_pos_embed_from_grid(
+        embed_dim // 2, grid[0]
+    )  # (H*W, D/2)
+    emb_w = get_1d_sincos_pos_embed_from_grid(
+        embed_dim // 2, grid[1]
+    )  # (H*W, D/2)
 
     emb = np.concatenate([emb_h, emb_w], axis=1)  # (H*W, D)
     return emb
@@ -69,15 +75,17 @@ def get_1d_sincos_pos_embed_from_grid(embed_dim, pos):
 
 def get_1d_sincos_pos_embed_from_grid_torch(embed_dim, pos):
     assert embed_dim % 2 == 0
-    omega = torch.arange(embed_dim // 2, dtype=float,device=pos.device)
-    omega /= embed_dim / 2.
-    omega = 1. / 10000**omega  # (D/2,)
+    omega = torch.arange(embed_dim // 2, dtype=float, device=pos.device)
+    omega /= embed_dim / 2.0
+    omega = 1.0 / 10000**omega  # (D/2,)
     pos = pos.reshape(-1)  # (M,)
-    out = torch.einsum('m,d->md', pos, omega)  # (M, D/2), outer product
-    emb_sin = torch.sin(out) # (M, D/2)
-    emb_cos = torch.cos(out) # (M, D/2)
+    out = torch.einsum("m,d->md", pos, omega)  # (M, D/2), outer product
+    emb_sin = torch.sin(out)  # (M, D/2)
+    emb_cos = torch.cos(out)  # (M, D/2)
     emb = torch.cat([emb_sin, emb_cos], dim=1)  # (M, D)
     return emb
+
+
 # --------------------------------------------------------
 # Interpolate position embeddings for high-resolution
 # References:
@@ -90,7 +98,9 @@ def interpolate_pos_embed(model, checkpoint_model):
         num_patches = model.patch_embed.num_patches
         num_extra_tokens = model.pos_embed.shape[-2] - num_patches
         # height (== width) for the checkpoint position embedding
-        orig_size = int((pos_embed_checkpoint.shape[-2] - num_extra_tokens) ** 0.5)
+        orig_size = int(
+            (pos_embed_checkpoint.shape[-2] - num_extra_tokens) ** 0.5
+        )
         # height (== width) for the new position embedding
         new_size = int(num_patches**0.5)
         # class_token and dist_token are kept unchanged

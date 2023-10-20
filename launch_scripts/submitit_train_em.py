@@ -12,21 +12,43 @@ import os
 import uuid
 from pathlib import Path
 
-import train_val_segmentor as segmentor
 import submitit
+
+import train_val_segmentor as segmentor
 
 
 def parse_args():
     segmentor_parser = segmentor.get_args_parser()
-    parser = argparse.ArgumentParser("Submitit for Segmentor Train+Val", parents=[segmentor_parser])
-    parser.add_argument("--ngpus", default=8, type=int, help="Number of gpus to request on each node")
-    parser.add_argument("--nodes", default=1, type=int, help="Number of nodes to request")
-    parser.add_argument("--timeout", default=4320, type=int, help="Duration of the job (min)")
-    parser.add_argument("--job_dir", default="", type=str, help="Job dir. Leave empty for automatic.")
-
-    parser.add_argument("--nodelist", default=None, type=str, help="Slurm nodelist.")
+    parser = argparse.ArgumentParser(
+        "Submitit for Segmentor Train+Val", parents=[segmentor_parser]
+    )
     parser.add_argument(
-        "--partition", default="Main*", type=str, help="Partition where to submit"
+        "--ngpus",
+        default=8,
+        type=int,
+        help="Number of gpus to request on each node",
+    )
+    parser.add_argument(
+        "--nodes", default=1, type=int, help="Number of nodes to request"
+    )
+    parser.add_argument(
+        "--timeout", default=4320, type=int, help="Duration of the job (min)"
+    )
+    parser.add_argument(
+        "--job_dir",
+        default="",
+        type=str,
+        help="Job dir. Leave empty for automatic.",
+    )
+
+    parser.add_argument(
+        "--nodelist", default=None, type=str, help="Slurm nodelist."
+    )
+    parser.add_argument(
+        "--partition",
+        default="Main*",
+        type=str,
+        help="Partition where to submit",
     )
     parser.add_argument(
         "--qos",
@@ -35,7 +57,9 @@ def parse_args():
         choices=("high", "medium", "low"),
         help="QoS to use",
     )
-    parser.add_argument('--comment', default="", type=str, help="Comment to pass to scheduler")
+    parser.add_argument(
+        "--comment", default="", type=str, help="Comment to pass to scheduler"
+    )
     return parser.parse_args()
 
 
@@ -69,6 +93,7 @@ class Trainer(object):
 
     def checkpoint(self):
         import os
+
         import submitit
 
         self.args.dist_url = get_init_file().as_uri()
@@ -80,16 +105,21 @@ class Trainer(object):
         return submitit.helpers.DelayedSubmission(empty_trainer)
 
     def _setup_gpu_args(self):
-        import submitit
         from pathlib import Path
 
+        import submitit
+
         job_env = submitit.JobEnvironment()
-        self.args.output_dir = Path(str(self.args.output_dir).replace("%j", str(job_env.job_id)))
+        self.args.output_dir = Path(
+            str(self.args.output_dir).replace("%j", str(job_env.job_id))
+        )
         self.args.log_dir = self.args.output_dir
         self.args.gpu = job_env.local_rank
         self.args.rank = job_env.global_rank
         self.args.world_size = job_env.num_tasks
-        print(f"Process group: {job_env.num_tasks} tasks, rank: {job_env.global_rank}")
+        print(
+            f"Process group: {job_env.num_tasks} tasks, rank: {job_env.global_rank}"
+        )
 
 
 def main():
@@ -98,7 +128,9 @@ def main():
         args.job_dir = get_shared_folder() / "%j"
 
     # Note that the folder will depend on the job_id, to easily track experiments
-    executor = submitit.AutoExecutor(folder=args.job_dir, slurm_max_num_timeout=30)
+    executor = submitit.AutoExecutor(
+        folder=args.job_dir, slurm_max_num_timeout=30
+    )
 
     num_gpus_per_node = args.ngpus
     nodes = args.nodes
@@ -107,22 +139,22 @@ def main():
 
     kwargs = {}
     if args.comment:
-        kwargs['slurm_comment'] = args.comment
+        kwargs["slurm_comment"] = args.comment
     if args.nodelist:
         kwargs["slurm_nodelist"] = args.nodelist
 
     executor.update_parameters(
         # mem_gb=40 * num_gpus_per_node,
         gpus_per_node=num_gpus_per_node,
-        tasks_per_node=num_gpus_per_node, # one task per GPU
-        cpus_per_task=4, # 50 cpus per 2080Ti node / 10
+        tasks_per_node=num_gpus_per_node,  # one task per GPU
+        cpus_per_task=4,  # 50 cpus per 2080Ti node / 10
         nodes=nodes,
         timeout_min=timeout_min,
         # Below are cluster dependent parameters
         # slurm_partition=partition,
         slurm_qos=qos,
         slurm_signal_delay_s=120,
-        **kwargs
+        **kwargs,
     )
 
     executor.update_parameters(name="xview3")

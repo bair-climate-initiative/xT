@@ -18,7 +18,9 @@ import torch
 # Transformer: https://github.com/tensorflow/models/blob/master/official/nlp/transformer/model_utils.py
 # MoCo v3: https://github.com/facebookresearch/moco-v3
 # --------------------------------------------------------
-def get_2d_sincos_pos_embed(embed_dim, grid_size_h, grid_size_w, cls_token=False):
+def get_2d_sincos_pos_embed(
+    embed_dim, grid_size_h, grid_size_w, cls_token=False
+):
     """
     grid_size: int of the grid height and width
     return:
@@ -32,35 +34,48 @@ def get_2d_sincos_pos_embed(embed_dim, grid_size_h, grid_size_w, cls_token=False
     grid = grid.reshape([2, 1, grid_size_h, grid_size_w])
     pos_embed = get_2d_sincos_pos_embed_from_grid(embed_dim, grid)
     if cls_token:
-        pos_embed = np.concatenate([np.zeros([1, embed_dim]), pos_embed], axis=0)
+        pos_embed = np.concatenate(
+            [np.zeros([1, embed_dim]), pos_embed], axis=0
+        )
     return pos_embed
 
-def get_nd_sincos_pos_embed(embed_dim,dims, cls_token=False):
+
+def get_nd_sincos_pos_embed(embed_dim, dims, cls_token=False):
     """
     grid_size: int of the grid height and width
     return:
     pos_embed: [grid_size*grid_size, embed_dim] or [1+grid_size*grid_size, embed_dim] (w/ or w/o cls_token)
     """
-    grid_1ds= [np.arange(d, dtype=np.float32)for d in dims]
+    grid_1ds = [np.arange(d, dtype=np.float32) for d in dims]
     grid = np.meshgrid(*grid_1ds)  # here w goes first
     grid = np.stack(grid, axis=0)
-    grid = grid[:,None]
-    embed_dims = np.array([embed_dim//(2*len(dims))*2] * len(dims))
+    grid = grid[:, None]
+    embed_dims = np.array([embed_dim // (2 * len(dims)) * 2] * len(dims))
     embed_dims[-1] += embed_dim - sum(embed_dims)
-    pos_embeds = [get_1d_sincos_pos_embed_from_grid(d, g) for d,g in zip(embed_dims,grid)]
+    pos_embeds = [
+        get_1d_sincos_pos_embed_from_grid(d, g)
+        for d, g in zip(embed_dims, grid)
+    ]
     pos_embed = np.concatenate(pos_embeds, axis=1)  # (H*W, D)
-    pos_embed = pos_embed.reshape(embed_dim,*dims)
-    assert not cls_token # nnot implemennted
+    pos_embed = pos_embed.reshape(embed_dim, *dims)
+    assert not cls_token  # nnot implemennted
     if cls_token:
-        pos_embed = np.concatenate([np.zeros([1, embed_dim]), pos_embed], axis=0)
+        pos_embed = np.concatenate(
+            [np.zeros([1, embed_dim]), pos_embed], axis=0
+        )
     return pos_embed
+
 
 def get_2d_sincos_pos_embed_from_grid(embed_dim, grid):
     assert embed_dim % 2 == 0
 
     # use half of dimensions to encode grid_h
-    emb_h = get_1d_sincos_pos_embed_from_grid(embed_dim // 2, grid[0])  # (H*W, D/2)
-    emb_w = get_1d_sincos_pos_embed_from_grid(embed_dim // 2, grid[1])  # (H*W, D/2)
+    emb_h = get_1d_sincos_pos_embed_from_grid(
+        embed_dim // 2, grid[0]
+    )  # (H*W, D/2)
+    emb_w = get_1d_sincos_pos_embed_from_grid(
+        embed_dim // 2, grid[1]
+    )  # (H*W, D/2)
 
     emb = np.concatenate([emb_h, emb_w], axis=1)  # (H*W, D)
     return emb
@@ -106,12 +121,18 @@ def interpolate_pos_embed(model, checkpoint_model, new_size=(64, 128)):
         # print (orig_size)
         # print (new_size)
         if orig_size[0] != new_size[0]:
-            print("Interpolate PEs from %dx%d to %dx%d" % (orig_size[0], orig_size[1], new_size[0], new_size[1]))
-            pos_tokens = pos_embed_checkpoint.reshape(-1, orig_size[0], orig_size[1], embedding_size).permute(
-                0, 3, 1, 2
+            print(
+                "Interpolate PEs from %dx%d to %dx%d"
+                % (orig_size[0], orig_size[1], new_size[0], new_size[1])
             )
+            pos_tokens = pos_embed_checkpoint.reshape(
+                -1, orig_size[0], orig_size[1], embedding_size
+            ).permute(0, 3, 1, 2)
             new_pos_tokens = torch.nn.functional.interpolate(
-                pos_tokens, size=(new_size[0], new_size[1]), mode="bicubic", align_corners=False
+                pos_tokens,
+                size=(new_size[0], new_size[1]),
+                mode="bicubic",
+                align_corners=False,
             )
             new_pos_tokens = new_pos_tokens.permute(0, 2, 3, 1).flatten(1, 2)
             checkpoint_model["net.pos_embed"] = new_pos_tokens
@@ -122,4 +143,6 @@ def interpolate_channel_embed(checkpoint_model, new_len):
         channel_embed_checkpoint = checkpoint_model["net.channel_embed"]
         old_len = channel_embed_checkpoint.shape[1]
         if new_len <= old_len:
-            checkpoint_model["net.channel_embed"] = channel_embed_checkpoint[:, :new_len]
+            checkpoint_model["net.channel_embed"] = channel_embed_checkpoint[
+                :, :new_len
+            ]

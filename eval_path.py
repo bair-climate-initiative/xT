@@ -9,7 +9,7 @@ from inference.run_inference import predict_scene_and_return_mm
 from metrics import xview_metric
 from metrics.xview_metric import create_metric_arg_parser
 from training.config import load_config
-from training.val_dataset import XviewValDataset
+from training.datasets import XviewValDataset
 
 val_dir = "pred_1024"
 csv_paths = glob.glob(os.path.join(val_dir, "*.csv"))
@@ -18,9 +18,9 @@ data_dir = "/shared/ritwik/data/xview3"
 shoreline_dir = "/shared/ritwik/data/xview3/shoreline/public"
 
 print(csv_paths)
-pd.concat([pd.read_csv(csv_path).reset_index() for csv_path in csv_paths]).to_csv(
-    pred_csv, index=False
-)
+pd.concat(
+    [pd.read_csv(csv_path).reset_index() for csv_path in csv_paths]
+).to_csv(pred_csv, index=False)
 parser = create_metric_arg_parser()
 metric_args = parser.parse_args("")
 df = pd.read_csv(pred_csv)

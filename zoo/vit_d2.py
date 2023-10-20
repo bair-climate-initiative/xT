@@ -59,8 +59,12 @@ class Attention(nn.Module):
         self.use_rel_pos = use_rel_pos
         if self.use_rel_pos:
             # initialize relative positional embeddings
-            self.rel_pos_h = nn.Parameter(torch.zeros(2 * input_size[0] - 1, head_dim))
-            self.rel_pos_w = nn.Parameter(torch.zeros(2 * input_size[1] - 1, head_dim))
+            self.rel_pos_h = nn.Parameter(
+                torch.zeros(2 * input_size[0] - 1, head_dim)
+            )
+            self.rel_pos_w = nn.Parameter(
+                torch.zeros(2 * input_size[1] - 1, head_dim)
+            )
 
             if not rel_pos_zero_init:
                 nn.init.trunc_normal_(self.rel_pos_h, std=0.02)
@@ -70,7 +74,9 @@ class Attention(nn.Module):
         B, H, W, _ = x.shape
         # qkv with shape (3, B, nHead, H * W, C)
         qkv = (
-            self.qkv(x).reshape(B, H * W, 3, self.num_heads, -1).permute(2, 0, 3, 1, 4)
+            self.qkv(x)
+            .reshape(B, H * W, 3, self.num_heads, -1)
+            .permute(2, 0, 3, 1, 4)
         )
         # q, k, v with shape (B * nHead, H * W, C)
         q, k, v = qkv.reshape(3, B * self.num_heads, H * W, -1).unbind(0)
@@ -196,15 +202,21 @@ class Block(nn.Module):
             qkv_bias=qkv_bias,
             use_rel_pos=use_rel_pos,
             rel_pos_zero_init=rel_pos_zero_init,
-            input_size=input_size if window_size == 0 else (window_size, window_size),
+            input_size=input_size
+            if window_size == 0
+            else (window_size, window_size),
         )
 
         from timm.models.layers import DropPath, Mlp
 
-        self.drop_path = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
+        self.drop_path = (
+            DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
+        )
         self.norm2 = norm_layer(dim)
         self.mlp = Mlp(
-            in_features=dim, hidden_features=int(dim * mlp_ratio), act_layer=act_layer
+            in_features=dim,
+            hidden_features=int(dim * mlp_ratio),
+            act_layer=act_layer,
         )
 
         self.window_size = window_size
@@ -323,8 +335,12 @@ class ViT(nn.Module):
             num_patches = (pretrain_img_size // patch_size) * (
                 pretrain_img_size // patch_size
             )
-            num_positions = (num_patches + 1) if pretrain_use_cls_token else num_patches
-            self.pos_embed = nn.Parameter(torch.zeros(1, num_positions, embed_dim))
+            num_positions = (
+                (num_patches + 1) if pretrain_use_cls_token else num_patches
+            )
+            self.pos_embed = nn.Parameter(
+                torch.zeros(1, num_positions, embed_dim)
+            )
         else:
             self.pos_embed = None
 
@@ -377,7 +393,9 @@ class ViT(nn.Module):
         x = self.patch_embed(x)
         if self.pos_embed is not None:
             x = x + get_abs_pos(
-                self.pos_embed, self.pretrain_use_cls_token, (x.shape[1], x.shape[2])
+                self.pos_embed,
+                self.pretrain_use_cls_token,
+                (x.shape[1], x.shape[2]),
             )
 
         for blk in self.blocks:
@@ -428,7 +446,8 @@ class SimpleFeaturePyramid(nn.Module):
 
         input_shapes = net.output_shape()
         strides = [
-            int(input_shapes[in_feature].stride / scale) for scale in scale_factors
+            int(input_shapes[in_feature].stride / scale)
+            for scale in scale_factors
         ]
         # _assert_strides_are_log2_contiguous(strides)
 
@@ -443,18 +462,24 @@ class SimpleFeaturePyramid(nn.Module):
                     nn.ConvTranspose2d(dim, dim // 2, kernel_size=2, stride=2),
                     norm(dim // 2),
                     nn.GELU(),
-                    nn.ConvTranspose2d(dim // 2, dim // 4, kernel_size=2, stride=2),
+                    nn.ConvTranspose2d(
+                        dim // 2, dim // 4, kernel_size=2, stride=2
+                    ),
                 ]
                 out_dim = dim // 4
             elif scale == 2.0:
-                layers = [nn.ConvTranspose2d(dim, dim // 2, kernel_size=2, stride=2)]
+                layers = [
+                    nn.ConvTranspose2d(dim, dim // 2, kernel_size=2, stride=2)
+                ]
                 out_dim = dim // 2
             elif scale == 1.0:
                 layers = []
             elif scale == 0.5:
                 layers = [nn.MaxPool2d(kernel_size=2, stride=2)]
             else:
-                raise NotImplementedError(f"scale_factor={scale} is not supported yet.")
+                raise NotImplementedError(
+                    f"scale_factor={scale} is not supported yet."
+                )
 
             layers.extend(
                 [
@@ -494,7 +519,9 @@ class SimpleFeaturePyramid(nn.Module):
                 self._out_feature_strides["p{}".format(s + 1)] = 2 ** (s + 1)
 
         self._out_features = list(self._out_feature_strides.keys())
-        self._out_feature_channels = {k: out_channels for k in self._out_features}
+        self._out_feature_channels = {
+            k: out_channels for k in self._out_features
+        }
         self._size_divisibility = strides[-1]
         self._square_pad = square_pad
 
@@ -526,7 +553,9 @@ class SimpleFeaturePyramid(nn.Module):
 
         if self.top_block is not None:
             if self.top_block.in_feature in bottom_up_features:
-                top_block_in_feature = bottom_up_features[self.top_block.in_feature]
+                top_block_in_feature = bottom_up_features[
+                    self.top_block.in_feature
+                ]
             else:
                 top_block_in_feature = results[
                     self._out_features.index(self.top_block.in_feature)

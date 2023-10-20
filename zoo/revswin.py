@@ -78,17 +78,25 @@ class TwoStreamFusion(nn.Module):
         self.mode = mode
         self.dim = dim
         if mode == "add":
-            self.fuse_fn = lambda x: torch.stack(torch.chunk(x, 2, dim=2)).sum(dim=0)
+            self.fuse_fn = lambda x: torch.stack(torch.chunk(x, 2, dim=2)).sum(
+                dim=0
+            )
         elif mode == "max":
             self.fuse_fn = (
-                lambda x: torch.stack(torch.chunk(x, 2, dim=2)).max(dim=0).values
+                lambda x: torch.stack(torch.chunk(x, 2, dim=2))
+                .max(dim=0)
+                .values
             )
         elif mode == "min":
             self.fuse_fn = (
-                lambda x: torch.stack(torch.chunk(x, 2, dim=2)).min(dim=0).values
+                lambda x: torch.stack(torch.chunk(x, 2, dim=2))
+                .min(dim=0)
+                .values
             )
         elif mode == "avg":
-            self.fuse_fn = lambda x: torch.stack(torch.chunk(x, 2, dim=2)).mean(dim=0)
+            self.fuse_fn = lambda x: torch.stack(torch.chunk(x, 2, dim=2)).mean(
+                dim=0
+            )
         elif mode == "concat":
             # x itself is the channel concat version
             self.fuse_fn = lambda x: x
@@ -160,9 +168,13 @@ def window_partition(x, window_size):
         windows: (num_windows*B, window_size, window_size, C)
     """
     B, H, W, C = x.shape
-    x = x.view(B, H // window_size, window_size, W // window_size, window_size, C)
+    x = x.view(
+        B, H // window_size, window_size, W // window_size, window_size, C
+    )
     windows = (
-        x.permute(0, 1, 3, 2, 4, 5).contiguous().view(-1, window_size, window_size, C)
+        x.permute(0, 1, 3, 2, 4, 5)
+        .contiguous()
+        .view(-1, window_size, window_size, C)
     )
     return windows
 
@@ -217,7 +229,9 @@ class WindowAttention(nn.Module):
 
         # define a parameter table of relative position bias
         self.relative_position_bias_table = nn.Parameter(
-            torch.zeros((2 * window_size[0] - 1) * (2 * window_size[1] - 1), num_heads)
+            torch.zeros(
+                (2 * window_size[0] - 1) * (2 * window_size[1] - 1), num_heads
+            )
         )  # 2*Wh-1 * 2*Ww-1, nH
 
         # get pair-wise relative position index for each token inside the window
@@ -231,7 +245,9 @@ class WindowAttention(nn.Module):
         relative_coords = relative_coords.permute(
             1, 2, 0
         ).contiguous()  # Wh*Ww, Wh*Ww, 2
-        relative_coords[:, :, 0] += self.window_size[0] - 1  # shift to start from 0
+        relative_coords[:, :, 0] += (
+            self.window_size[0] - 1
+        )  # shift to start from 0
         relative_coords[:, :, 1] += self.window_size[1] - 1
         relative_coords[:, :, 0] *= 2 * self.window_size[1] - 1
         relative_position_index = relative_coords.sum(-1)  # Wh*Ww, Wh*Ww
@@ -277,9 +293,9 @@ class WindowAttention(nn.Module):
 
         if mask is not None:
             nW = mask.shape[0]
-            attn = attn.view(B_ // nW, nW, self.num_heads, N, N) + mask.unsqueeze(
-                1
-            ).unsqueeze(0)
+            attn = attn.view(
+                B_ // nW, nW, self.num_heads, N, N
+            ) + mask.unsqueeze(1).unsqueeze(0)
             attn = attn.view(-1, self.num_heads, N, N)
             attn = self.softmax(attn)
         else:
@@ -347,7 +363,9 @@ class ReversibleSwinTransformerBlock(nn.Module):
             proj_drop=drop,
         )
 
-        self.drop_path = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
+        self.drop_path = (
+            DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
+        )
         self.norm2 = norm_layer(dim)
         mlp_hidden_dim = int(dim * mlp_ratio)
         self.mlp = Mlp(
@@ -441,8 +459,12 @@ class ReversibleSwinTransformerBlock(nn.Module):
         attn_windows = self.attn(x_windows, mask=attn_mask)
 
         # merge windows
-        attn_windows = attn_windows.view(-1, self.window_size, self.window_size, C)
-        shifted_x = window_reverse(attn_windows, self.window_size, Hp, Wp)  # B H' W' C
+        attn_windows = attn_windows.view(
+            -1, self.window_size, self.window_size, C
+        )
+        shifted_x = window_reverse(
+            attn_windows, self.window_size, Hp, Wp
+        )  # B H' W' C
 
         # reverse cyclic shift
         if self.shift_size > 0:
@@ -451,7 +473,9 @@ class ReversibleSwinTransformerBlock(nn.Module):
                     attn_windows, self.window_size, H, W
                 )  # B H' W' C
                 x = torch.roll(
-                    shifted_x, shifts=(self.shift_size, self.shift_size), dims=(1, 2)
+                    shifted_x,
+                    shifts=(self.shift_size, self.shift_size),
+                    dims=(1, 2),
                 )
             else:
                 x = WindowProcessReverse.apply(
@@ -742,7 +766,9 @@ class RevBackPropFast(RevBackProp):
         # Initial pass
         with torch.cuda.stream(s1):
             layer = layers[-1]
-            prev = layer.backward_pass_recover(Y_1=X_1, Y_2=X_2, mask_matrix=attn_mask)
+            prev = layer.backward_pass_recover(
+                Y_1=X_1, Y_2=X_2, mask_matrix=attn_mask
+            )
 
             events["f0"].record(s1)
 
@@ -763,9 +789,13 @@ class RevBackPropFast(RevBackProp):
                     events[f"b{i-1}"].synchronize()
 
                 if i % 2 == 0:
-                    dY_1, dY_2 = this_layer.backward_pass_grads(*prev, dX_1, dX_2)
+                    dY_1, dY_2 = this_layer.backward_pass_grads(
+                        *prev, dX_1, dX_2
+                    )
                 else:
-                    dX_1, dX_2 = this_layer.backward_pass_grads(*prev, dY_1, dY_2)
+                    dX_1, dX_2 = this_layer.backward_pass_grads(
+                        *prev, dY_1, dY_2
+                    )
 
                 events[f"b{i}"].record(stream1)
 
@@ -938,11 +968,13 @@ class ReversibleLayer(nn.Module):
         mask_windows = window_partition(
             img_mask, self.window_size
         )  # nW, window_size, window_size, 1
-        mask_windows = mask_windows.view(-1, self.window_size * self.window_size)
-        attn_mask = mask_windows.unsqueeze(1) - mask_windows.unsqueeze(2)
-        attn_mask = attn_mask.masked_fill(attn_mask != 0, float(-100.0)).masked_fill(
-            attn_mask == 0, float(0.0)
+        mask_windows = mask_windows.view(
+            -1, self.window_size * self.window_size
         )
+        attn_mask = mask_windows.unsqueeze(1) - mask_windows.unsqueeze(2)
+        attn_mask = attn_mask.masked_fill(
+            attn_mask != 0, float(-100.0)
+        ).masked_fill(attn_mask == 0, float(0.0))
 
         if not self.two_stream_input:
             x = torch.cat([x, x], dim=-1)
@@ -1111,7 +1143,9 @@ class ReversibleSwinTransformer(nn.Module):
             ]
 
             self.absolute_pos_embed = nn.Parameter(
-                torch.zeros(1, embed_dim, patches_resolution[0], patches_resolution[1])
+                torch.zeros(
+                    1, embed_dim, patches_resolution[0], patches_resolution[1]
+                )
             )
             trunc_normal_(self.absolute_pos_embed, std=0.02)
 
@@ -1147,9 +1181,13 @@ class ReversibleSwinTransformer(nn.Module):
                 qk_scale=qk_scale,
                 drop=drop_rate,
                 attn_drop=attn_drop_rate,
-                drop_path=dpr[sum(depths[:i_layer]) : sum(depths[: i_layer + 1])],
+                drop_path=dpr[
+                    sum(depths[:i_layer]) : sum(depths[: i_layer + 1])
+                ],
                 norm_layer=norm_layer,
-                downsample=PatchMerging if (i_layer < self.num_layers - 1) else None,
+                downsample=PatchMerging
+                if (i_layer < self.num_layers - 1)
+                else None,
                 use_checkpoint=use_checkpoint,
                 fused_window_process=fused_window_process,
                 lateral_fusion=lateral_fusion,

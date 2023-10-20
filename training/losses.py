@@ -99,7 +99,9 @@ class LengthLoss(LossCalculator):
             pred = outputs["length_mask"].float()
             if torch.sum(targets >= 0).item() == 0:
                 return 0 * pred.mean()
-            return (torch.abs(pred[mask] - targets[mask]) / targets[mask]).mean()
+            return (
+                torch.abs(pred[mask] - targets[mask]) / targets[mask]
+            ).mean()
 
 
 def dice_round(preds, trues, t=0.5):
@@ -120,7 +122,12 @@ def soft_dice_loss(outputs, targets):
 
 
 def jaccard(
-    outputs, targets, per_image=False, non_empty=False, min_pixels=5, reduce=True
+    outputs,
+    targets,
+    per_image=False,
+    non_empty=False,
+    min_pixels=5,
+    reduce=True,
 ):
     batch_size = outputs.size()[0]
     eps = 1e-5
@@ -182,7 +189,9 @@ class NoiseRobustDice(nn.Module):
         input = input.view(-1)
         target = target.view(-1)
         numerator = torch.sum(torch.pow(torch.abs(target - input), self.beta))
-        denominator = torch.sum(torch.square(target) + torch.square(input)) + eps
+        denominator = (
+            torch.sum(torch.square(target) + torch.square(input)) + eps
+        )
         loss = numerator / denominator
         return loss.mean()
 
@@ -234,7 +243,9 @@ class BinaryFocalLoss(nn.Module):
         self.eps = eps
 
     def forward(self, inputs, targets):
-        BCE_loss = F.binary_cross_entropy_with_logits(inputs, targets, reduction="none")
+        BCE_loss = F.binary_cross_entropy_with_logits(
+            inputs, targets, reduction="none"
+        )
         pt = torch.exp(-BCE_loss)
         F_loss = (1 - pt) ** self.gamma * BCE_loss
         return F_loss.mean()
@@ -284,7 +295,10 @@ class ComboLoss(nn.Module):
                 channels = targets.size(1)
                 for c in range(channels):
                     if not self.channel_losses or k in self.channel_losses[c]:
-                        if self.skip_empty and torch.sum(targets[:, c, ...]) < 50:
+                        if (
+                            self.skip_empty
+                            and torch.sum(targets[:, c, ...]) < 50
+                        ):
                             continue
                         c_sigmoid_input = sigmoid_input[:, c, ...].view(-1)
                         c_targets = targets[:, c, ...].view(-1)
@@ -294,7 +308,9 @@ class ComboLoss(nn.Module):
                         c_targets = c_targets[non_ignored]
                         c_outputs = c_outputs[non_ignored]
                         val += self.channel_weights[c] * self.mapping[k](
-                            c_sigmoid_input if k in self.expect_sigmoid else c_outputs,
+                            c_sigmoid_input
+                            if k in self.expect_sigmoid
+                            else c_outputs,
                             c_targets,
                         )
 
@@ -344,7 +360,9 @@ class FocalLossWithDice(nn.Module):
         self.gamma = gamma
         if weight is not None:
             weight = torch.Tensor(weight).float()
-        self.nll_loss = NLLLoss2d(weight, size_average, ignore_index=ignore_index)
+        self.nll_loss = NLLLoss2d(
+            weight, size_average, ignore_index=ignore_index
+        )
         self.ignore_index = ignore_index
 
     def forward(self, outputs, targets):
@@ -396,14 +414,16 @@ def soft_dice_loss_mc(
             loss = 0
             for i in range(batch_size):
                 loss += _soft_dice_loss(
-                    torch.unsqueeze(outputs[i], 0), torch.unsqueeze(targets[i], 0)
+                    torch.unsqueeze(outputs[i], 0),
+                    torch.unsqueeze(targets[i], 0),
                 )
             loss /= batch_size
         else:
             loss = torch.Tensor(
                 [
                     _soft_dice_loss(
-                        torch.unsqueeze(outputs[i], 0), torch.unsqueeze(targets[i], 0)
+                        torch.unsqueeze(outputs[i], 0),
+                        torch.unsqueeze(targets[i], 0),
                     )
                     for i in range(batch_size)
                 ]
