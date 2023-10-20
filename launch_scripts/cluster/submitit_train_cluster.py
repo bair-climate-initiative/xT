@@ -12,6 +12,7 @@ import os
 import uuid
 from pathlib import Path
 import sys
+
 sys.path.append("/p/home/ritwik/dev/xview3-detection")
 
 import train_val_segmentor as segmentor
@@ -20,10 +21,18 @@ import submitit
 
 def parse_args():
     segmentor_parser = segmentor.get_args_parser()
-    parser = argparse.ArgumentParser("Submitit for Segmentor Train+Val", parents=[segmentor_parser])
-    parser.add_argument("--nodes", default=1, type=int, help="Number of nodes to request")
-    parser.add_argument("--timeout", default=10080, type=int, help="Duration of the job (min)")
-    parser.add_argument("--job_dir", default="", type=str, help="Job dir. Leave empty for automatic.")
+    parser = argparse.ArgumentParser(
+        "Submitit for Segmentor Train+Val", parents=[segmentor_parser]
+    )
+    parser.add_argument(
+        "--nodes", default=1, type=int, help="Number of nodes to request"
+    )
+    parser.add_argument(
+        "--timeout", default=10080, type=int, help="Duration of the job (min)"
+    )
+    parser.add_argument(
+        "--job_dir", default="", type=str, help="Job dir. Leave empty for automatic."
+    )
 
     parser.add_argument(
         "--partition", default="frontier", type=str, help="Partition where to submit"
@@ -35,9 +44,15 @@ def parse_args():
         choices=("frontier", "debug", "HIE", "standard"),
         help="Queue to use",
     )
-    parser.add_argument('--comment', default="", type=str, help="Comment to pass to scheduler")
-    parser.add_argument('--account', default="", type=str, help="The Account string to use")
-    parser.add_argument('--constraint', default="mla", type=str, help="Which Nautilus constraint to use")
+    parser.add_argument(
+        "--comment", default="", type=str, help="Comment to pass to scheduler"
+    )
+    parser.add_argument(
+        "--account", default="", type=str, help="The Account string to use"
+    )
+    parser.add_argument(
+        "--constraint", default="mla", type=str, help="Which Nautilus constraint to use"
+    )
     return parser.parse_args()
 
 
@@ -64,6 +79,7 @@ class Trainer(object):
 
     def __call__(self):
         import sys
+
         sys.path.append("/p/home/ritwik/dev/xview3-detection")
         import train_val_segmentor as segmentor
 
@@ -89,7 +105,9 @@ class Trainer(object):
 
         job_env = submitit.JobEnvironment()
         dist_env = submitit.helpers.TorchDistributedEnvironment().export()
-        self.args.output_dir = Path(str(self.args.output_dir).replace("%j", str(job_env.job_id)))
+        self.args.output_dir = Path(
+            str(self.args.output_dir).replace("%j", str(job_env.job_id))
+        )
         self.args.log_dir = self.args.output_dir
         self.args.gpu = job_env.local_rank
         self.args.rank = job_env.global_rank
@@ -97,8 +115,8 @@ class Trainer(object):
 
         # These are needed because submitit errors out otherwise.
         # I thought these were deprecated? Who knows.
-        #os.environ["RANK"] = str(self.args.rank)
-        #os.environ["WORLD_SIZE"] = str(self.args.world_size)
+        # os.environ["RANK"] = str(self.args.rank)
+        # os.environ["WORLD_SIZE"] = str(self.args.world_size)
 
         print(f"master: {dist_env.master_addr}:{dist_env.master_port}")
         print(f"Process group: {job_env.num_tasks} tasks, rank: {job_env.global_rank}")
@@ -127,18 +145,18 @@ def main():
 
     kwargs = {}
     if args.comment:
-        kwargs['slurm_comment'] = args.comment
+        kwargs["slurm_comment"] = args.comment
 
     executor.update_parameters(
         gpus_per_node=num_gpus_per_node,
-        tasks_per_node=num_gpus_per_node, # one task per GPU
+        tasks_per_node=num_gpus_per_node,  # one task per GPU
         nodes=nodes,
         timeout_min=timeout_min,
         slurm_qos=qos,
         slurm_signal_delay_s=120,
         slurm_account=account,
         slurm_constraint=constraint,
-        **kwargs
+        **kwargs,
     )
 
     executor.update_parameters(name="xview3")

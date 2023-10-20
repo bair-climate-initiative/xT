@@ -12,7 +12,17 @@ import torch
 import torch.distributed
 import torch.distributed as dist
 import torch.nn as nn
+
 import wandb
+
+if os.environ.get("WANDB_MODE", None) == "offline":
+    WANDB_OFFLINE = True
+
+import logging
+import time
+
+import yaml
+from einops import rearrange
 from fvcore.nn import FlopCountAnalysis
 from tensorboardX import SummaryWriter
 from timm.utils import AverageMeter
@@ -30,20 +40,11 @@ from training.sampler import DistributedWeightedRandomSampler
 from training.utils import SmoothedValue, create_optimizer, wandb_dump_images
 
 from .tiling import build_tiling
-import time
-from einops import rearrange
-import yaml
-import logging
-logging.basicConfig(
-    level=os.environ.get('LOGLEVEL', 'INFO').upper()
-)
-from torch.distributed.fsdp.wrap import size_based_auto_wrap_policy
-from torch.distributed.fsdp import MixedPrecision
 
-from torch.distributed.fsdp import (
-   FullyShardedDataParallel,
-   CPUOffload,
-)
+logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO").upper())
+from torch.distributed.fsdp import CPUOffload, FullyShardedDataParallel, MixedPrecision
+from torch.distributed.fsdp.wrap import size_based_auto_wrap_policy
+
 
 @dataclasses.dataclass
 class TrainConfiguration:
@@ -117,6 +118,11 @@ class PytorchTrainer(ABC):
         self.tiling = self.conf.get("tiling", "naive")
         self.wandb_id = None
         if self.train_config.local_rank == 0:
+            if WANDB_OFFLINE:
+                from wandb_osh.hooks import TriggerWandbSyncHook
+
+                self.trigger_sync = TriggerWandbSyncHook()
+
             wandb_args = dict(
                 project="xview3 detection unet",
                 entity="bair-climate-initiative",
@@ -129,11 +135,11 @@ class PytorchTrainer(ABC):
                 "config_file",
                 type="config_file",
             )
-            config_dump_path =  os.path.join(self.train_config.output_dir, 'config.yaml')
-            with open(config_dump_path, 'w') as outfile:
+            config_dump_path = os.path.join(self.train_config.output_dir, "config.yaml")
+            with open(config_dump_path, "w") as outfile:
                 yaml.dump(self.conf, outfile)
             artifact.add_file(config_dump_path)
-            
+
             wandb.init(**wandb_args)
             wandb.log_artifact(artifact)
             self.wandb_id = wandb.run.id
@@ -142,8 +148,8 @@ class PytorchTrainer(ABC):
         self.current_metrics = evaluator.init_metrics()
         self.current_epoch = 0
         self.model = self._init_model()
-        self.patch_size = self.conf.get('patch_size',16)
-        self.context_patch_len = self.conf.get('context_patch_len',100)
+        self.patch_size = self.conf.get("patch_size", 16)
+        self.context_patch_len = self.conf.get("context_patch_len", 100)
 
         self.losses = self._init_loss_functions()
         self.scale_learning_rate()
@@ -164,7 +170,7 @@ class PytorchTrainer(ABC):
 
     def validate(self, test_loader=None):
         if self.train_config.distributed:
-                dist.barrier()
+            dist.barrier()
         self.model.eval()
         metrics = self.evaluator.validate(
             test_loader if test_loader is not None else self.get_val_loader(),
@@ -176,12 +182,14 @@ class PytorchTrainer(ABC):
         print(metrics)
         if self.train_config.local_rank == 0 and wandb.run is not None:
             wandb.log(metrics)
+            if WANDB_OFFLINE:
+                self.trigger_sync()
 
     def fit(self):
         for epoch in range(
             self.current_epoch, self.conf["optimizer"]["schedule"]["epochs"]
         ):
-            rank  = self.train_config.local_rank
+            rank = self.train_config.local_rank
             logging.debug(f"{ rank}: epoch start")
             if self.train_config.distributed:
                 dist.barrier()
@@ -245,15 +253,16 @@ class PytorchTrainer(ABC):
         print(dict(total_flops=sum(r.values())))
 
     def _get_state_dict(self):
-        state_dict =  self.model.state_dict()
+        state_dict = self.model.state_dict()
         return state_dict
-        #return {k:v.cpu() for k,v in state_dict.items()}
+        # return {k:v.cpu() for k,v in state_dict.items()}
+
     def _save_last(self):
-        #self.model = self.model.eval()
+        # self.model = self.model.eval()
         payload = {
-                "epoch": self.current_epoch,
-                "state_dict": self._get_state_dict(),
-                "metrics": self.current_metrics,
+            "epoch": self.current_epoch,
+            "state_dict": self._get_state_dict(),
+            "metrics": self.current_metrics,
         }
         if self.train_config.local_rank == 0:
             torch.save(
@@ -266,9 +275,9 @@ class PytorchTrainer(ABC):
 
     def _save_best(self, improved_metrics: Dict):
         payload = {
-                "epoch": self.current_epoch,
-                "state_dict": self._get_state_dict(),
-                "metrics": self.current_metrics,
+            "epoch": self.current_epoch,
+            "state_dict": self._get_state_dict(),
+            "metrics": self.current_metrics,
         }
         if self.train_config.local_rank == 0:
             for metric_name in improved_metrics.keys():
@@ -276,7 +285,11 @@ class PytorchTrainer(ABC):
                     payload,
                     os.path.join(
                         self.train_config.output_dir,
-                        self.snapshot_name + "_" + str(self.wandb_id) + "_" + metric_name,
+                        self.snapshot_name
+                        + "_"
+                        + str(self.wandb_id)
+                        + "_"
+                        + metric_name,
                     ),
                 )
 
@@ -284,38 +297,57 @@ class PytorchTrainer(ABC):
         for x in dataloader:
             old_dim = x["image"].shape[-1]
             n = old_dim // self.input_size
-            rearranged_image =  rearrange(x['image'],'N C (H PH GH) (W PW GW )-> N C H W  PH PW GH GW',
-                                          PH=self.input_size // self.patch_size,PW=self.input_size // self.patch_size,
-                                          GH=self.patch_size,GW = self.patch_size
-                                          )
-            N ,C ,H ,W , PH,PW ,PPH ,PPW = rearranged_image.shape
-            rearranged_image = rearranged_image.flatten(2,5)
-            for (i,j,k) in build_tiling(n,self.tiling):
-                    indices = torch.rand(N,H,W,PH,PW)
-                    indices[:,i,j] = 999
-                    indices= indices.flatten(1).argsort(-1)
-                    indices = indices[:,:self.context_patch_len]
-                    context_patches = torch.stack([rearranged_image[i][:,v] for i,v in enumerate(indices)],dim=0) # N C L 16 16
-                    H_i = indices // (W * PH*PW)
-                    W_i = (indices // ( PH*PW) ) % W
-                    PH_i  = (indices // ( PW) ) % PH
-                    PW_i = indices % PW
-                    # assert torch.all(indices == H_i * (W * PH*PW) + W_i *PH*PW + PH_i * PW + PW_i) sanity check
-                    h_idx = H_i * PH + PH_i
-                    w_idx = W_i * PW + PW_i
+            rearranged_image = rearrange(
+                x["image"],
+                "N C (H PH GH) (W PW GW )-> N C H W  PH PW GH GW",
+                PH=self.input_size // self.patch_size,
+                PW=self.input_size // self.patch_size,
+                GH=self.patch_size,
+                GW=self.patch_size,
+            )
+            N, C, H, W, PH, PW, PPH, PPW = rearranged_image.shape
+            rearranged_image = rearranged_image.flatten(2, 5)
+            for i, j, k in build_tiling(n, self.tiling):
+                indices = torch.rand(N, H, W, PH, PW)
+                indices[:, i, j] = 999
+                indices = indices.flatten(1).argsort(-1)
+                indices = indices[:, : self.context_patch_len]
+                context_patches = torch.stack(
+                    [rearranged_image[i][:, v] for i, v in enumerate(indices)], dim=0
+                )  # N C L 16 16
+                H_i = indices // (W * PH * PW)
+                W_i = (indices // (PH * PW)) % W
+                PH_i = (indices // (PW)) % PH
+                PW_i = indices % PW
+                # assert torch.all(indices == H_i * (W * PH*PW) + W_i *PH*PW + PH_i * PW + PW_i) sanity check
+                h_idx = H_i * PH + PH_i
+                w_idx = W_i * PW + PW_i
 
-                    raw_indices_h = torch.arange(PH) + i * PH
-                    raw_indices_w = torch.arange(PH) + j * PW
-                    raw_indices = torch.stack([raw_indices_h[:,None].repeat(1,PW),raw_indices_w[None,].repeat(PH,1)])
-                    patch_indices = torch.stack([h_idx,w_idx]) # 2 X B X L
-                    new_payload = {k:v[...,self.input_size*i:self.input_size*(i+1),self.input_size*j:self.input_size*(j+1)] for k,v in x.items() if k != 'name' }
-                    new_payload['context_patches'] = context_patches
-                    new_payload['patch_indices'] = patch_indices
-                    new_payload['raw_indices'] = raw_indices
-                    new_payload['name'] = x['name']
-                    new_payload["context_id"] = k['context_id']
-                    new_payload['mem_only'] = k.get('mem_only',False)
-                    yield new_payload
+                raw_indices_h = torch.arange(PH) + i * PH
+                raw_indices_w = torch.arange(PH) + j * PW
+                raw_indices = torch.stack(
+                    [
+                        raw_indices_h[:, None].repeat(1, PW),
+                        raw_indices_w[None,].repeat(PH, 1),
+                    ]
+                )
+                patch_indices = torch.stack([h_idx, w_idx])  # 2 X B X L
+                new_payload = {
+                    k: v[
+                        ...,
+                        self.input_size * i : self.input_size * (i + 1),
+                        self.input_size * j : self.input_size * (j + 1),
+                    ]
+                    for k, v in x.items()
+                    if k != "name"
+                }
+                new_payload["context_patches"] = context_patches
+                new_payload["patch_indices"] = patch_indices
+                new_payload["raw_indices"] = raw_indices
+                new_payload["name"] = x["name"]
+                new_payload["context_id"] = k["context_id"]
+                new_payload["mem_only"] = k.get("mem_only", False)
+                yield new_payload
 
     def _run_one_epoch_train(self, loader: DataLoader):
         torch.autograd.set_detect_anomaly(True)
@@ -355,7 +387,7 @@ class PytorchTrainer(ABC):
         if self.train_config.local_rank == 0:
             iterator = tqdm(iterator, total=iter_scale * len(loader))
         # Broken, temporaily disable time logging
-        for i,sample in enumerate(iterator):
+        for i, sample in enumerate(iterator):
             # if i > 2:
             #     break
             imgs = sample["image"].cuda().float()
@@ -365,19 +397,19 @@ class PytorchTrainer(ABC):
                 else:
                     pass
                 context = dict(
-                    context_patches = sample["context_patches"].cuda(),
-                    patch_indices=sample['patch_indices'] ,
-                    raw_indices=sample['raw_indices'] 
+                    context_patches=sample["context_patches"].cuda(),
+                    patch_indices=sample["patch_indices"],
+                    raw_indices=sample["raw_indices"],
                 )
             self.optimizer.zero_grad()
             with torch.cuda.amp.autocast(enabled=False):
                 with torch.autograd.detect_anomaly():
                     if extra_context and sample["mem_only"]:
                         with torch.no_grad():
-                            output,mem = self.model(imgs,context=context,mem=mem)
+                            output, mem = self.model(imgs, context=context, mem=mem)
                         continue
                     elif extra_context:
-                        output,mem = self.model(imgs,context=context,mem=mem)
+                        output, mem = self.model(imgs, context=context, mem=mem)
                     else:
                         output = self.model(imgs)
                     # forward_time.update(time.time() - end)
@@ -418,17 +450,21 @@ class PytorchTrainer(ABC):
                 payload = {k: float(f"{v.avg:.4f}") for k, v in avg_meters.items()}
                 payload.update(dict(lr=float(self.scheduler.get_lr()[-1])))
                 wandb.log(payload)
+                if WANDB_OFFLINE:
+                    self.trigger_sync()
 
             # Run backward pass
             # end = time.time()
-            #print(total_loss.dtype,'hh')
-            if self.train_config.fp16 and False: # sth happened here, really need to check whats wrong
-                print(total_loss.device,'hh')
-                #self.gscaler.scale(total_loss).backward()
-                #self.gscaler.unscale_(self.optimizer)
+            # print(total_loss.dtype,'hh')
+            if (
+                self.train_config.fp16 and False
+            ):  # sth happened here, really need to check whats wrong
+                print(total_loss.device, "hh")
+                # self.gscaler.scale(total_loss).backward()
+                # self.gscaler.unscale_(self.optimizer)
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), 5)
-                #self.gscaler.step(self.optimizer)
-                #self.gscaler.update()
+                # self.gscaler.step(self.optimizer)
+                # self.gscaler.update()
             else:
                 total_loss.backward()
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), 5)
@@ -496,8 +532,9 @@ class PytorchTrainer(ABC):
         val_sampler = None
         if self.train_config.distributed:
             val_sampler = torch.utils.data.distributed.DistributedSampler(
-                self.val_data, shuffle=False,
-                num_replicas=int(os.environ['LOCAL_WORLD_SIZE']),
+                self.val_data,
+                shuffle=False,
+                num_replicas=int(os.environ["LOCAL_WORLD_SIZE"]),
                 rank=self.train_config.local_rank,
             )
         val_data_loader = DataLoader(
@@ -549,10 +586,10 @@ class PytorchTrainer(ABC):
             self.model = FullyShardedDataParallel(
                 self.model,
                 auto_wrap_policy=size_based_auto_wrap_policy,
-                #sharding_strategy=size_based_auto_wrap_policy,
-                #fsdp_auto_wrap_policy=default_auto_wrap_policy,
+                # sharding_strategy=size_based_auto_wrap_policy,
+                # fsdp_auto_wrap_policy=default_auto_wrap_policy,
                 cpu_offload=CPUOffload(offload_params=True),
-               # mixed_precision=MixedPrecision(param_dtype=torch.float16)
+                # mixed_precision=MixedPrecision(param_dtype=torch.float16)
                 # device_id=self.train_config.local_rank,
                 # output_device=self.train_config.local_rank,
                 # find_unused_parameters=False,

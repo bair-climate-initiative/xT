@@ -21,3 +21,4 @@ albumentations
 tensorboardX
 madgrad
 warmup_scheduler
+wandb-osh
