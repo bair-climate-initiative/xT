@@ -15,6 +15,7 @@ import torch.nn as nn
 
 import wandb
 
+WANDB_OFFLINE = False
 if os.environ.get("WANDB_MODE", None) == "offline":
     WANDB_OFFLINE = True
 
