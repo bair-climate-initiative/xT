@@ -69,6 +69,8 @@ class TrainConfig:
     """Validation batch size per GPU."""
     freeze_epochs: int = 0
     """Number of epochs to freeze encoder for."""
+    positive_ratio: float = 0.85
+    """Ratio of positive samples in a batch."""
 
 
 class LossFunction:

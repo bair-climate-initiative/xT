@@ -3,6 +3,7 @@ import os
 import random
 import time
 from dataclasses import dataclass
+from hydra.core.config_store import ConfigStore
 
 import albumentations as A
 import cv2
@@ -46,6 +47,7 @@ train_transforms = A.Compose(
 
 @dataclass
 class DataConfig:
+    """General Dataset Configuration."""
     dataset: str
     dir: str
     num_workers: int = 8
@@ -62,9 +64,7 @@ class Xview3Config(DataConfig):
     shoreline_dir: str = "data/xview3/shoreline/validation"
     fold: int = 0
     folds_csv: str = "meta/folds.csv"
-    positive_ratio: float = 0.85
     multiplier: int = 64
-
 
 def normalize_band(band, ignored_mask=0):
     band[band < -32760] = -100
@@ -116,7 +116,7 @@ def create_data_datasets(config: XviewConfig):
             fold=config.fold,
             folds_csv=config.folds_csv,
             annotation_csv=train_annotations,
-            crop_size=config.crop_size,
+            crop_size=config.val_crop_size,
         )
     return train_dataset, val_dataset
 
