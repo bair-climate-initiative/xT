@@ -24,14 +24,14 @@ from torch.nn.parallel.distributed import DistributedDataParallel
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
-import zoo
-from train_val_segmentor import XviewConfig
-from training import losses
-from training.evaluator import Evaluator
-from training.losses import LossCalculator
-from training.optimizer import create_optimizer
-from training.sampler import DistributedWeightedRandomSampler
-from training.utils import (
+from ..models import build_model
+from ..train_val_segmentor import XviewConfig
+from .losses import build_losses
+from .evaluator import Evaluator
+from .losses import LossCalculator
+from .optimizer import create_optimizer
+from .sampler import DistributedWeightedRandomSampler
+from .utils import (
     SmoothedValue,
     get_rank,
     get_world_size,
@@ -53,13 +53,13 @@ class TrainConfig:
     """Number of epochs to train for."""
     batch_size: int = 4
     """Batch size per GPU."""
+    lr: float = None
+    """Absolute learning rate, NOT SET DIRECTLY! Overriden below."""
     base_lr: float = 1e-3
     """Base learning rate (adjusted by effective batch size)."""
-    min_lr_multiplier: float = 0.01
+    min_lr_ratio: float = 0.01
     """Minimum learning rate to anneal to as a factor of base_lr."""
-    warmup_lr_multiplier: float = 0.001
-    """Warmup learning rate to start at as a factor of base_lr."""
-    classifier_multiplier: float = 1.0
+    classifier_ratio: float = 1.0
     """Multiplier for classifier learning rate."""
     warmup_epochs: int = 0
     """Number of epochs to warmup for."""
@@ -73,21 +73,6 @@ class TrainConfig:
     """Ratio of positive samples in a batch."""
 
 
-class LossFunction:
-    def __init__(
-        self,
-        loss: LossCalculator,
-        name: str,
-        weight: float = 1,
-        display: bool = False,
-    ):
-        super().__init__()
-        self.loss = loss
-        self.name = name
-        self.weight = weight
-        self.display = display
-
-
 class PytorchTrainer:
     def __init__(
         self,
@@ -99,9 +84,30 @@ class PytorchTrainer:
         super().__init__()
         self.config = config
 
+        self._init_distributed()
+        self.evaluator = evaluator
+        self.current_metrics = evaluator.init_metrics()
+        self.current_epoch = 0
+        self.model = self._init_model()
+        self.create_train_loader()
+        self.create_val_loader()
+        # TODO: how tf to pass in T-XL? tell shufan to do maybe
+        self.patch_size = self.config.patch_size
+        self.context_patch_len = self.config.context_patch_len
+
+        self.losses = build_losses(self.config.losses)
+        self.scale_learning_rate()
+
+        self._init_amp()
+        self.optimizer, self.scheduler = create_optimizer(
+            self.config.optimizer,
+            self.model,
+            len(train_data),
+        )
+        self.train_data = train_data
+        self.val_data = val_data
         self.wandb_id = None
         if is_main_process():
-            # TODO*: Investigate how to properly dump config.
             wandb_args = dict(
                 project="xview3 detection unet",
                 entity="bair-climate-initiative",
@@ -125,27 +131,6 @@ class PytorchTrainer:
             wandb.log_artifact(artifact)
             self.wandb_id = wandb.run.id
 
-        self._init_distributed()
-        self.evaluator = evaluator
-        self.current_metrics = evaluator.init_metrics()
-        self.current_epoch = 0
-        self.model = self._init_model()
-        # TODO: how tf to pass in T-XL? tell shufan to do maybe
-        self.patch_size = self.config.patch_size
-        self.context_patch_len = self.config.context_patch_len
-
-        self.losses = self._init_loss_functions()
-        self.scale_learning_rate()
-
-        self._init_amp()
-        self.optimizer, self.scheduler = create_optimizer(
-            self.config.optimizer,
-            self.model,
-            len(train_data),
-        )
-        self.train_data = train_data
-        self.val_data = val_data
-        if is_main_process():
             print(self.model)
             self.summary_writer = SummaryWriter(
                 os.path.join(config.log_dir, self.snapshot_name)
@@ -158,26 +143,24 @@ class PytorchTrainer:
             dist.barrier()
         self.model.eval()
         metrics = self.evaluator.validate(
-            test_loader if test_loader is not None else self.get_val_loader(),
+            test_loader if test_loader is not None else self.val_data_loader,
             self.model,
             distributed=self.config.distributed,
             local_rank=self.config.local_rank,
             snapshot_name=self.snapshot_name,
         )
         print(metrics)
-        if self.config.local_rank == 0 and wandb.run is not None:
+        if is_main_process() and wandb.run is not None:
             wandb.log(metrics)
 
     def fit(self):
-        for epoch in range(
-            self.current_epoch, self.conf["optimizer"]["schedule"]["epochs"]
-        ):
-            rank = self.config.local_rank
-            logging.debug(f"{ rank}: epoch start")
+        for epoch in range(self.current_epoch, self.config.train.epochs):
+            rank = get_rank()
+            logging.debug(f"{rank}: epoch start")
             if self.config.distributed:
                 dist.barrier()
             self.current_epoch = epoch
-            logging.debug(f"{ rank}: set train mode")
+            logging.debug(f"{rank}: set train mode")
             self.model.train()
             self._freeze()
             self._run_one_epoch_train(self.get_train_loader())
@@ -217,19 +200,15 @@ class PytorchTrainer:
 
     def scale_learning_rate(self):
         # linear scale the learning rate according to total batch size, may not be optimal
-        config = self.conf["optimizer"]
-        eff_batch_size = config["train_bs"] * dist.get_world_size()
+        eff_batch_size = self.config.train.batch_size * dist.get_world_size()
         # base batch size is 8 * 1 = 32
-        lr = config["learning_rate"] * eff_batch_size / 8.0
-        classifier_lr = config["classifier_lr"] * eff_batch_size / 8.0
-        if self.config.local_rank == 0:
+        lr = self.config.train.base_lr * eff_batch_size / 8.0
+        if is_main_process():
             print(
                 f"Effective batch size of {eff_batch_size} "
-                f"lr: {config['learning_rate']} --> {lr}"
+                f"lr: {self.config.train.base_lr} --> {lr}"
             )
-        config["learning_rate"] = lr
-        config["classifier_lr"] = classifier_lr
-        self.conf["optimizer"] = config
+        self.config.optimizer.train.lr = lr
 
     def _profile_model(self, shape):
         input = torch.randn(shape).cuda()
@@ -336,9 +315,10 @@ class PytorchTrainer:
                 new_payload["mem_only"] = k.get("mem_only", False)
                 yield new_payload
 
-    def _run_one_epoch_train(self, loader: DataLoader):
+    def _run_one_epoch_train(self):
         torch.autograd.set_detect_anomaly(True)
-        iterator = loader
+        self.train_sampler.set_epoch(self.current_epoch)
+        iterator = self.train_data_loader
         # data_time = SmoothedValue(fmt="{avg:.4f}")
         loss_meter = AverageMeter()
         # forward_time = SmoothedValue(fmt="{avg:.4f}")
@@ -348,7 +328,7 @@ class PytorchTrainer:
             if loss_def.display:
                 avg_meters[loss_def.name] = AverageMeter()
 
-        if self.conf["optimizer"]["schedule"]["mode"] == "epoch":
+        if self.config.optimizer.scheduler.mode == "epoch":
             self.scheduler.step(self.current_epoch)
         extra_context = self.model.module.extra_context
         if extra_context:
@@ -372,7 +352,7 @@ class PytorchTrainer:
         # Sliced Images with context_id
         # todo: make configurable
         if self.config.local_rank == 0:
-            iterator = tqdm(iterator, total=iter_scale * len(loader))
+            iterator = tqdm(iterator, total=iter_scale * len(self.train_data_loader))
         # Broken, temporaily disable time logging
         for i, sample in enumerate(iterator):
             # if i > 2:
@@ -464,9 +444,9 @@ class PytorchTrainer:
             torch.cuda.synchronize()
             if self.config.distributed:
                 dist.barrier()
-            if self.conf["optimizer"]["schedule"]["mode"] in ("step", "poly"):
+            if self.config.optimizer.scheduler.mode in ("step", "poly"):
                 self.scheduler.step(
-                    int(i / iter_scale) + self.current_epoch * len(loader)
+                    int(i / iter_scale) + self.current_epoch * len(self.train_data_loader)
                 )
             if self.config.local_rank == 0:
                 iterator.set_postfix(
@@ -477,7 +457,7 @@ class PytorchTrainer:
                         **avg_metrics,
                     }
                 )
-        if self.config.local_rank == 0:
+        if is_main_process() == 0:
             for idx, param_group in enumerate(self.optimizer.param_groups):
                 lr = param_group["lr"]
                 self.summary_writer.add_scalar(
@@ -499,8 +479,7 @@ class PytorchTrainer:
     def val_batch_size(self):
         return self.config.train.val_batch_size
 
-    def get_train_loader(self) -> DataLoader:
-        train_sampler = None
+    def create_train_loader(self) -> DataLoader:
         if is_dist_avail_and_initialized():
             train_sampler = torch.utils.data.distributed.DistributedSampler(
                 self.train_data
@@ -512,18 +491,17 @@ class PytorchTrainer:
             train_sampler.set_epoch(self.current_epoch)
         train_data_loader = DataLoader(
             self.train_data,
-            batch_size=self.train_batch_size,
+            batch_size=self.config.train.batch_size,
             num_workers=self.config.data.num_workers,
             shuffle=train_sampler is None,
             sampler=train_sampler,
             pin_memory=False,
             drop_last=True,
         )
+        self.train_sampler = train_sampler
+        self.train_data_loader = train_data_loader
 
-        return train_data_loader
-
-    def get_val_loader(self) -> DataLoader:
-        val_sampler = None
+    def create_val_loader(self) -> DataLoader:
         if is_dist_avail_and_initialized():
             val_sampler = torch.utils.data.distributed.DistributedSampler(
                 self.val_data,
@@ -534,12 +512,13 @@ class PytorchTrainer:
         val_data_loader = DataLoader(
             self.val_data,
             sampler=val_sampler,
-            batch_size=self.val_batch_size,
+            batch_size=self.config.train.val_batch_size,
             num_workers=self.config.data.num_workers,
             shuffle=False,
             pin_memory=False,
         )
-        return val_data_loader
+        self.val_sampler = val_sampler
+        self.val_data_loader = val_data_loader
 
     @property
     def snapshot_name(self):
@@ -670,30 +649,14 @@ class PytorchTrainer:
     def _init_model(self):
         print(self.config)
         self.input_size = self.config.data.crop_size
-        # TODO: please for the love of god fix this into a model builder
-        model = zoo.__dict__[self.config.model.name](
-            **self.config.encoder, crop_size=self.input_size
-        )
+        model = build_model(self.config)
+
         model = model.cuda()
         self._load_checkpoint(model)
 
         if self.config.distributed and not self.config.freeze_bn:
             model = SyncBatchNorm.convert_sync_batchnorm(model, self.pg)
-        channels_last = self.config.model.encoder.channel_last
+        channels_last = self.config.model.backbone.channel_last
         if channels_last:
             model = model.to(memory_format=torch.channels_last)
         return model
-
-    def _init_loss_functions(self) -> List[LossFunction]:
-        assert self.conf["losses"]
-        loss_functions = []
-        for loss_def in self.conf["losses"]:
-            # TODO: this one too, loss builder
-            loss_fn = losses.__dict__[loss_def["type"]](**loss_def["params"])
-            loss_weight = loss_def["weight"]
-            display = loss_def["display"]
-            loss_functions.append(
-                LossFunction(loss_fn, loss_def["name"], loss_weight, display)
-            )
-
-        return loss_functions

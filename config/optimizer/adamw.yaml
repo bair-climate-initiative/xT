@@ -1,0 +1,3 @@
+name: adamw
+eps: 1e-8
+beta: (0.9, 0.999)

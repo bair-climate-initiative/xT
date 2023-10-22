@@ -1,5 +1,8 @@
 from abc import ABC, abstractmethod
+from typing import List
+from dataclasses import dataclass
 
+from hydra.utils import instantiate
 import torch
 import torch.nn.functional as F
 from torch import nn, topk
@@ -10,6 +13,48 @@ class LossCalculator(ABC):
     @abstractmethod
     def calculate_loss(self, outputs, sample):
         pass
+
+class LossFunction:
+    def __init__(
+        self,
+        loss: LossCalculator,
+        name: str,
+        weight: float = 1,
+        display: bool = False,
+    ):
+        super().__init__()
+        self.loss = loss
+        self.name = name
+        self.weight = weight
+        self.display = display
+
+
+@dataclass 
+class SingleLossConfig:
+    name: str
+    """Shorthand name of the loss function"""
+    loss: LossCalculator
+    """Class of the loss function to directly instantiate"""
+    weight: float = 1.0
+    """Weight of the loss function in the total loss"""
+    display: bool = True 
+    """Whether to display the loss in the progress bar"""
+
+
+@dataclass 
+class LossConfig:
+    losses: List[SingleLossConfig]
+    """List of losses to be used in the training"""
+
+
+def build_losses(config: LossConfig) -> List[LossFunction]:
+    losses = []
+    for single_loss in config.losses:
+        losses.append(LossFunction(instantiate(single_loss.loss),
+                        single_loss.name,
+                        single_loss.weight,
+                        single_loss.display))
+    return losses
 
 
 def r2_loss(output, target):
@@ -254,7 +299,7 @@ class BinaryFocalLoss(nn.Module):
 class ComboLoss(nn.Module):
     def __init__(
         self,
-        weights,
+        weights: dict,
         per_image=False,
         skip_empty=False,
         channel_weights=[1] * 15,

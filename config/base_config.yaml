@@ -5,7 +5,7 @@ defaults:
   - _self_
   - data: xview3
   - model: TimmUnet
-    - encoder: revswinv2
+    - backbone: revswinv2_tiny
   - optimizer: sgd
   - train: lr1e-3
   - losses: all_losses
@@ -30,19 +30,22 @@ data:
   overlap: 10 
 model: 
   name: TimmUnet
-  encoder:
-    name: revswinv2_large_window16_256_xview
+  backbone:
+    _target_: models.backbones.revswinv2_tiny_window16_256_xview
+    name: revswinv2_tiny
     in_chans: 2
     drop_path_rate: 0.2
     pretrained: False
     channel_last: True
-    patch_size: 16
-    input_size: 256
+    img_size: 256
   resume: ''
   tiling: 'naive'
+  xl_context:
+    enabled: False
 optimizer:
   name: sgd 
   momentum: 0.9
+  nesterov: True
   scheduler: 
     name: cosine
     mode: step
@@ -50,42 +53,35 @@ train:
   epochs: 120
   batch_size: 6
   base_lr: 1e-3
-  min_lr_multiplier: 0.01
-  warmup_lr_multiplier: 0.001
-  classifier_multiplier: 1.0
+  min_lr_ratio: 0.01
+  classifier_ratio: 1.0
   warmup_epochs: 0
   weight_decay: 1e-4
   val_batch_size: 2
   freeze_epochs: 0
   positive_ratio: 0.85
 losses:
-  - name: msk_v
-    type: ComboLossCalculator
-    weight: 1.0
+  - name: mask_vessel
+    loss: 
+      _target_: training.losses.ComboLossCalculator
+      field: vessel_mask 
+      weights: {"bce": 1, "focal": 3, "dice": 1}
+    weight: 1.0 
     display: True
-    params:
-      field: vessel_mask
-      weights:
-        bce: 1
-        focal: 3
-        dice: 1
-  - name: msk_f
-    type: ComboLossCalculator
-    weight: 2.0
-    display: True
-    params:
+  - name: mask_fishing 
+    loss: 
+      _target_: training.losses.ComboLossCalculator
       field: fishing_mask
-      weights:
-        bce: 1
-        focal: 3
-        dice: 1
-  - name: center
-    type: CenterLossCalculator
+      weights: {"bce": 1, "focal": 3, "dice": 1}
+    weight: 2.0 
+    display: True
+  - name: center 
+    loss: 
+      _target_: training.losses.CenterLossCalculator
     weight: 3e-7
     display: True
-    params: 
   - name: length
-    type: LengthLoss
-    weight: 2
+    loss: 
+      _target_: training.losses.LengthLoss
+    weight: 2.0
     display: True
-    params:

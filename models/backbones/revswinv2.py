@@ -25,13 +25,14 @@ from timm.models.helpers import build_model_with_cfg, load_pretrained
 from timm.models.layers import (  # manually add patchembed
     ClassifierHead,
     DropPath,
+    Format, 
     Mlp,
+    nchw_to,
     to_2tuple,
     trunc_normal_,
 )
 from torch.autograd import Function as Function
 
-from .format import Format, nchw_to  # manually add from timm 0.9
 
 __all__ = [
     "SwinTransformerV2"
@@ -1217,9 +1218,3 @@ def revswinv2_large_window16_256_xview(pretrained=False, **kwargs):
         msg = model.load_state_dict(filtered, strict=False)
         print(msg)
     return model
-
-
-REVSWINV2_CFG = dict(
-    revswinv2_tiny_window16_256_xview=revswinv2_tiny_window16_256_xview,
-    revswinv2_large_window16_256_xview=revswinv2_large_window16_256_xview,
-)

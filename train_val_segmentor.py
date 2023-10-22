@@ -15,7 +15,7 @@ from training.losses import LossConfig
 from training.optimizer import OptimizerConfig
 from training.trainer import PytorchTrainer, TrainConfig
 from training.utils import get_rank, get_world_size, is_main_process
-from zoo import ModelConfig
+from models import ModelConfig
 
 os.environ["MKL_NUM_THREADS"] = "1"
 os.environ["NUMEXPR_NUM_THREADS"] = "1"
@@ -48,16 +48,12 @@ cs = ConfigStore.instance()
 cs.store(name="config", node=XviewConfig)
 
 
-def make_folder(p):
-    if not os.path.exists(p):
-        os.mkdir(p)
-
-
 @hydra.main(config="configs", config_name="base_config")
 def main(cfg: XviewConfig) -> None:
     if is_main_process():
-        make_folder(cfg.log_dir)
-        make_folder(cfg.output_dir)
+        os.makedirs(cfg.log_dir, parents=True, exist_ok=True)
+        os.makedirs(cfg.output_dir, parents=True, exist_ok=True)
+
 
     data_train, data_val = create_data_datasets(cfg)
     seg_evaluator = XviewEvaluator(cfg)

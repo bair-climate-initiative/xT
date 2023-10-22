@@ -56,6 +56,8 @@ class DataConfig:
     val_crop_size: int = 512
     overlap: int = 10
 
+cs = ConfigStore.instance()
+cs.store(name="config", group="data", node=DataConfig)
 
 @dataclass
 class Xview3Config(DataConfig):
