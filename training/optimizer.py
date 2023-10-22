@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Tuple
+from typing import Literal, Tuple
 
 from hydra.core.config_store import ConfigStore
 from timm.optim import AdamW
@@ -9,19 +9,35 @@ from torch.optim.lr_scheduler import CosineAnnealingLR, CyclicLR, MultiStepLR
 from warmup_scheduler import GradualWarmupScheduler
 
 from .schedulers import ExponentialLRScheduler, LRStepScheduler, PolyLR
-from ..train_val_segmentor import TrainConfig
 from .utils import get_world_size
 
 
 @dataclass
 class OptimizerConfig:
-    """Optimizer Configuation: name, eps, beta, momentum."""
+    """Optimizer Configuation: name, lr + options, warmup, wd."""
 
     name: str = "adamw"
     """Optimizer shortname: options are [sgd, adam, adamw]"""
+    lr: float = 1e-3
+    """Absolute learning rate, NOT SET DIRECTLY! Overridden below."""
+    base_lr: float = 1e-3
+    """Base learning rate (adjusted by effective batch size)."""
+    min_lr_ratio: float = 0.01
+    """Minimum learning rate to anneal to as a factor of base_lr."""
+    classifier_ratio: float = 1.0
+    """Multiplier for classifier learning rate."""
+    warmup_epochs: int = 0
+    """Number of epochs to warmup for."""
+    weight_decay: float = 1e-4
+    """Weight decay."""
+    scheduler: str = "cosine"
+    """Learning rate scheduler."""
+    mode: str = "step"
+    """Scheduler mode: [epoch, step, poly]."""
 
-@dataclass 
-class SGDConfig:
+
+@dataclass
+class SGDConfig(OptimizerConfig):
     """SGD Configuration: momentum, nesterov."""
 
     momentum: float = 0.9
@@ -29,24 +45,26 @@ class SGDConfig:
     nesterov: bool = True
     """SGD Nesterov momentum"""
 
-@dataclass 
-class AdamConfig:
+
+@dataclass
+class AdamConfig(OptimizerConfig):
     """Adam Configuration: eps, beta."""
 
     eps: float = 1e-8
     """Adam epsilon."""
-    beta: Tuple(float) = (0.9, 0.999)
+    betas: Tuple[float, float] = (0.9, 0.999)
     """Adam betas"""
 
-@dataclass 
-class AdamWConfig:
+
+@dataclass
+class AdamWConfig(OptimizerConfig):
     """AdamW Configuration: eps, beta."""
 
     _target_: str = "optim.AdamW"
     """Class Name for instantiation"""
     eps: float = 1e-8
     """Adam epsilon."""
-    beta: Tuple(float) = (0.9, 0.999)
+    beta: Tuple[float, float] = (0.9, 0.999)
     """Adam betas"""
 
 
@@ -58,13 +76,16 @@ cs.store(group="optimizer", name="adamw", node=AdamWConfig)
 
 
 def create_optimizer(
-    config: TrainConfig,
+    config: OptimizerConfig,
     model: nn.Module,
     num_samples: int,
+    batch_size: int,
+    epochs: int,
 ):
     """Creates optimizer and schedule from configuration
 
-        Returns
+
+    Returns
     -------
     optimizer : Optimizer
         The optimizer.
@@ -91,7 +112,7 @@ def create_optimizer(
                     for n, p in param_optimizer
                     if not any(nd in n for nd in no_decay)
                 ],
-                "weight_decay": config.train.weight_decay,
+                "weight_decay": config.weight_decay,
             },
             {
                 "params": [
@@ -107,11 +128,8 @@ def create_optimizer(
                 p["lr"] = lr
         return params
 
-    if config.train.classifier_ratio != 1.0:
-        classifier_lr = (
-            config.train.lr
-            * config.train.classifier_ratio
-        )
+    if config.classifier_ratio != 1.0:
+        classifier_lr = config.lr * config.classifier_ratio
         # Separate classifier parameters from all others
         net_params = []
         classifier_params = []
@@ -131,41 +149,39 @@ def create_optimizer(
         param_optimizer = list(model.named_parameters())
         params = make_params(param_optimizer)
         print("param_groups", len(params))
-    train_bs = config.train.batch_size
-    epochs = config.train.epochs
-    optimizer_name = str.lower(config.optimizer.name)
+    optimizer_name = str.lower(config.name)
     if optimizer_name == "sgd":
         optimizer = optim.SGD(
             params,
-            lr=config.train.lr,
-            momentum=config.optimizer.momentum,
-            nesterov=config.optimizer.nesterov
+            lr=config.lr,
+            momentum=config.momentum,
+            nesterov=config.nesterov,
         )
     elif optimizer_name == "Adam":
         optimizer = optim.Adam(
             params,
-            lr=config.train.lr,
-            eps=config.optimizer.eps,
-            weight_decay=config.train.weight_decay
+            lr=config.lr,
+            betas=config.betas,
+            eps=config.eps,
+            weight_decay=config.weight_decay,
         )
     elif optimizer_name == "AdamW":
         optimizer = AdamW(
             params,
-            lr=config.train.lr,
-            eps=config.optimizer.eps,
-            weight_decay=config.train.weight_decay
+            lr=config.lr,
+            betas=config.betas,
+            eps=config.eps,
+            weight_decay=config.weight_decay,
         )
     else:
-        raise KeyError(
-            "unrecognized optimizer {}".format(optimizer_name)
-        )
+        raise KeyError("unrecognized optimizer {}".format(optimizer_name))
 
-    scheduler_name = config.optimizer.scheduler.name
-    eta_min = config.train.lr * config.train.min_lr_ratio
+    scheduler_name = config.scheduler
+    eta_min = config.lr * config.min_lr_ratio
     if scheduler_name == "step":
         scheduler = LRStepScheduler(optimizer, eta_min=eta_min)
     elif scheduler_name == "cosine":
-        tmax = int(epochs * num_samples / (num_gpus * train_bs))
+        tmax = int(epochs * num_samples / (num_gpus * batch_size))
         print(f"Cosine decay with T_max:{tmax} eta_min:{eta_min}")
         scheduler = CosineAnnealingLR(optimizer, T_max=tmax, eta_min=eta_min)
     # elif scheduler_name == "clr":
@@ -194,13 +210,12 @@ def create_optimizer(
 
     #     scheduler = lr_scheduler.LambdaLR(optimizer, linear_lr)
 
-    if config.train.warmup_epochs > 0:
+    if config.warmup_epochs > 0:
         scheduler = GradualWarmupScheduler(
             optimizer,
             multiplier=1,
             total_epoch=int(
-                config.train.warmup_epochs * num_samples
-                / (num_gpus * train_bs)
+                config.warmup_epochs * num_samples / (num_gpus * batch_size)
             ),
             after_scheduler=scheduler,
         )

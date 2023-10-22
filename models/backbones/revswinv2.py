@@ -21,18 +21,17 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.checkpoint as checkpoint
 from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
-from timm.models.helpers import build_model_with_cfg, load_pretrained
-from timm.models.layers import (  # manually add patchembed
+from timm.layers import (  # manually add patchembed
     ClassifierHead,
     DropPath,
-    Format, 
+    Format,
     Mlp,
     nchw_to,
     to_2tuple,
     trunc_normal_,
 )
+from timm.models.helpers import build_model_with_cfg, load_pretrained
 from torch.autograd import Function as Function
-
 
 __all__ = [
     "SwinTransformerV2"
@@ -725,8 +724,8 @@ class PatchMerging(nn.Module):
         x = self.fusion_module(x)
         # Then normal patch merge
         B, H, W, C = x.shape
-        assert (H % 2 == 0, f"x height ({H}) is not even.")
-        assert (W % 2 == 0, f"x width ({W}) is not even.")
+        assert H % 2 == 0, f"x height ({H}) is not even."
+        assert W % 2 == 0, f"x width ({W}) is not even."
         x = (
             x.reshape(B, H // 2, 2, W // 2, 2, C)
             .permute(0, 1, 3, 4, 2, 5)
@@ -939,14 +938,14 @@ class ReversibleSwinTransformerV2(nn.Module):
         drop_path_rate: float = 0.1,
         norm_layer: Callable = nn.LayerNorm,
         pretrained_window_sizes: Tuple[int, ...] = (0, 0, 0, 0),
-        input_dim=3,
+        input_dim=2,
         **kwargs,
     ):
         """
         Args:
             img_size: Input image size.
             patch_size: Patch size.
-            in_chans: Number of input image channels.
+            in_chans: Number of input image channels (of the original model)
             num_classes: Number of classes for classification head.
             embed_dim: Patch embedding dimension.
             depths: Depth of each Swin Transformer stage (layer).

@@ -1,12 +1,11 @@
-data:
-  dataset: xview3
-  dir: /home/group/xview3 
-  shoreline_dir: /home/group/xview3/shoreline/validation
-  fold: 77 
-  folds_csv: meta/folds.csv
-  multiplier: 64
-  num_workers: 8
-  test: False
-  crop_size: 512
-  val_crop_size: 512
-  overlap: 10 
+dataset: xview3
+dir: /home/group/xview3 
+shoreline_dir: /home/group/xview3/shoreline/validation
+fold: 77 
+folds_csv: meta/folds.csv
+multiplier: 64
+num_workers: 8
+test: False
+crop_size: 512
+val_crop_size: 512
+overlap: 10 

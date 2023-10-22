@@ -3,9 +3,10 @@ import os
 import timm
 import torch.hub
 from torch.nn import Dropout2d
-from .transformer_xl import MemTransformerLM
+
 from .backbones.vit import MAEDecoder
 from .backbones.vit import registry as VIT_CFG
+from .transformer_xl import MemTransformerLM
 
 default_decoder_filters = [48, 96, 176, 256]
 default_last = 48
@@ -27,6 +28,7 @@ from .lib.hier.utils.patch_embed import (
     build_upsample,
 )
 
+
 class AbstractModel(nn.Module):
     def _initialize_weights(self):
         for m in self.modules():
@@ -46,11 +48,12 @@ class AbstractModel(nn.Module):
 class TimmUnet(AbstractModel):
     def __init__(
         self,
-        backbone: nn.Module, 
+        backbone: nn.Module,
         channels_last: bool = False,
-        crop_size: int =256,
+        crop_size: int = 256,
         context_mode: bool = False,
         skip_decoder: bool = False,
+        backbone_name: str = "revswinv2_tiny",
         **kwargs
     ):
         # if not hasattr(self, "first_layer_stride_two"):
@@ -130,7 +133,7 @@ class TimmUnet(AbstractModel):
             self.decoder_filters[0], self.last_upsample_filters, 1
         )
 
-        self.name = "u-{}".format(config.backbone.name)
+        self.name = "u-{}".format(backbone_name)
 
         self._initialize_weights()
         self.dropout = Dropout2d(p=0.0)
@@ -303,8 +306,6 @@ class BasicUpBlock(nn.Module):
         if self.use_act:
             x = self.act(x)
         return x
-
-
 
 
 class EncoderDecoder(AbstractModel):

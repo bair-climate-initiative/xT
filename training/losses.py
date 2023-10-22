@@ -1,10 +1,10 @@
 from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
 from typing import List
-from dataclasses import dataclass
 
-from hydra.utils import instantiate
 import torch
 import torch.nn.functional as F
+from hydra.utils import instantiate
 from torch import nn, topk
 from torch.nn import BCEWithLogitsLoss, MSELoss, NLLLoss2d
 
@@ -13,6 +13,7 @@ class LossCalculator(ABC):
     @abstractmethod
     def calculate_loss(self, outputs, sample):
         pass
+
 
 class LossFunction:
     def __init__(
@@ -29,31 +30,35 @@ class LossFunction:
         self.display = display
 
 
-@dataclass 
+@dataclass
 class SingleLossConfig:
-    name: str
+    name: str = "mask_vessel"
     """Shorthand name of the loss function"""
-    loss: LossCalculator
+    loss: LossCalculator = LossCalculator
     """Class of the loss function to directly instantiate"""
     weight: float = 1.0
     """Weight of the loss function in the total loss"""
-    display: bool = True 
+    display: bool = True
     """Whether to display the loss in the progress bar"""
 
 
-@dataclass 
+@dataclass
 class LossConfig:
-    losses: List[SingleLossConfig]
+    losses: List[SingleLossConfig] = field(default_factory=list)
     """List of losses to be used in the training"""
 
 
 def build_losses(config: LossConfig) -> List[LossFunction]:
     losses = []
-    for single_loss in config.losses:
-        losses.append(LossFunction(instantiate(single_loss.loss),
-                        single_loss.name,
-                        single_loss.weight,
-                        single_loss.display))
+    for k, single_loss in config.items():
+        losses.append(
+            LossFunction(
+                instantiate(single_loss.loss),
+                single_loss.name,
+                single_loss.weight,
+                single_loss.display,
+            )
+        )
     return losses
 
 

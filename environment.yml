@@ -1,4 +1,4 @@
-name: scale 
+name: scalemae
 channels: 
   - pytorch
   - nvidia

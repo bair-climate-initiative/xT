@@ -3,7 +3,6 @@ import os
 import random
 import time
 from dataclasses import dataclass
-from hydra.core.config_store import ConfigStore
 
 import albumentations as A
 import cv2
@@ -12,10 +11,9 @@ import pandas as pd
 import rasterio
 import tifffile
 import torch
+from hydra.core.config_store import ConfigStore
 from rasterio.windows import Window
 from torch.utils.data import Dataset
-
-from train_val_segmentor import XviewConfig
 
 from .utils import is_main_process
 
@@ -48,25 +46,28 @@ train_transforms = A.Compose(
 @dataclass
 class DataConfig:
     """General Dataset Configuration."""
-    dataset: str
-    dir: str
+
+    dataset: str = "xview3"
+    """Name of the dataset to use."""
+    dir: str = "/home/group/xview3"
+    """Path to the dataset directory."""
     num_workers: int = 8
+    """Number of workers for the data loader."""
     test: bool = False
+    """Whether to use the test dataset."""
     crop_size: int = 512
+    """Size of the crop for training."""
     val_crop_size: int = 512
+    """Size of the crop for validation."""
     overlap: int = 10
+    """Overlap of the crops for validation."""
+    positive_ratio: float = 0.85
+    """Ratio of positive samples in a batch."""
+
 
 cs = ConfigStore.instance()
 cs.store(name="config", group="data", node=DataConfig)
 
-@dataclass
-class Xview3Config(DataConfig):
-    dataset: str = "xview3"
-    dir: str = "data/xview3"
-    shoreline_dir: str = "data/xview3/shoreline/validation"
-    fold: int = 0
-    folds_csv: str = "meta/folds.csv"
-    multiplier: int = 64
 
 def normalize_band(band, ignored_mask=0):
     band[band < -32760] = -100
@@ -79,32 +80,28 @@ def normalize_band(band, ignored_mask=0):
     return band
 
 
-def create_data_datasets(config: XviewConfig):
+def create_data_datasets(config: DataConfig):
     if is_main_process():
         print("dataset config crop size", config.crop_size)
         if config.shoreline_dir:
             print("Legacy Warning:shoreline_dir is no longer used")
     if config.test:
-        train_annotations = os.path.join(config.data_dir, "labels/public.csv")
+        train_annotations = os.path.join(config.dir, "labels/public.csv")
         train_dataset = XviewValDataset(
             mode="train",
-            dataset_dir=config.data_dir,
+            dataset_dir=config.dir,
             fold=12345,
             folds_csv=config.folds_csv,
             annotation_csv=train_annotations,
             crop_size=config.crop_size,
             multiplier=config.multiplier,
         )
-        val_dataset = TestDataset(
-            os.path.join(config.data_dir, "images/public")
-        )
+        val_dataset = TestDataset(os.path.join(config.dir, "images/public"))
     else:
-        train_annotations = os.path.join(
-            config.data_dir, "labels/validation.csv"
-        )
+        train_annotations = os.path.join(config.dir, "labels/validation.csv")
         train_dataset = XviewValDataset(
             mode="train",
-            dataset_dir=config.data_dir,
+            dataset_dir=config.dir,
             fold=config.fold,
             folds_csv=config.folds_csv,
             annotation_csv=train_annotations,
@@ -114,7 +111,7 @@ def create_data_datasets(config: XviewConfig):
         )
         val_dataset = XviewValDataset(
             mode="val",
-            dataset_dir=config.data_dir,
+            dataset_dir=config.dir,
             fold=config.fold,
             folds_csv=config.folds_csv,
             annotation_csv=train_annotations,
@@ -150,6 +147,7 @@ class XviewValDataset(Dataset):
         transforms: A.Compose = train_transforms,
         positive_ratio=0.5,
     ):
+        print(os.getcwd())
         df = pd.read_csv(folds_csv)
         self.radius = radius
 

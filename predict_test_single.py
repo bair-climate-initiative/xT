@@ -16,7 +16,7 @@ import torch
 import models
 from inference.postprocessing import process_confidence
 from inference.run_inference import predict_scene_and_return_mm
-from training.config import load_config
+from training.old_config import load_config
 
 warnings.filterwarnings("ignore")
 import argparse

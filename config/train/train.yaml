@@ -1,0 +1,5 @@
+epochs: 120
+batch_size: 6
+val_batch_size: 2
+freeze_epochs: 0
+freeze_bn: False

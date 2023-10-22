@@ -1,15 +1,18 @@
 from dataclasses import dataclass, field
+
 from hydra.core.config_store import ConfigStore
 from hydra.utils import instantiate
 
 from .unet import TimmUnet
 
+
 @dataclass
 class BackboneConfig:
     """Configuration for feature extracting backbone."""
-    _target_: str
+
+    _target_: str = "models.backbones.revswinv2_tiny_window16_256_xview"
     """Fully qualified class name for the backbone to instantiate."""
-    name: str 
+    name: str = "revswinv2_tiny"
     """Shorthand for backbone name."""
     in_chans: int = 2
     """Number of channels in input data."""
@@ -19,14 +22,14 @@ class BackboneConfig:
     """Path to pretrained weights, empty for none."""
     channel_last: bool = True
     """If channels are last in data format."""
-    input_size: int = 256
+    img_size: int = 256
     """Expected input size of data."""
 
 
 @dataclass
 class TransformerXLConfig:
     enabled: bool = False
-    """If True, use Transformer-XL as context mode.""" 
+    """If True, use Transformer-XL as context mode."""
 
 
 @dataclass
@@ -45,14 +48,18 @@ class ModelConfig:
 cs = ConfigStore.instance()
 cs.store(name="config", group="model", node=ModelConfig)
 
+
 def build_model(config: ModelConfig):
     # Directly calls the appropriate backbone class
-    backbone = instantiate(config.backbone) 
+    backbone = instantiate(config.backbone)
 
     if config.name == "TimmUnet":
-        model = TimmUnet(backbone=backbone, 
-                         channels_last=config.backbone.channel_last,
-                         crop_size=config.backbone.input_size,
-                         context_mode=config.xl_context.enabled,
-                         skip_decoder=False)
+        model = TimmUnet(
+            backbone=backbone,
+            channels_last=config.backbone.channel_last,
+            crop_size=config.backbone.img_size,
+            context_mode=config.xl_context.enabled,
+            skip_decoder=False,
+            backbone_name=config.backbone.name,
+        )
     return model

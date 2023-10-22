@@ -1,0 +1,6 @@
+# @package _group_._name_
+name: center 
+loss: 
+  _target_: training.losses.CenterLossCalculator
+weight: 3e-7
+display: True

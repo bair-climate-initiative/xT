@@ -24,13 +24,15 @@ from torch.nn.parallel.distributed import DistributedDataParallel
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
-from ..models import build_model
-from ..train_val_segmentor import XviewConfig
-from .losses import build_losses
+from models import build_model
+
+# from train_val_segmentor import XviewConfig
+from .config import XviewConfig
 from .evaluator import Evaluator
-from .losses import LossCalculator
+from .losses import LossCalculator, build_losses
 from .optimizer import create_optimizer
 from .sampler import DistributedWeightedRandomSampler
+from .tiling import build_tiling
 from .utils import (
     SmoothedValue,
     get_rank,
@@ -40,37 +42,7 @@ from .utils import (
     wandb_dump_images,
 )
 
-from .tiling import build_tiling
-
 logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO").upper())
-
-
-@dataclass
-class TrainConfig:
-    """Full training config."""
-
-    epochs: int = 120
-    """Number of epochs to train for."""
-    batch_size: int = 4
-    """Batch size per GPU."""
-    lr: float = None
-    """Absolute learning rate, NOT SET DIRECTLY! Overriden below."""
-    base_lr: float = 1e-3
-    """Base learning rate (adjusted by effective batch size)."""
-    min_lr_ratio: float = 0.01
-    """Minimum learning rate to anneal to as a factor of base_lr."""
-    classifier_ratio: float = 1.0
-    """Multiplier for classifier learning rate."""
-    warmup_epochs: int = 0
-    """Number of epochs to warmup for."""
-    weight_decay: float = 1e-4
-    """Weight decay."""
-    val_batch_size: int = 2
-    """Validation batch size per GPU."""
-    freeze_epochs: int = 0
-    """Number of epochs to freeze encoder for."""
-    positive_ratio: float = 0.85
-    """Ratio of positive samples in a batch."""
 
 
 class PytorchTrainer:
@@ -88,12 +60,16 @@ class PytorchTrainer:
         self.evaluator = evaluator
         self.current_metrics = evaluator.init_metrics()
         self.current_epoch = 0
+        self.train_data = train_data
+        self.val_data = val_data
+        self.wandb_id = None
+
         self.model = self._init_model()
         self.create_train_loader()
         self.create_val_loader()
         # TODO: how tf to pass in T-XL? tell shufan to do maybe
-        self.patch_size = self.config.patch_size
-        self.context_patch_len = self.config.context_patch_len
+        # self.patch_size = self.config.patch_size
+        # self.context_patch_len = self.config.context_patch_len
 
         self.losses = build_losses(self.config.losses)
         self.scale_learning_rate()
@@ -103,38 +79,37 @@ class PytorchTrainer:
             self.config.optimizer,
             self.model,
             len(train_data),
+            self.config.train.batch_size,
+            self.config.train.epochs,
         )
-        self.train_data = train_data
-        self.val_data = val_data
-        self.wandb_id = None
-        if is_main_process():
-            wandb_args = dict(
-                project="xview3 detection unet",
-                entity="bair-climate-initiative",
-                resume="allow",
-                name=config.name,
-                config=config,
-                dir=config.log_dir,
-            )
-            artifact = wandb.Artifact(
-                "config_file",
-                type="config_file",
-            )
-            config_dump_path = os.path.join(
-                self.config.output_dir, "config.yaml"
-            )
-            with open(config_dump_path, "w") as outfile:
-                outfile.write(OmegaConf.to_yaml(self.config))
-            artifact.add_file(config_dump_path)
+        # if is_main_process():
+        #     wandb_args = dict(
+        #         project="xview3 detection unet",
+        #         entity="bair-climate-initiative",
+        #         resume="allow",
+        #         name=config.name,
+        #         config=config,
+        #         dir=config.log_dir,
+        #     )
+        #     artifact = wandb.Artifact(
+        #         "config_file",
+        #         type="config_file",
+        #     )
+        #     config_dump_path = os.path.join(
+        #         self.config.output_dir, "config.yaml"
+        #     )
+        #     with open(config_dump_path, "w") as outfile:
+        #         outfile.write(OmegaConf.to_yaml(self.config))
+        #     artifact.add_file(config_dump_path)
 
-            wandb.init(**wandb_args)
-            wandb.log_artifact(artifact)
-            self.wandb_id = wandb.run.id
+        #     wandb.init(**wandb_args)
+        #     wandb.log_artifact(artifact)
+        #     self.wandb_id = wandb.run.id
 
-            print(self.model)
-            self.summary_writer = SummaryWriter(
-                os.path.join(config.log_dir, self.snapshot_name)
-            )
+        #     print(self.model)
+        #     self.summary_writer = SummaryWriter(
+        #         os.path.join(config.log_dir, self.snapshot_name)
+        #     )
 
         # self._profile_model((1, 2, self.conf["crop_size"], self.conf["crop_size"]))
 
@@ -202,13 +177,13 @@ class PytorchTrainer:
         # linear scale the learning rate according to total batch size, may not be optimal
         eff_batch_size = self.config.train.batch_size * dist.get_world_size()
         # base batch size is 8 * 1 = 32
-        lr = self.config.train.base_lr * eff_batch_size / 8.0
+        lr = self.config.optimizer.base_lr * eff_batch_size / 8.0
         if is_main_process():
             print(
                 f"Effective batch size of {eff_batch_size} "
-                f"lr: {self.config.train.base_lr} --> {lr}"
+                f"lr: {self.config.optimizer.base_lr} --> {lr}"
             )
-        self.config.optimizer.train.lr = lr
+        self.config.optimizer.lr = lr
 
     def _profile_model(self, shape):
         input = torch.randn(shape).cuda()
@@ -328,7 +303,7 @@ class PytorchTrainer:
             if loss_def.display:
                 avg_meters[loss_def.name] = AverageMeter()
 
-        if self.config.optimizer.scheduler.mode == "epoch":
+        if self.config.optimizer.mode == "epoch":
             self.scheduler.step(self.current_epoch)
         extra_context = self.model.module.extra_context
         if extra_context:
@@ -352,7 +327,9 @@ class PytorchTrainer:
         # Sliced Images with context_id
         # todo: make configurable
         if self.config.local_rank == 0:
-            iterator = tqdm(iterator, total=iter_scale * len(self.train_data_loader))
+            iterator = tqdm(
+                iterator, total=iter_scale * len(self.train_data_loader)
+            )
         # Broken, temporaily disable time logging
         for i, sample in enumerate(iterator):
             # if i > 2:
@@ -444,9 +421,10 @@ class PytorchTrainer:
             torch.cuda.synchronize()
             if self.config.distributed:
                 dist.barrier()
-            if self.config.optimizer.scheduler.mode in ("step", "poly"):
+            if self.config.optimizer.mode in ("step", "poly"):
                 self.scheduler.step(
-                    int(i / iter_scale) + self.current_epoch * len(self.train_data_loader)
+                    int(i / iter_scale)
+                    + self.current_epoch * len(self.train_data_loader)
                 )
             if self.config.local_rank == 0:
                 iterator.set_postfix(
@@ -479,7 +457,7 @@ class PytorchTrainer:
     def val_batch_size(self):
         return self.config.train.val_batch_size
 
-    def create_train_loader(self) -> DataLoader:
+    def get_train_loader(self) -> DataLoader:
         if is_dist_avail_and_initialized():
             train_sampler = torch.utils.data.distributed.DistributedSampler(
                 self.train_data
@@ -501,7 +479,7 @@ class PytorchTrainer:
         self.train_sampler = train_sampler
         self.train_data_loader = train_data_loader
 
-    def create_val_loader(self) -> DataLoader:
+    def get_val_loader(self) -> DataLoader:
         if is_dist_avail_and_initialized():
             val_sampler = torch.utils.data.distributed.DistributedSampler(
                 self.val_data,
@@ -647,14 +625,13 @@ class PytorchTrainer:
         #     self.current_epoch = 0
 
     def _init_model(self):
-        print(self.config)
         self.input_size = self.config.data.crop_size
-        model = build_model(self.config)
+        model = build_model(self.config.model)
 
         model = model.cuda()
         self._load_checkpoint(model)
 
-        if self.config.distributed and not self.config.freeze_bn:
+        if self.config.distributed and not self.config.train.freeze_bn:
             model = SyncBatchNorm.convert_sync_batchnorm(model, self.pg)
         channels_last = self.config.model.backbone.channel_last
         if channels_last:

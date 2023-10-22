@@ -6,7 +6,7 @@ First install the environment, which can be done as follows for CUDA 11.6.
 
 ```bash
 conda env create -f environment.yml
-conda run -n scale python -m pip install --no-cache-dir requirements.txt
+conda run -n scale python -m pip install --no-cache-dir -r requirements.txt
 # Clean up
 sync && conda clean --all --yes && sync 
 rm -rf ~/.cache/pip/*

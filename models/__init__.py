@@ -1,1 +1,1 @@
-from build import build_model, ModelConfig
+from .build import ModelConfig, build_model

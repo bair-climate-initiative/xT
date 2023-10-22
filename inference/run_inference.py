@@ -3,6 +3,7 @@ import os
 from typing import List
 
 import numpy as np
+import rasterio
 import tifffile
 import torch
 from torch import nn
@@ -10,7 +11,7 @@ from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
 from inference.tiling import Tiler, TileSlice
-from training.val_dataset import normalize_band
+from training.datasets import normalize_band
 
 
 class SliceDataset(Dataset):
@@ -48,31 +49,6 @@ class SliceDataset(Dataset):
 
     def __len__(self):
         return len(self.slices)
-
-
-class SliceDatasetPanda(Dataset):
-    def __init__(self, full_img: str, tiler: Tiler) -> None:
-        super().__init__()
-        self.full_img = full_img.cpu().numpy()
-        self.tiler = tiler
-        self.slices = tiler.generate_slices()
-        self.channels = full_img.shape[0]
-
-    def __getitem__(self, index):
-        slice = self.slices[index]
-        img = np.stack(
-            [
-                self.tiler.get_crop(self.full_img[i], slice)
-                for i in range(self.channels)
-            ]
-        )
-        return img, np.array([slice.row, slice.column, slice.y, slice.x])
-
-    def __len__(self):
-        return len(self.slices)
-
-
-import rasterio
 
 
 def predict_scene_and_return_mm(
@@ -215,55 +191,4 @@ def predict_scene_and_return_mm(
         "vessel_mask": vessel_preds,
         "fishing_mask": fishing_preds,
         "length_mask": length_preds,
-    }
-
-
-def predict_whole_image_panda(
-    models: List[nn.Module],
-    img_full,
-    use_fp16: bool = False,
-    rotate=False,
-    output_dir=None,
-):
-    _, height, width = img_full.shape
-
-    tiler = Tiler(height, width, 3584, overlap=704)
-    mask_predict = np.zeros((height, width), dtype=np.uint8)
-    slice_dataset = SliceDatasetPanda(img_full, tiler)
-    slice_loader = DataLoader(
-        slice_dataset,
-        batch_size=1,
-        shuffle=False,
-        num_workers=8,
-        pin_memory=False,
-    )
-    for batch, slice_vals in tqdm(slice_loader):
-        slice = TileSlice(*slice_vals[0])
-        with torch.no_grad():
-            batch = batch.cuda()
-            with torch.cuda.amp.autocast(enabled=use_fp16):
-                outputs = []
-                for model in models:
-                    output = model(batch)
-                    mask = torch.softmax(output["mask"], 1)  # N X C X H X W
-                    output["label_map"] = mask
-                    outputs.append(output)
-            output = {}
-            for k in outputs[0].keys():
-                vs = [o[k][:, :] for o in outputs]
-                output[k] = sum(vs) / len(models)
-            label_map = (
-                output["label_map"].argmax(1)[0].cpu().numpy().astype(np.uint8)
-            )
-        tiler.update_crop(mask_predict, label_map, slice)
-        # tiler.update_crop(conf_preds, conf_mask, slice)
-    # if output_dir:
-    #     os.makedirs(os.path.join(output_dir, scene_id), exist_ok=True)
-    #     np.save(os.path.join(output_dir, scene_id, "center_preds"), center_preds)
-    #     np.save(os.path.join(output_dir, scene_id, "vessel_preds"), vessel_preds)
-    #     np.save(os.path.join(output_dir, scene_id, "fishing_preds"), fishing_preds)
-    #     np.save(os.path.join(output_dir, scene_id, "length_preds"), length_preds)
-    gc.collect()
-    return {
-        "mask": mask_predict,
     }

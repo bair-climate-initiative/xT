@@ -8,8 +8,8 @@ from inference.postprocessing import process_confidence
 from inference.run_inference import predict_scene_and_return_mm
 from metrics import xview_metric
 from metrics.xview_metric import create_metric_arg_parser
-from training.config import load_config
 from training.datasets import XviewValDataset
+from training.old_config import load_config
 
 val_dir = "pred_1024"
 csv_paths = glob.glob(os.path.join(val_dir, "*.csv"))

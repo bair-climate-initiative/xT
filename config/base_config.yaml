@@ -4,22 +4,28 @@
 defaults:
   - _self_
   - data: xview3
-  - model: TimmUnet
-    - backbone: revswinv2_tiny
+  - model: unet
+  - model/backbone: revswinv2_tiny
   - optimizer: sgd
-  - train: lr1e-3
-  - losses: all_losses
+  - train: train
+  - losses/vessel
+  - losses/fishing
+  - losses/center
+  - losses/length
 
 distributed: True
 fsdp: False
 fp16: True
 log_dir: logs
+output_dir: outputs/
 name: ''
+test: False
 test_reset: False
+val: False
+freeze_bn: False
 data:
   dataset: xview3
   dir: ''
-  shoreline_dir: ''
   fold: 0
   folds_csv: ''
   multiplier: 64
@@ -28,6 +34,7 @@ data:
   crop_size: 1024
   val_crop_size: 1024
   overlap: 10 
+  positive_ratio: 0.85
 model: 
   name: TimmUnet
   backbone:
@@ -44,44 +51,45 @@ model:
     enabled: False
 optimizer:
   name: sgd 
-  momentum: 0.9
-  nesterov: True
-  scheduler: 
-    name: cosine
-    mode: step
-train:
-  epochs: 120
-  batch_size: 6
   base_lr: 1e-3
   min_lr_ratio: 0.01
   classifier_ratio: 1.0
   warmup_epochs: 0
   weight_decay: 1e-4
+  momentum: 0.9
+  nesterov: True
+  scheduler: cosine
+  mode: step
+train:
+  epochs: 120
+  batch_size: 6
   val_batch_size: 2
   freeze_epochs: 0
-  positive_ratio: 0.85
-losses:
-  - name: mask_vessel
-    loss: 
-      _target_: training.losses.ComboLossCalculator
-      field: vessel_mask 
-      weights: {"bce": 1, "focal": 3, "dice": 1}
-    weight: 1.0 
-    display: True
-  - name: mask_fishing 
-    loss: 
-      _target_: training.losses.ComboLossCalculator
-      field: fishing_mask
-      weights: {"bce": 1, "focal": 3, "dice": 1}
-    weight: 2.0 
-    display: True
-  - name: center 
-    loss: 
-      _target_: training.losses.CenterLossCalculator
-    weight: 3e-7
-    display: True
-  - name: length
-    loss: 
-      _target_: training.losses.LengthLoss
-    weight: 2.0
-    display: True
+hydra:
+  job:
+    chdir: False
+# losses:
+#   - name: mask_vessel
+#     loss: 
+#       _target_: training.losses.ComboLossCalculator
+#       field: vessel_mask 
+#       weights: {"bce": 1, "focal": 3, "dice": 1}
+#     weight: 1.0 
+#     display: True
+#   - name: mask_fishing 
+#     loss: 
+#       _target_: training.losses.ComboLossCalculator
+#       field: fishing_mask
+#       weights: {"bce": 1, "focal": 3, "dice": 1}
+#     weight: 2.0 
+#     display: True
+#   - name: center 
+#     loss: 
+#       _target_: training.losses.CenterLossCalculator
+#     weight: 3e-7
+#     display: True
+#   - name: length
+#     loss: 
+#       _target_: training.losses.LengthLoss
+#     weight: 2.0
+#     display: True
