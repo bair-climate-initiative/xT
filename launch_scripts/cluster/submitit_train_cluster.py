@@ -12,7 +12,6 @@ import os
 import sys
 import uuid
 from pathlib import Path
-import sys
 
 sys.path.append("/p/home/ritwik/dev/xview3-detection")
 
@@ -33,7 +32,10 @@ def parse_args():
         "--timeout", default=10080, type=int, help="Duration of the job (min)"
     )
     parser.add_argument(
-        "--job_dir", default="", type=str, help="Job dir. Leave empty for automatic."
+        "--job_dir",
+        default="",
+        type=str,
+        help="Job dir. Leave empty for automatic.",
     )
 
     parser.add_argument(
@@ -56,7 +58,10 @@ def parse_args():
         "--account", default="", type=str, help="The Account string to use"
     )
     parser.add_argument(
-        "--constraint", default="mla", type=str, help="Which Nautilus constraint to use"
+        "--constraint",
+        default="mla",
+        type=str,
+        help="Which Nautilus constraint to use",
     )
     return parser.parse_args()
 

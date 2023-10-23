@@ -29,7 +29,7 @@ You can also override individual values in the command line, e.g.
 torchrun --nproc_per_node=8 --master_port 47769 train_val_segmentor.py data=xview3_cluster data.dir=/shared/ritwik/data/xview3
 ```
 
-Notice the defaults are overriden by the configs in ```base_config.yaml```. The list of settings there is for your convenience to see at a glance what options are being provided in one place. 
+Notice the defaults are overriden by the configs in ```base_config.yaml```. The list of settings there is for your convenience to see at a glance what options are being provided in one place. If it is easier for you, you can also just inherit ```base_config.yaml``` and provide all of your changes in one place. 
 
 ## Old Instructions
 ### Single Training Runs on Xview Dataset

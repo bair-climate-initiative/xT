@@ -11,12 +11,6 @@ import torch
 import torch.distributed
 import torch.distributed as dist
 import torch.nn as nn
-
-import wandb
-
-import logging
-import time
-
 import yaml
 from einops import rearrange
 from fvcore.nn import FlopCountAnalysis
@@ -29,6 +23,7 @@ from torch.nn.parallel.distributed import DistributedDataParallel
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
+import wandb
 from models import build_model
 
 # from train_val_segmentor import XviewConfig
@@ -128,7 +123,7 @@ class PytorchTrainer:
         # self._profile_model((1, 2, self.conf["crop_size"], self.conf["crop_size"]))
 
     def validate(self, test_loader=None):
-        if is_dist_avail_and_initialized(): 
+        if is_dist_avail_and_initialized():
             dist.barrier()
         self.model.eval()
         metrics = self.evaluator.validate(
@@ -263,7 +258,8 @@ class PytorchTrainer:
                 indices = indices.flatten(1).argsort(-1)
                 indices = indices[:, : self.context_patch_len]
                 context_patches = torch.stack(
-                    [rearranged_image[i][:, v] for i, v in enumerate(indices)], dim=0
+                    [rearranged_image[i][:, v] for i, v in enumerate(indices)],
+                    dim=0,
                 )  # N C L 16 16
                 H_i = indices // (W * PH * PW)
                 W_i = (indices // (PH * PW)) % W
@@ -358,7 +354,9 @@ class PytorchTrainer:
                 with torch.autograd.detect_anomaly():
                     if extra_context and sample["mem_only"]:
                         with torch.no_grad():
-                            output, mem = self.model(imgs, context=context, mem=mem)
+                            output, mem = self.model(
+                                imgs, context=context, mem=mem
+                            )
                         continue
                     elif extra_context:
                         output, mem = self.model(imgs, context=context, mem=mem)
