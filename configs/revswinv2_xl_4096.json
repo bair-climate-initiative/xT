@@ -4,7 +4,7 @@
     "encoder": "revswinv2_tiny_window16_256_xview",
     "in_chans": 2,
     "drop_path_rate": 0.2,
-    "pretrained": "ckpts/swinv2_tiny_window16_256.pth",
+    "pretrained": "/p/home/ritwik/pretrained_weights/swinv2_tiny_window16_256.pth",
     "channels_last": true,
     "context_mode": "transformer_xl",
     "transformer_xl": {
