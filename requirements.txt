@@ -22,3 +22,5 @@ tensorboardX
 madgrad
 warmup_scheduler
 hydra-core
+wandb-osh
+submitit

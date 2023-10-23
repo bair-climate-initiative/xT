@@ -15,7 +15,8 @@ conda activate scale
 
 # CUDA_LAUNCH_BLOCKING=1 \
 # TORCH_DISTRIBUTED_DEBUG=DETAIL \
-# WANDB_MODE=disabled \
+NUMEXPR_MAX_THREADS=128 \
+WANDB_MODE=offline \
 python submitit_train_cluster.py \
     --job_dir $HOME/logs/$EXP_NAME \
     --constraint viz \
@@ -33,7 +34,7 @@ python submitit_train_cluster.py \
     --name $EXP_NAME \
     --config $PROJECT_DIR/configs/revswinv2_xl_4096.json \
     --crop_size 4096 \
-    --bs 1 \
+    --bs 4 \
     --lr 0.003 \
     --wd 1e-4 \
     --test_every 1 \

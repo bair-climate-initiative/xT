@@ -11,6 +11,12 @@ import torch
 import torch.distributed
 import torch.distributed as dist
 import torch.nn as nn
+
+import wandb
+
+import logging
+import time
+
 import yaml
 from einops import rearrange
 from fvcore.nn import FlopCountAnalysis
@@ -23,7 +29,6 @@ from torch.nn.parallel.distributed import DistributedDataParallel
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
-import wandb
 from models import build_model
 
 # from train_val_segmentor import XviewConfig
@@ -43,6 +48,10 @@ from .utils import (
 )
 
 logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO").upper())
+
+WANDB_OFFLINE = False
+if os.environ.get("WANDB_MODE", None) == "offline":
+    WANDB_OFFLINE = True
 
 
 class PytorchTrainer:
@@ -83,6 +92,11 @@ class PytorchTrainer:
             self.config.train.epochs,
         )
         if is_main_process():
+            if WANDB_OFFLINE:
+                from wandb_osh.hooks import TriggerWandbSyncHook
+
+                self.trigger_sync = TriggerWandbSyncHook()
+
             wandb_args = dict(
                 project="xview3 detection unet",
                 entity="bair-climate-initiative",
@@ -114,7 +128,7 @@ class PytorchTrainer:
         # self._profile_model((1, 2, self.conf["crop_size"], self.conf["crop_size"]))
 
     def validate(self, test_loader=None):
-        if self.config.distributed:
+        if is_dist_avail_and_initialized(): 
             dist.barrier()
         self.model.eval()
         metrics = self.evaluator.validate(
@@ -124,9 +138,12 @@ class PytorchTrainer:
             local_rank=get_rank(),
             snapshot_name=self.snapshot_name,
         )
-        print(metrics)
+        if is_main_process():
+            print(metrics)
         if is_main_process() and wandb.run is not None:
             wandb.log(metrics)
+            if WANDB_OFFLINE:
+                self.trigger_sync()
 
     def fit(self):
         for epoch in range(self.current_epoch, self.config.train.epochs):
@@ -155,6 +172,7 @@ class PytorchTrainer:
                 if is_main_process() and wandb.run is not None:
                     metrics["epoch"] = epoch
                     wandb.log(metrics)
+                    self.trigger_sync()
                 improved_metrics = None
                 if is_main_process():
                     improved_metrics = self.evaluator.get_improved_metrics(
@@ -245,8 +263,7 @@ class PytorchTrainer:
                 indices = indices.flatten(1).argsort(-1)
                 indices = indices[:, : self.context_patch_len]
                 context_patches = torch.stack(
-                    [rearranged_image[i][:, v] for i, v in enumerate(indices)],
-                    dim=0,
+                    [rearranged_image[i][:, v] for i, v in enumerate(indices)], dim=0
                 )  # N C L 16 16
                 H_i = indices // (W * PH * PW)
                 W_i = (indices // (PH * PW)) % W
@@ -341,9 +358,7 @@ class PytorchTrainer:
                 with torch.autograd.detect_anomaly():
                     if extra_context and sample["mem_only"]:
                         with torch.no_grad():
-                            output, mem = self.model(
-                                imgs, context=context, mem=mem
-                            )
+                            output, mem = self.model(imgs, context=context, mem=mem)
                         continue
                     elif extra_context:
                         output, mem = self.model(imgs, context=context, mem=mem)
@@ -386,6 +401,8 @@ class PytorchTrainer:
                 }
                 payload.update(dict(lr=float(self.scheduler.get_lr()[-1])))
                 wandb.log(payload)
+                if WANDB_OFFLINE:
+                    self.trigger_sync()
 
             # Run backward pass
             # end = time.time()
@@ -568,7 +585,8 @@ class PytorchTrainer:
         if not checkpoint_path:
             return
         if os.path.isfile(checkpoint_path):
-            print("=> loading checkpoint '{}'".format(checkpoint_path))
+            if is_main_process():
+                print("=> loading checkpoint '{}'".format(checkpoint_path))
             checkpoint = torch.load(checkpoint_path, map_location="cpu")
             if "state_dict" in checkpoint:
                 state_dict = checkpoint["state_dict"]
@@ -599,15 +617,17 @@ class PytorchTrainer:
                 #         self.current_metrics = checkpoint.get(
                 #             "metrics", self.evaluator.init_metrics()
                 #         )
-                print(
-                    "=> loaded checkpoint '{}' (epoch {})".format(
-                        checkpoint_path, checkpoint["epoch"]
+                if is_main_process():
+                    print(
+                        "=> loaded checkpoint '{}' (epoch {})".format(
+                            checkpoint_path, checkpoint["epoch"]
+                        )
                     )
-                )
             else:
                 model.load_state_dict(checkpoint)
         else:
-            print("=> no checkpoint found at '{}'".format(checkpoint_path))
+            if is_main_process():
+                print("=> no checkpoint found at '{}'".format(checkpoint_path))
         # if self.config.from_zero:
         #     self.current_metrics = self.evaluator.init_metrics()
         #     self.current_epoch = 0

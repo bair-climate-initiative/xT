@@ -26,7 +26,7 @@ freeze_bn: False
 data:
   dataset: xview3
   dir: ''
-  fold: 0
+  fold: 77 
   folds_csv: ''
   multiplier: 64
   num_workers: 8
