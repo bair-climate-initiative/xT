@@ -109,7 +109,6 @@ def predict_scene_and_return_mm(
 
     for batch, slice_vals in tqdm(slice_loader, position=position):
         slice = TileSlice(*slice_vals[0])
-        print("----------------FSDP:LOCK INFERENCE------------")
         with torch.no_grad():
             batch = batch
             with torch.cuda.amp.autocast(enabled=False):
@@ -118,9 +117,7 @@ def predict_scene_and_return_mm(
                     if extra_context:
                         output = model_foward(batch)
                     else:
-                        print("Pre Inf")
                         output = model(batch)
-                        print("Post Inf")
                     sigmoid_keys = ["fishing_mask", "vessel_mask"]
                 # perform sigmoid  not in amp
             for k in sigmoid_keys:

@@ -23,6 +23,11 @@ class TrainConfig:
     """Number of epochs to freeze encoder for."""
     freeze_bn: bool = False
     """Whether to freeze batch norm layers."""
+    test_every: int = 1
+    """Run test every n epochs."""
+    test_reset: bool = True
+    """Removes existing test csv before testing."""
+
 
 
 @dataclass

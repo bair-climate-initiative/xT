@@ -37,9 +37,6 @@ class Evaluator(ABC):
         self,
         dataloader: DataLoader,
         model: torch.nn.Module,
-        distributed: bool = False,
-        local_rank: int = 0,
-        snapshot_name: str = "",
     ) -> Dict:
         pass
 
@@ -159,7 +156,8 @@ class XviewEvaluator(Evaluator):
         dataloader: DataLoader,
         model: torch.nn.Module,
     ) -> Dict:
-        print("HH")
+        if is_main_process():
+            print("HH")
         conf_name = os.path.splitext(os.path.basename(self.config.name))[0]
         val_dir = os.path.join(
             self.config.output_dir, conf_name, str(self.config.data.fold)
@@ -167,7 +165,7 @@ class XviewEvaluator(Evaluator):
         os.makedirs(val_dir, exist_ok=True)
         dataset_dir = os.path.join(self.config.data.dir, self.dataset_dir)
         extra_context = False
-        if is_main_process() and self.config.test_reset:
+        if is_main_process() and self.config.train.test_reset:
             csv_paths = glob.glob(os.path.join(val_dir, "*.csv"))
             for csv_file in csv_paths:
                 os.remove(csv_file)
@@ -221,7 +219,7 @@ class XviewEvaluator(Evaluator):
         output = {}
         if is_main_process():
             csv_paths = glob.glob(os.path.join(val_dir, "*.csv"))
-            pred_csv = f"pred_{conf_name}_{self.config.fold}.csv"
+            pred_csv = f"pred_{conf_name}_{self.config.data.fold}.csv"
             print(csv_paths)
             pd.concat(
                 [pd.read_csv(csv_path).reset_index() for csv_path in csv_paths]

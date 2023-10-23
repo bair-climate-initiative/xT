@@ -30,12 +30,7 @@ from timm.layers import (  # manually add patchembed
     to_2tuple,
     trunc_normal_,
 )
-from timm.models.helpers import build_model_with_cfg, load_pretrained
 from torch.autograd import Function as Function
-
-__all__ = [
-    "SwinTransformerV2"
-]  # model_registry will add each entrypoint fn to this
 
 _int_or_tuple_2_t = Union[int, Tuple[int, int]]
 

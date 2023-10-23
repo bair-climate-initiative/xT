@@ -18,6 +18,7 @@ os.environ["MKL_NUM_THREADS"] = "1"
 os.environ["NUMEXPR_NUM_THREADS"] = "1"
 os.environ["OMP_NUM_THREADS"] = "1"
 
+os.environ["LOGLEVEL"] = "WARNING"
 logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO").upper())
 torch.utils.data._utils.MP_STATUS_CHECK_INTERVAL = 120
 

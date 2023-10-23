@@ -9,7 +9,7 @@ from torch.optim.lr_scheduler import CosineAnnealingLR, CyclicLR, MultiStepLR
 from warmup_scheduler import GradualWarmupScheduler
 
 from .schedulers import ExponentialLRScheduler, LRStepScheduler, PolyLR
-from .utils import get_world_size
+from .utils import get_world_size, is_main_process
 
 
 @dataclass
@@ -144,11 +144,13 @@ def create_optimizer(
 
         params.extend(make_params(classifier_params, classifier_lr))
         params.extend(make_params(net_params))
-        print("param_groups", len(params))
+        if is_main_process():
+            print("param_groups", len(params))
     else:
         param_optimizer = list(model.named_parameters())
         params = make_params(param_optimizer)
-        print("param_groups", len(params))
+        if is_main_process():
+            print("param_groups", len(params))
     optimizer_name = str.lower(config.name)
     if optimizer_name == "sgd":
         optimizer = optim.SGD(
@@ -182,7 +184,8 @@ def create_optimizer(
         scheduler = LRStepScheduler(optimizer, eta_min=eta_min)
     elif scheduler_name == "cosine":
         tmax = int(epochs * num_samples / (num_gpus * batch_size))
-        print(f"Cosine decay with T_max:{tmax} eta_min:{eta_min}")
+        if is_main_process():
+            print(f"Cosine decay with T_max:{tmax} eta_min:{eta_min}")
         scheduler = CosineAnnealingLR(optimizer, T_max=tmax, eta_min=eta_min)
     # elif scheduler_name == "clr":
     #     scheduler = CyclicLR(

@@ -3,3 +3,5 @@ batch_size: 6
 val_batch_size: 2
 freeze_epochs: 0
 freeze_bn: False
+test_every: 1
+test_reset: True
