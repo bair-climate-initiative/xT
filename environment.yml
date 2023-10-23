@@ -12,3 +12,5 @@ dependencies:
   - rasterio==1.2.10
   - gdal
   - shapely
+  - openslide==3.4.1
+  - openslide-python==1.3.1
