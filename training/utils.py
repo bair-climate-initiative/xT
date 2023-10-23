@@ -7,7 +7,6 @@ import cv2
 import numpy as np
 import torch
 import torch.distributed as dist
-import wandb
 from einops import rearrange
 from madgrad import MADGRAD
 from matplotlib import pyplot as plt
@@ -21,6 +20,7 @@ from torch.optim.rmsprop import RMSprop
 from torch.utils.data import Subset
 from warmup_scheduler import GradualWarmupScheduler
 
+import wandb
 from training.schedulers import ExponentialLRScheduler, LRStepScheduler, PolyLR
 
 cv2.ocl.setUseOpenCL(False)

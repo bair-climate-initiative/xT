@@ -1,6 +1,7 @@
 import pandas as pd
-import wandb
 from tqdm.cli import tqdm
+
+import wandb
 
 api = wandb.Api(api_key="553070c5ef0d454bcb1e91afaabf2359ef69f4a0")
 # wandb_args = dict(

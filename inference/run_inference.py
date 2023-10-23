@@ -95,7 +95,7 @@ def predict_scene_and_return_mm(
                 local_output, mem = model(batch_new, context=context, mem=mem)
                 if mem_only:
                     continue
-                context_id = k["context_id"]
+                # context_id = k["context_id"]
                 if output is None:
                     output = {
                         k: torch.zeros(

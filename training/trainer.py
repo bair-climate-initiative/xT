@@ -11,7 +11,6 @@ import torch
 import torch.distributed
 import torch.distributed as dist
 import torch.nn as nn
-import wandb
 import yaml
 from einops import rearrange
 from fvcore.nn import FlopCountAnalysis
@@ -24,6 +23,7 @@ from torch.nn.parallel.distributed import DistributedDataParallel
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
+import wandb
 from models import build_model
 
 # from train_val_segmentor import XviewConfig
@@ -192,7 +192,7 @@ class PytorchTrainer:
     def _get_current_payload(self):
         payload = {
             "epoch": self.current_epoch,
-            "state_dict": self.model.state_dict(), # ? need .cpu()?
+            "state_dict": self.model.state_dict(),  # ? need .cpu()?
             "metrics": self.current_metrics,
         }
 
@@ -320,9 +320,7 @@ class PytorchTrainer:
         # Sliced Images with context_id
         # todo: make configurable
         if is_main_process():
-            iterator = tqdm(
-                iterator, total=iter_scale * len(train_loader)
-            )
+            iterator = tqdm(iterator, total=iter_scale * len(train_loader))
         # Broken, temporaily disable time logging
         for i, sample in enumerate(iterator):
             # if i > 2:
@@ -382,11 +380,7 @@ class PytorchTrainer:
             if math.isnan(total_loss.item()) or math.isinf(total_loss.item()):
                 raise ValueError("NaN loss !!")
             avg_metrics = {k: f"{v.avg:.4f}" for k, v in avg_meters.items()}
-            if (
-                is_main_process()
-                and wandb.run is not None
-                and i % 50 == 0
-            ):
+            if is_main_process() and wandb.run is not None and i % 50 == 0:
                 payload = {
                     k: float(f"{v.avg:.4f}") for k, v in avg_meters.items()
                 }
@@ -416,8 +410,7 @@ class PytorchTrainer:
                 dist.barrier()
             if self.config.optimizer.mode in ("step", "poly"):
                 self.scheduler.step(
-                    int(i / iter_scale)
-                    + self.current_epoch * len(train_loader)
+                    int(i / iter_scale) + self.current_epoch * len(train_loader)
                 )
             if is_main_process():
                 iterator.set_postfix(
@@ -495,9 +488,11 @@ class PytorchTrainer:
 
     @property
     def snapshot_name(self):
-        return f"{self.config.model.name}_" \
-               f"{self.config.model.backbone.name}_" \
-               f"{self.config.data.fold}"
+        return (
+            f"{self.config.model.name}_"
+            f"{self.config.model.backbone.name}_"
+            f"{self.config.data.fold}"
+        )
 
     def _freeze(self):
         if hasattr(self.model.module, "encoder"):

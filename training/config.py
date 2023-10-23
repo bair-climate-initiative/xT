@@ -29,7 +29,6 @@ class TrainConfig:
     """Removes existing test csv before testing."""
 
 
-
 @dataclass
 class XviewConfig:
     data: DataConfig = field(default_factory=DataConfig)
