@@ -13,6 +13,7 @@ from rasterio.windows import Window
 from torch.utils.data import Dataset
 
 import openslide
+import tifffile
 
 def slide_fname_to_patient_barcode(slide_name):
     """
@@ -84,16 +85,13 @@ class TCGADataset(Dataset):
         label = self.labels[barcode]
 
         slide = openslide.OpenSlide(fname)
+        image = tifffile.imread(fname)
         try:
             x_res_mpp = slide.properties['openslide.mpp-x']
             y_res_mpp = slide.properties['openslide.mpp-y']
         except KeyError:
             x_res_mpp = None
             y_res_mpp = None
-
-        image = slide.read_region(location=(0, 0), level=0, size=slide.dimensions)
-        #image = image.convert('RGB')
-        image = np.array(image)
 
         return {
             "image": image,
