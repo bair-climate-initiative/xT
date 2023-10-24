@@ -2,6 +2,7 @@
 
 # Specify default config order (least to highest)
 defaults:
+  - _self_
   - data: xview3
   - model: unet
   - model/backbone: revswinv2_tiny
@@ -11,28 +12,62 @@ defaults:
   - losses/fishing
   - losses/center
   - losses/length
-  - _self_
-  - override hydra/launcher: submitit_slurm
 
 distributed: True
 fsdp: False
 fp16: True
 log_dir: logs
-output_dir: outputs
+output_dir: outputs/
 name: 'base_run'
 test: False
+test_reset: False
+val: False
+freeze_bn: False
+data:
+  dataset: xview3
+  dir: ''
+  fold: 77 
+  folds_csv: ''
+  multiplier: 64
+  num_workers: 8
+  test: False
+  crop_size: 1024
+  val_crop_size: 1024
+  overlap: 10 
+  positive_ratio: 0.85
+model: 
+  name: TimmUnet
+  backbone:
+    _target_: models.backbones.revswinv2_tiny_window16_256_xview
+    name: revswinv2_tiny
+    in_chans: 2
+    drop_path_rate: 0.2
+    pretrained: False
+    channel_last: True
+    img_size: 256
+  resume: ''
+  tiling: 'naive'
+  xl_context:
+    enabled: False
+optimizer:
+  name: sgd 
+  base_lr: 1e-3
+  min_lr_ratio: 0.01
+  classifier_ratio: 1.0
+  warmup_epochs: 0
+  weight_decay: 1e-4
+  momentum: 0.9
+  nesterov: True
+  scheduler: cosine
+  mode: step
+train:
+  epochs: 120
+  batch_size: 6
+  val_batch_size: 2
+  freeze_epochs: 0
+  test_every: 1
+  test_reset: True
 hydra:
-  run: 
-    dir: ${log_dir}
-  sweep:
-    dir: ${hydra.run.dir}
-    subdir: ${hydra.job.num}
-  launcher:
-    submitit_folder: ${hydra.sweep.dir}/.submitit/%j 
-    name: ${name}
-    gpus_per_node: 2
-    cpus_per_task: 4
-    tasks_per_node: ${hydra.launcher.gpus_per_node} 
   job:
     chdir: False
     name: ${name}

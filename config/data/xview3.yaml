@@ -9,3 +9,4 @@ test: False
 crop_size: 512
 val_crop_size: 512
 overlap: 10 
+positive_ratio: 0.85

@@ -167,7 +167,8 @@ class PytorchTrainer:
                 if is_main_process() and wandb.run is not None:
                     metrics["epoch"] = epoch
                     wandb.log(metrics)
-                    self.trigger_sync()
+                    if WANDB_OFFLINE:
+                        self.trigger_sync()
                 improved_metrics = None
                 if is_main_process():
                     improved_metrics = self.evaluator.get_improved_metrics(
