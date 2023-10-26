@@ -11,7 +11,7 @@ import pandas as pd
 import rasterio
 import tifffile
 import torch
-from hydra.core.config_store import ConfigStore
+# from hydra.core.config_store import ConfigStore
 from rasterio.windows import Window
 from torch.utils.data import Dataset
 
@@ -63,10 +63,18 @@ class DataConfig:
     """Overlap of the crops for validation."""
     positive_ratio: float = 0.85
     """Ratio of positive samples in a batch."""
+    fold: int = 77
+    """Fold number."""
+    folds_csv: str = "meta/folds.csv"
+    """Path to csv for folds."""
+    shoreline_dir: str = "/home/group/xview3/shoreline/validation"
+    """Shoreline validation path."""
+    multiplier: int = 64 
+    """Number of times to increase dataset by."""
 
 
-cs = ConfigStore.instance()
-cs.store(name="config", group="data", node=DataConfig)
+# cs = ConfigStore.instance()
+# cs.store(name="config", group="data", node=DataConfig)
 
 
 def normalize_band(band, ignored_mask=0):

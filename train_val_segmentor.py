@@ -2,7 +2,7 @@ import logging
 import os
 import warnings
 
-import hydra
+# import hydra
 import torch
 import torch.distributed
 from omegaconf import OmegaConf
@@ -25,7 +25,7 @@ torch.utils.data._utils.MP_STATUS_CHECK_INTERVAL = 120
 warnings.filterwarnings("ignore")
 
 
-@hydra.main(config_path="config", config_name="base_config")
+# @hydra.main(config_path="config", config_name="base_config")
 def main(cfg: XviewConfig) -> None:
     print(OmegaConf.to_yaml(cfg))
 
@@ -65,4 +65,10 @@ def main(cfg: XviewConfig) -> None:
 
 
 if __name__ == "__main__":
-    main()
+    args = OmegaConf.from_cli() # first grab from cli to determine config
+    schema = OmegaConf.structured(XviewConfig)
+    config_path = args.config
+    print(OmegaConf.to_yaml(schema))
+    print(OmegaConf.to_yaml(OmegaConf.load(config_path)))
+    config = OmegaConf.merge(schema, OmegaConf.load(config_path))
+    main(config)

@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 
-from hydra.core.config_store import ConfigStore
+# from hydra.core.config_store import ConfigStore
 
 # from training.trainer import TrainConfig
 from models import ModelConfig
@@ -54,6 +54,6 @@ class XviewConfig:
     """Run name."""
 
 
-cs = ConfigStore.instance()
-cs.store(name="config", node=XviewConfig)
-cs.store(name="config", group="train", node=TrainConfig)
+# cs = ConfigStore.instance()
+# cs.store(name="config", node=XviewConfig)
+# cs.store(name="config", group="train", node=TrainConfig)

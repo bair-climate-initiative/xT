@@ -1,63 +1,85 @@
-# @package _global_
-
-# Specify default config order (least to highest)
-defaults:
-  - data: xview3
-  - model: unet
-  - model/backbone: revswinv2_tiny
-  - optimizer: sgd
-  - train: train
-  - losses/vessel
-  - losses/fishing
-  - losses/center
-  - losses/length
-  - _self_
-  - override hydra/launcher: submitit_slurm
-
 distributed: True
 fsdp: False
 fp16: True
 log_dir: logs
-output_dir: outputs
+output_dir: outputs/
 name: 'base_run'
 test: False
-hydra:
-  run: 
-    dir: ${log_dir}
-  sweep:
-    dir: ${hydra.run.dir}
-    subdir: ${hydra.job.num}
-  launcher:
-    submitit_folder: ${hydra.sweep.dir}/.submitit/%j 
-    name: ${name}
-    gpus_per_node: 2
-    cpus_per_task: 4
-    tasks_per_node: ${hydra.launcher.gpus_per_node} 
-  job:
-    chdir: False
-    name: ${name}
-# losses:
-#   - name: mask_vessel
-#     loss: 
-#       _target_: training.losses.ComboLossCalculator
-#       field: vessel_mask 
-#       weights: {"bce": 1, "focal": 3, "dice": 1}
-#     weight: 1.0 
-#     display: True
-#   - name: mask_fishing 
-#     loss: 
-#       _target_: training.losses.ComboLossCalculator
-#       field: fishing_mask
-#       weights: {"bce": 1, "focal": 3, "dice": 1}
-#     weight: 2.0 
-#     display: True
-#   - name: center 
-#     loss: 
-#       _target_: training.losses.CenterLossCalculator
-#     weight: 3e-7
-#     display: True
-#   - name: length
-#     loss: 
-#       _target_: training.losses.LengthLoss
-#     weight: 2.0
-#     display: True
+val: False
+data:
+  dataset: xview3
+  dir: /home/group/xview3 
+  shoreline_dir: /home/group/xview3/shoreline/validation
+  fold: 77 
+  folds_csv: meta/folds.csv
+  multiplier: 64
+  num_workers: 8
+  test: False
+  crop_size: 512
+  val_crop_size: 512
+  overlap: 10 
+  positive_ratio: 0.85
+model: 
+  name: TimmUnet
+  backbone_class: revswinv2_tiny_window16_256_xview
+  backbone:
+    in_chans: 3
+    input_dim: 2
+    drop_path_rate: 0.2
+    pretrained: ckpts/swinv2_tiny_window16_256.pth
+    channel_last: True
+    img_size: 512
+  resume: ''
+  tiling: 'naive'
+  xl_context:
+    enabled: False
+optimizer:
+  name: sgd 
+  base_lr: 1e-3
+  min_lr_ratio: 0.01
+  classifier_ratio: 1.0
+  warmup_epochs: 0
+  weight_decay: 1e-4
+  momentum: 0.9
+  nesterov: True
+  scheduler: cosine
+  mode: step
+train:
+  epochs: 120
+  batch_size: 6
+  val_batch_size: 2
+  freeze_epochs: 0
+  test_every: 1
+  test_reset: True
+losses:
+  losses:
+    - name: mask_vessel
+      type: Combo
+      params: 
+        field: vessel_mask 
+        weights: 
+          bce: 1
+          focal: 3
+          dice: 1
+      weight: 1.0 
+      display: True
+    - name: mask_fishing 
+      type: Combo
+      params: 
+        field: fishing_mask
+        weights: 
+          bce: 1
+          focal: 3
+          dice: 1
+      weight: 2.0 
+      display: True
+    - name: center 
+      type: Center
+      params: 
+      weight: 3e-7
+      display: True
+    - name: length
+      type: Length
+      params: 
+      weight: 2.0
+      display: True

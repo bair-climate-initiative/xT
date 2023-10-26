@@ -506,7 +506,7 @@ class PytorchTrainer:
     def snapshot_name(self):
         return (
             f"{self.config.model.name}_"
-            f"{self.config.model.backbone.name}_"
+            f"{self.config.model.backbone_class}_"
             f"{self.config.data.fold}"
         )
 
@@ -526,7 +526,7 @@ class PytorchTrainer:
             encoder.train()
             for p in encoder.parameters():
                 p.requires_grad = True
-        if self.config.freeze_bn:
+        if self.config.train.freeze_bn:
             for m in self.model.modules():
                 if isinstance(m, _BatchNorm):
                     m.eval()

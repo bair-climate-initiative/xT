@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Literal, Tuple
 
-from hydra.core.config_store import ConfigStore
+# from hydra.core.config_store import ConfigStore
 from timm.optim import AdamW
 from torch import nn, optim
 from torch.optim.adamw import AdamW
@@ -34,45 +34,46 @@ class OptimizerConfig:
     """Learning rate scheduler."""
     mode: str = "step"
     """Scheduler mode: [epoch, step, poly]."""
-
-
-@dataclass
-class SGDConfig(OptimizerConfig):
-    """SGD Configuration: momentum, nesterov."""
-
     momentum: float = 0.9
     """SGD Momentum"""
     nesterov: bool = True
     """SGD Nesterov momentum"""
 
+# @dataclass
+# class SGDConfig(OptimizerConfig):
+#     """SGD Configuration: momentum, nesterov."""
 
-@dataclass
-class AdamConfig(OptimizerConfig):
-    """Adam Configuration: eps, beta."""
-
-    eps: float = 1e-8
-    """Adam epsilon."""
-    betas: Tuple[float, float] = (0.9, 0.999)
-    """Adam betas"""
-
-
-@dataclass
-class AdamWConfig(OptimizerConfig):
-    """AdamW Configuration: eps, beta."""
-
-    _target_: str = "optim.AdamW"
-    """Class Name for instantiation"""
-    eps: float = 1e-8
-    """Adam epsilon."""
-    beta: Tuple[float, float] = (0.9, 0.999)
-    """Adam betas"""
+#     momentum: float = 0.9
+#     """SGD Momentum"""
+#     nesterov: bool = True
+#     """SGD Nesterov momentum"""
 
 
-cs = ConfigStore.instance()
-cs.store(group="optimizer", name="optimizer", node=OptimizerConfig)
-cs.store(group="optimizer", name="sgd", node=SGDConfig)
-cs.store(group="optimizer", name="adam", node=AdamConfig)
-cs.store(group="optimizer", name="adamw", node=AdamWConfig)
+# @dataclass
+# class AdamConfig(OptimizerConfig):
+#     """Adam Configuration: eps, beta."""
+
+#     eps: float = 1e-8
+#     """Adam epsilon."""
+#     betas: Tuple[float, float] = (0.9, 0.999)
+#     """Adam betas"""
+
+
+# @dataclass
+# class AdamWConfig(OptimizerConfig):
+#     """AdamW Configuration: eps, beta."""
+
+#     eps: float = 1e-8
+#     """AdamW epsilon."""
+#     betas: Tuple[float, float] = (0.9, 0.999)
+#     """AdamW betas"""
+
+
+# cs = ConfigStore.instance()
+# cs.store(group="optimizer", name="optimizer", node=OptimizerConfig)
+# cs.store(group="optimizer", name="sgd", node=SGDConfig)
+# cs.store(group="optimizer", name="adam", node=AdamConfig)
+# cs.store(group="optimizer", name="adamw", node=AdamWConfig)
 
 
 def create_optimizer(
@@ -159,7 +160,7 @@ def create_optimizer(
             momentum=config.momentum,
             nesterov=config.nesterov,
         )
-    elif optimizer_name == "Adam":
+    elif optimizer_name == "adam":
         optimizer = optim.Adam(
             params,
             lr=config.lr,
@@ -167,7 +168,7 @@ def create_optimizer(
             eps=config.eps,
             weight_decay=config.weight_decay,
         )
-    elif optimizer_name == "AdamW":
+    elif optimizer_name == "adamw":
         optimizer = AdamW(
             params,
             lr=config.lr,

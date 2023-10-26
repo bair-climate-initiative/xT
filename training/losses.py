@@ -1,10 +1,11 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import List
+from typing import List, Dict, Any, Optional
+from omegaconf import MISSING
 
 import torch
 import torch.nn.functional as F
-from hydra.utils import instantiate
+# from hydra.utils import instantiate
 from torch import nn, topk
 from torch.nn import BCEWithLogitsLoss, MSELoss, NLLLoss2d
 
@@ -32,9 +33,11 @@ class LossFunction:
 
 @dataclass
 class SingleLossConfig:
+    params: Optional[Dict[Any, Any]]
+    """Optional parameters."""
     name: str = "mask_vessel"
     """Shorthand name of the loss function"""
-    loss: LossCalculator = LossCalculator
+    type: str = "Combo"
     """Class of the loss function to directly instantiate"""
     weight: float = 1.0
     """Weight of the loss function in the total loss"""
@@ -44,16 +47,26 @@ class SingleLossConfig:
 
 @dataclass
 class LossConfig:
-    losses: List[SingleLossConfig] = field(default_factory=list)
+    losses: Optional[Any] = MISSING #List[Any] = field(default_factory=list)
     """List of losses to be used in the training"""
 
 
 def build_losses(config: LossConfig) -> List[LossFunction]:
     losses = []
-    for k, single_loss in config.items():
+    for single_loss in config.losses:
+        loss_type = str.lower(single_loss.type)
+        if loss_type == "combo":
+            loss_func = ComboLossCalculator(**single_loss.params)
+        elif loss_type == "center":
+            loss_func = CenterLossCalculator()
+        elif loss_type == "length":
+            loss_func = LengthLoss()
+        else:
+            raise ValueError(f"Unknown loss type {loss_type}")
+
         losses.append(
             LossFunction(
-                instantiate(single_loss.loss),
+                loss_func,
                 single_loss.name,
                 single_loss.weight,
                 single_loss.display,

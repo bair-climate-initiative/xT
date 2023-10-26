@@ -9,29 +9,12 @@ DATA_DIR=/home/group/xview3
 # CUDA_LAUNCH_BLOCKING=1 \
 # TORCH_DISTRIBUTED_DEBUG=DETAIL \
 # WANDB_MODE=disabled \
-python submitit_train.py \
-    --job_dir $HOME/logs/$EXP_NAME \
-    --ngpus 10 \
+python submitit_train_em.py \
+    --job_dir $HOME/slurm/$EXP_NAME \
+    --ngpus 2 \
     --nodelist em4 \
     --qos low \
-    --distributed \
-    --workers 1 \
-    --data-dir $DATA_DIR \
-    --shoreline-dir $DATA_DIR/shoreline/validation \
-    --val-dir output/$EXP_NAME \
-    --output-dir $HOME/logs/$EXP_NAME \
-    --folds-csv meta/folds.csv \
-    --fold 77 \
-    --name $EXP_NAME \
-    --config configs/revswinv2_xl_4096.json \
-    --crop_size 4096 \
-    --bs 1 \
-    --lr 0.003 \
-    --wd 1e-4 \
-    --test_every 1 \
-    --epoch 10 \
-    --positive_ratio 0.8 \
-    --fp16
+    --debug False
 
 # use the below for non-slurm launches.
 # OMP_NUM_THREADS=1 CUDA_VISIBLE_DEVICES=6,7 \
