@@ -16,15 +16,14 @@ from pathlib import Path
 sys.path.append("/p/home/ritwik/dev/xview3-detection")
 
 import submitit
+from omegaconf import OmegaConf
 
 import train_val_segmentor as segmentor
+from training.config import XviewConfig, create_config
 
 
 def parse_args():
-    segmentor_parser = segmentor.get_args_parser()
-    parser = argparse.ArgumentParser(
-        "Submitit for Segmentor Train+Val", parents=[segmentor_parser]
-    )
+    parser = argparse.ArgumentParser("Submitit for Segmentor Train+Val")
     parser.add_argument(
         "--nodes", default=1, type=int, help="Number of nodes to request"
     )
@@ -63,6 +62,10 @@ def parse_args():
         type=str,
         help="Which Nautilus constraint to use",
     )
+    parser.add_argument(
+        "--config", default="config/base.yaml", type=str, help="Path to config file"
+    )
+
     return parser.parse_args()
 
 
@@ -84,8 +87,8 @@ def get_init_file():
 
 
 class Trainer(object):
-    def __init__(self, args):
-        self.args = args
+    def __init__(self, config: XviewConfig):
+        self.config = config
 
     def __call__(self):
         import sys
@@ -94,7 +97,7 @@ class Trainer(object):
         import train_val_segmentor as segmentor
 
         self._setup_gpu_args()
-        segmentor.main(self.args)
+        segmentor.main(self.config)
 
     def checkpoint(self):
         import os
@@ -105,8 +108,8 @@ class Trainer(object):
         # checkpoint_file = os.path.join(self.args.output_dir, "checkpoint.pth")
         # if os.path.exists(checkpoint_file):
         #     self.args.resume = checkpoint_file
-        print("Requeuing ", self.args)
-        empty_trainer = type(self)(self.args)
+        print("Requeuing ", self.config)
+        empty_trainer = type(self)(self.config)
         return submitit.helpers.DelayedSubmission(empty_trainer)
 
     def _setup_gpu_args(self):
@@ -180,7 +183,10 @@ def main():
     args.dist_url = get_init_file().as_uri()
     args.output_dir = args.job_dir
 
-    trainer = Trainer(args)
+    schema = OmegaConf.structured(XviewConfig)
+    config = create_config(schema, {"config": args.config})
+
+    trainer = Trainer(config)
     job = executor.submit(trainer)
 
     print("Submitted job_id:", job.job_id)
