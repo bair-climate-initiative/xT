@@ -38,12 +38,6 @@ def parse_args():
     )
 
     parser.add_argument(
-        "--partition",
-        default="frontier",
-        type=str,
-        help="Partition where to submit",
-    )
-    parser.add_argument(
         "--qos",
         default="frontier",
         type=str,
@@ -89,6 +83,7 @@ def get_init_file():
 class Trainer(object):
     def __init__(self, config: XviewConfig):
         self.config = config
+        print(self.config)
 
     def __call__(self):
         import sys
@@ -104,7 +99,7 @@ class Trainer(object):
 
         import submitit
 
-        self.args.dist_url = get_init_file().as_uri()
+        self.config.dist_url = get_init_file().as_uri()
         # checkpoint_file = os.path.join(self.args.output_dir, "checkpoint.pth")
         # if os.path.exists(checkpoint_file):
         #     self.args.resume = checkpoint_file
@@ -120,13 +115,10 @@ class Trainer(object):
 
         job_env = submitit.JobEnvironment()
         dist_env = submitit.helpers.TorchDistributedEnvironment().export()
-        self.args.output_dir = Path(
-            str(self.args.output_dir).replace("%j", str(job_env.job_id))
+        self.config.output_dir = Path(
+            str(self.config.output_dir).replace("%j", str(job_env.job_id))
         )
-        self.args.log_dir = self.args.output_dir
-        self.args.gpu = job_env.local_rank
-        self.args.rank = job_env.global_rank
-        self.args.world_size = job_env.num_tasks
+        self.config.log_dir = self.config.output_dir
 
         # These are needed because submitit errors out otherwise.
         # I thought these were deprecated? Who knows.
@@ -135,7 +127,7 @@ class Trainer(object):
 
         print(f"master: {dist_env.master_addr}:{dist_env.master_port}")
         print(
-            f"Process group: {job_env.num_tasks} tasks, rank: {job_env.global_rank}"
+            f"World size: {dist_env.world_size}, Process group: {job_env.num_tasks} tasks, rank: {job_env.global_rank}"
         )
 
 
@@ -184,7 +176,7 @@ def main():
     args.output_dir = args.job_dir
 
     schema = OmegaConf.structured(XviewConfig)
-    config = create_config(schema, {"config": args.config})
+    config = create_config(schema, args)
 
     trainer = Trainer(config)
     job = executor.submit(trainer)
