@@ -8,7 +8,7 @@ import torch.distributed
 from omegaconf import OmegaConf
 from torch.utils.data import DataLoader
 
-from training.config import XviewConfig
+from training.config import XviewConfig, create_config
 from training.datasets import create_data_datasets
 from training.evaluator import XviewEvaluator
 from training.trainer import PytorchTrainer
@@ -27,12 +27,6 @@ warnings.filterwarnings("ignore")
 
 # @hydra.main(config_path="config", config_name="base_config")
 def main(cfg: XviewConfig) -> None:
-    print(OmegaConf.to_yaml(cfg))
-
-    if is_main_process():
-        os.makedirs(cfg.log_dir, exist_ok=True)
-        os.makedirs(cfg.output_dir, exist_ok=True)
-
     data_train, data_val = create_data_datasets(cfg.data)
     seg_evaluator = XviewEvaluator(cfg)
     trainer = PytorchTrainer(
@@ -41,6 +35,12 @@ def main(cfg: XviewConfig) -> None:
         train_data=data_train,
         val_data=data_val,
     )
+
+    if is_main_process():
+        os.makedirs(cfg.log_dir, exist_ok=True)
+        os.makedirs(cfg.output_dir, exist_ok=True)
+        print(OmegaConf.to_yaml(cfg))
+
     if cfg.test:
         sampler = torch.utils.data.distributed.DistributedSampler(
             data_val,
@@ -65,10 +65,7 @@ def main(cfg: XviewConfig) -> None:
 
 
 if __name__ == "__main__":
-    args = OmegaConf.from_cli() # first grab from cli to determine config
+    args = OmegaConf.from_cli()  # first grab from cli to determine config
     schema = OmegaConf.structured(XviewConfig)
-    config_path = args.config
-    print(OmegaConf.to_yaml(schema))
-    print(OmegaConf.to_yaml(OmegaConf.load(config_path)))
-    config = OmegaConf.merge(schema, OmegaConf.load(config_path))
+    config = create_config(schema, args)
     main(config)

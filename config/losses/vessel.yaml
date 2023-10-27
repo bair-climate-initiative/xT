@@ -1,8 +1,0 @@
-# @package _group_._name_
-name: mask_vessel
-loss: 
-  _target_: training.losses.ComboLossCalculator
-  field: vessel_mask 
-  weights: {"bce": 1, "focal": 3, "dice": 1}
-weight: 1.0 
-display: True

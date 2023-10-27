@@ -1,5 +1,0 @@
-name: TimmUnet
-resume: ''
-tiling: 'naive'
-xl_context:
-  enabled: False

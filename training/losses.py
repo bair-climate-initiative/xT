@@ -1,10 +1,11 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional
-from omegaconf import MISSING
+from typing import Any, Dict, List, Optional
 
 import torch
 import torch.nn.functional as F
+from omegaconf import MISSING
+
 # from hydra.utils import instantiate
 from torch import nn, topk
 from torch.nn import BCEWithLogitsLoss, MSELoss, NLLLoss2d
@@ -47,7 +48,7 @@ class SingleLossConfig:
 
 @dataclass
 class LossConfig:
-    losses: Optional[Any] = MISSING #List[Any] = field(default_factory=list)
+    losses: Optional[Any] = MISSING  # List[Any] = field(default_factory=list)
     """List of losses to be used in the training"""
 
 

@@ -1,7 +1,0 @@
-_target_: revswinv2_large_window16_256_xview
-name: revswinv2_large
-in_chans: 2
-drop_path_rate: 0.2
-pretrained: False
-channel_last: True
-img_size: 256

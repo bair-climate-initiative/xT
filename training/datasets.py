@@ -11,6 +11,7 @@ import pandas as pd
 import rasterio
 import tifffile
 import torch
+
 # from hydra.core.config_store import ConfigStore
 from rasterio.windows import Window
 from torch.utils.data import Dataset
@@ -69,7 +70,7 @@ class DataConfig:
     """Path to csv for folds."""
     shoreline_dir: str = "/home/group/xview3/shoreline/validation"
     """Shoreline validation path."""
-    multiplier: int = 64 
+    multiplier: int = 64
     """Number of times to increase dataset by."""
 
 
@@ -155,7 +156,6 @@ class XviewValDataset(Dataset):
         transforms: A.Compose = train_transforms,
         positive_ratio=0.5,
     ):
-        print(os.getcwd())
         df = pd.read_csv(folds_csv)
         self.radius = radius
 

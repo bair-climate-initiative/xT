@@ -32,6 +32,8 @@ from timm.layers import (  # manually add patchembed
 )
 from torch.autograd import Function as Function
 
+from training.utils import is_main_process
+
 _int_or_tuple_2_t = Union[int, Tuple[int, int]]
 
 
@@ -88,22 +90,20 @@ class PatchEmbed(nn.Module):
         if self.img_size is not None:
             if self.strict_img_size:
                 assert (
-                    H == self.img_size[0],
-                    f"Input height ({H}) doesn't match model ({self.img_size[0]}).",
-                )
+                    H == self.img_size[0]
+                ), f"Input height ({H}) doesn't match model ({self.img_size[0]})."
+
                 assert (
-                    W == self.img_size[1],
-                    f"Input width ({W}) doesn't match model ({self.img_size[1]}).",
-                )
+                    W == self.img_size[1]
+                ), f"Input width ({W}) doesn't match model ({self.img_size[1]})."
+
             else:
                 assert (
-                    H % self.patch_size[0] == 0,
-                    f"Input height ({H}) should be divisible by patch size ({self.patch_size[0]}).",
-                )
+                    H % self.patch_size[0] == 0
+                ), f"Input height ({H}) should be divisible by patch size ({self.patch_size[0]})."
                 assert (
-                    W % self.patch_size[1] == 0,
-                    f"Input width ({W}) should be divisible by patch size ({self.patch_size[1]}).",
-                )
+                    W % self.patch_size[1] == 0
+                ), f"Input width ({W}) should be divisible by patch size ({self.patch_size[1]})."
 
         x = self.proj(x)
         if self.flatten:
@@ -1159,7 +1159,8 @@ def revswinv2_tiny_window16_256_xview(pretrained=True, **kwargs):
     )
     model = ReversibleSwinTransformerV2(**dict(model_args, **kwargs))
     if pretrained:
-        print(f"Loading pretrained weights from path {pretrained}...")
+        if is_main_process():
+            print(f"Loading pretrained weights from path {pretrained}...")
         ckpt = torch.load(pretrained, map_location="cpu")
         state_dict = model.state_dict()
         filtered = {}
@@ -1167,16 +1168,18 @@ def revswinv2_tiny_window16_256_xview(pretrained=True, **kwargs):
         for k, v in ckpt.items():
             if k in state_dict:
                 if state_dict[k].shape != v.shape:
-                    print(f"Skipped {k} for size mismatch")
-                    print(state_dict[k].shape, v.shape)
+                    if is_main_process():
+                        print(f"Skipped {k} for size mismatch")
+                        print(state_dict[k].shape, v.shape)
                     continue
                 filtered[k] = v
             else:
                 unexpected_keys.append(k)
         missing_keys = set(state_dict.keys()) - set(filtered.keys())
-        print("Missing keys: ", missing_keys)
-        print("Unexpected keys: ", unexpected_keys)
-        model.load_state_dict(filtered, strict=False)
+        # print("Missing keys: ", missing_keys)
+        # print("Unexpected keys: ", unexpected_keys)
+        if is_main_process():
+            print(model.load_state_dict(filtered, strict=False))
     return model
 
 
@@ -1207,7 +1210,7 @@ def revswinv2_large_window16_256_xview(pretrained=False, **kwargs):
             else:
                 unexpected_keys.append(k)
         missing_keys = set(state_dict.keys()) - set(filtered.keys())
-        # print("Missing keys: ", missing_keys)
+        print("Missing keys: ", missing_keys)
         # print("Unexpected keys: ", unexpected_keys)
         msg = model.load_state_dict(filtered, strict=False)
         print(msg)

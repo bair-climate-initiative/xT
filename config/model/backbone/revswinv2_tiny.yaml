@@ -1,8 +1,0 @@
-_target_: models.backbones.revswinv2_tiny_window16_256_xview
-name: revswinv2_tiny
-in_chans: 3
-input_dim: 2
-drop_path_rate: 0.2
-pretrained: False
-channel_last: True
-img_size: 512

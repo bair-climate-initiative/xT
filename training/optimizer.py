@@ -39,6 +39,7 @@ class OptimizerConfig:
     nesterov: bool = True
     """SGD Nesterov momentum"""
 
+
 # @dataclass
 # class SGDConfig(OptimizerConfig):
 #     """SGD Configuration: momentum, nesterov."""

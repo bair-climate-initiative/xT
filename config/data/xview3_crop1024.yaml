@@ -1,6 +1,0 @@
-defaults:
-  - xview3
-
-crop_size: 1024
-val_crop_size: 1024
-overlap: 10 

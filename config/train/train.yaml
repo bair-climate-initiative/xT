@@ -1,7 +1,0 @@
-epochs: 120
-batch_size: 8
-val_batch_size: 2
-freeze_epochs: 0
-freeze_bn: False
-test_every: 20 
-test_reset: True

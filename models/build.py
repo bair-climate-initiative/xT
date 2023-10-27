@@ -1,10 +1,10 @@
 from dataclasses import dataclass, field
 
+from .backbones import *
+from .unet import TimmUnet
+
 # from hydra.core.config_store import ConfigStore
 # from hydra.utils import instantiate
-
-from .unet import TimmUnet
-from .backbones import *
 
 
 @dataclass
@@ -56,7 +56,7 @@ class ModelConfig:
 
 def build_model(config: ModelConfig):
     backbone_class = config.backbone_class
-    backbone = eval(backbone_class)(**config.backbone) 
+    backbone = eval(backbone_class)(**config.backbone)
 
     if config.name == "TimmUnet":
         model = TimmUnet(

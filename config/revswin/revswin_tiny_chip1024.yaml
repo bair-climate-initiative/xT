@@ -1,0 +1,19 @@
+base_configs: ["config/base_config.yaml"]
+name: revswinv2_chip1024_swinpt_lr1e-3
+data:
+  crop_size: 1024
+  val_crop_size: 1024
+model: 
+  backbone:
+    img_size: 1024
+optimizer:
+  base_lr: 1e-3
+  classifier_ratio: 1.0
+  warmup_epochs: 0
+train:
+  epochs: 60
+  batch_size: 2
+  val_batch_size: 2
+  freeze_epochs: 0
+  test_every: 5
+  test_reset: True

@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 
 # from hydra.core.config_store import ConfigStore
+from omegaconf import DictConfig, OmegaConf
 
 # from training.trainer import TrainConfig
 from models import ModelConfig
@@ -37,6 +38,8 @@ class XviewConfig:
     train: TrainConfig = field(default_factory=TrainConfig)
     losses: LossConfig = field(default_factory=LossConfig)
 
+    base_configs: list = field(default_factory=list)
+    """List of configs to inherit from, in order of override priority."""
     distributed: bool = True
     """Whether to use distributed training."""
     output_dir: str = "outputs/"
@@ -52,6 +55,31 @@ class XviewConfig:
     """Validation only flag."""
     name: str = ""
     """Run name."""
+
+
+def _merge_configs(cfg: XviewConfig, cfg_file: str):
+    """Merge config at cfg_file with cfg."""
+    other_cfg = OmegaConf.load(cfg_file)
+
+    if hasattr(other_cfg, "base_config"):  # equiv to .get("base_config", [])
+        for base_cfg in other_cfg.base_config:
+            cfg = _merge_configs(cfg, base_cfg)
+
+    # TODO: Best way to get rank for printing since torch.distributed is not initialized yet?
+    print(f"==> Merging config file {cfg_file} into config.")
+    cfg = OmegaConf.merge(cfg, other_cfg)
+    return cfg
+
+
+def create_config(cfg: XviewConfig, args: DictConfig):
+    """Create config from input config, recursively resolving base configs."""
+    # First resolve input config and it's base_configs
+    cfg = _merge_configs(cfg, args.config)
+    del args.config
+
+    # Then resolve command line arguments
+    cfg = OmegaConf.merge(cfg, args)
+    return cfg
 
 
 # cs = ConfigStore.instance()
