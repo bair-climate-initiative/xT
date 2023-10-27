@@ -21,7 +21,7 @@ albumentations
 tensorboardX
 madgrad
 warmup_scheduler
-hydra-core
 wandb-osh
 submitit
-hydra-submitit-launcher
+tifffile
+omegaconf
