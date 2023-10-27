@@ -37,7 +37,9 @@ class Panda(Dataset):
         "5+5": 5,
     }
 
-    inverse_idx_gleason = {k: idx for idx, k in enumerate(gleason_to_isup.keys())}
+    inverse_idx_gleason = {
+        k: idx for idx, k in enumerate(gleason_to_isup.keys())
+    }
     idx_gleason = {idx: k for idx, k in enumerate(gleason_to_isup.keys())}
 
     def __init__(
@@ -80,9 +82,7 @@ class Panda(Dataset):
             chips = []
             print(f"Chipping {len(self.files)} files...")
             for idx, (i, file) in enumerate(self.files.iterrows()):
-                filepath = (
-                    f'{self.root_dir}/{self.split}_images/{file["image_id"]}.tiff'
-                )
+                filepath = f'{self.root_dir}/{self.split}_images/{file["image_id"]}.tiff'
                 img = OpenSlide(filepath)
                 h, w = img.dimensions
                 img.close()
@@ -103,9 +103,7 @@ class Panda(Dataset):
             chips = []
             print(f"Chipping {len(self.files)} files...")
             for idx, (i, file) in enumerate(self.files.iterrows()):
-                filepath = (
-                    f'{self.root_dir}/{self.split}_images/{file["image_id"]}.tiff'
-                )
+                filepath = f'{self.root_dir}/{self.split}_images/{file["image_id"]}.tiff'
                 img = OpenSlide(filepath)
                 h, w = img.dimensions
                 payload = (idx, 0, 0, h, w)
@@ -138,7 +136,9 @@ class Panda(Dataset):
         else:
             raise NotImplemented
         file = self.files.iloc[idx]
-        filepath = f'{self.root_dir}/{self.split}_images/{file["image_id"]}.tiff'
+        filepath = (
+            f'{self.root_dir}/{self.split}_images/{file["image_id"]}.tiff'
+        )
 
         img = OpenSlide(filepath)  # img size is obtained via img.dimensions)
         if self.mode == "random":
@@ -173,7 +173,9 @@ class Panda(Dataset):
 
         isup_grade = file["isup_grade"]
         gleason_score = file["gleason_score"]
-        if gleason_score == "negative":  # 0+0 Gleason score is equal to negative
+        if (
+            gleason_score == "negative"
+        ):  # 0+0 Gleason score is equal to negative
             gleason_score = "0+0"
 
         if self.transform:
@@ -213,9 +215,7 @@ class Panda(Dataset):
         }
 
     def _load_mask(self, file, i, j, h, w):
-        mask_path = (
-            f'{self.root_dir}/{self.split}_label_masks/{file["image_id"]}_mask.tiff'
-        )
+        mask_path = f'{self.root_dir}/{self.split}_label_masks/{file["image_id"]}_mask.tiff'
         mask_handler = OpenSlide(mask_path)
         mask = mask_handler.read_region(
             location=(i, j), level=0, size=(h, w)
@@ -267,7 +267,8 @@ class Panda(Dataset):
         else:
             # There is cancer in this patch
             cancer_grades = sorted(
-                [(x, uniq_percents.get(x, 0)) for x in [3, 4, 5]], key=lambda x: -x[1]
+                [(x, uniq_percents.get(x, 0)) for x in [3, 4, 5]],
+                key=lambda x: -x[1],
             )
             # The majority is the highest occurence cancer grade
             majority = cancer_grades[0][0]

@@ -1,0 +1,6 @@
+init_config_dir: null
+configen:
+  output_dir: ???
+  module_path_pattern: ???
+  modules: ???
+  header: ???

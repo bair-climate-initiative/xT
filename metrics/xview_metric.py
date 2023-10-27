@@ -13,7 +13,9 @@ PIX_TO_M = 10
 MAX_OBJECT_LENGTH_M = 500
 
 
-def drop_low_confidence_preds(pred, gt, distance_tolerance=200, costly_dist=False):
+def drop_low_confidence_preds(
+    pred, gt, distance_tolerance=200, costly_dist=False
+):
     """
     Matches detections in a predictions dataframe to a ground truth data frame and isolate the low confidence matches
 
@@ -60,7 +62,9 @@ def drop_low_confidence_preds(pred, gt, distance_tolerance=200, costly_dist=Fals
     return df_out
 
 
-def match_low_confidence_preds(preds, gt, distance_tolerance=200, costly_dist=False):
+def match_low_confidence_preds(
+    preds, gt, distance_tolerance=200, costly_dist=False
+):
     """
     Matches detections in a predictions dataframe to a ground truth data frame and isolate the low confidence matches
 
@@ -83,7 +87,9 @@ def match_low_confidence_preds(preds, gt, distance_tolerance=200, costly_dist=Fa
     pred_array = np.array(
         list(zip(preds["detect_scene_row"], preds["detect_scene_column"]))
     )
-    gt_array = np.array(list(zip(gt["detect_scene_row"], gt["detect_scene_column"])))
+    gt_array = np.array(
+        list(zip(gt["detect_scene_row"], gt["detect_scene_column"]))
+    )
 
     # Getting a list of index with LOW in the ground truth dataframe
     low_gt_inds = list(gt[gt["confidence"] == "LOW"].index)
@@ -134,9 +140,13 @@ def get_shore_preds(df, shoreline_root, scene_id, shore_tolerance_km):
     # Creating KD trees and computing distance matrix
     tree1 = KDTree(np.array(contour_points))
     tree2 = KDTree(
-        np.array([df["detect_scene_row"], df["detect_scene_column"]]).transpose()
+        np.array(
+            [df["detect_scene_row"], df["detect_scene_column"]]
+        ).transpose()
     )
-    sdm = tree1.sparse_distance_matrix(tree2, shore_tolerance_km * 1000 / PIX_TO_M, p=2)
+    sdm = tree1.sparse_distance_matrix(
+        tree2, shore_tolerance_km * 1000 / PIX_TO_M, p=2
+    )
     dists = sdm.toarray()
 
     # Make it so we can use np.min() to find smallest distance b/t each detection and any contour point
@@ -147,7 +157,9 @@ def get_shore_preds(df, shoreline_root, scene_id, shore_tolerance_km):
     return df_close
 
 
-def compute_loc_performance(preds, gt, distance_tolerance=200, costly_dist=False):
+def compute_loc_performance(
+    preds, gt, distance_tolerance=200, costly_dist=False
+):
     """
     Computes maritime object detection performance from a prediction
     dataframe and a ground truth datafr
@@ -176,7 +188,9 @@ def compute_loc_performance(preds, gt, distance_tolerance=200, costly_dist=False
     pred_array = np.array(
         list(zip(preds["detect_scene_row"], preds["detect_scene_column"]))
     )
-    gt_array = np.array(list(zip(gt["detect_scene_row"], gt["detect_scene_column"])))
+    gt_array = np.array(
+        list(zip(gt["detect_scene_row"], gt["detect_scene_column"]))
+    )
 
     # Building distance matrix using Euclidean distance pixel space
     # multiplied by the UTM resolution (10 m per pixel)
@@ -405,7 +419,12 @@ def aggregate_f(
 
 
 def score(
-    pred, gt, shore_root, distance_tolerance=200, shore_tolerance=2, costly_dist=False
+    pred,
+    gt,
+    shore_root,
+    distance_tolerance=200,
+    shore_tolerance=2,
+    costly_dist=False,
 ):
     """Compute xView3 aggregate score from
 
@@ -447,7 +466,9 @@ def score(
         fn_inds += fn_inds_sc
 
     # Compute precision, recall, and F1 for maritime object detection
-    loc_precision, loc_recall, loc_fscore = calculate_p_r_f(tp_inds, fp_inds, fn_inds)
+    loc_precision, loc_recall, loc_fscore = calculate_p_r_f(
+        tp_inds, fp_inds, fn_inds
+    )
 
     # Allowing code to be run without shore data -- will output 0 for these scores
     if shore_tolerance and shore_root:
@@ -498,9 +519,11 @@ def score(
             > 0
         ):
             # Compute precision, recall, F1 for close-to-shore maritime object detection
-            loc_precision_shore, loc_recall_shore, loc_fscore_shore = calculate_p_r_f(
-                tp_inds_shore, fp_inds_shore, fn_inds_shore
-            )
+            (
+                loc_precision_shore,
+                loc_recall_shore,
+                loc_fscore_shore,
+            ) = calculate_p_r_f(tp_inds_shore, fp_inds_shore, fn_inds_shore)
         else:
             loc_precision_shore, loc_recall_shore, loc_fscore_shore = 0, 0, 0
     else:
@@ -510,7 +533,12 @@ def score(
     vessel_inds = gt["is_vessel"].isin([True])
 
     # Getting performance on vessel classification task
-    v_tp_inds, v_fp_inds, v_fn_inds, v_tn_inds = compute_vessel_class_performance(
+    (
+        v_tp_inds,
+        v_fp_inds,
+        v_fn_inds,
+        v_tn_inds,
+    ) = compute_vessel_class_performance(
         pred["is_vessel"].values, gt["is_vessel"].values, tp_inds
     )
     vessel_precision, vessel_recall, vessel_fscore = calculate_p_r_f(
@@ -521,7 +549,12 @@ def score(
 
     # Getting performance on fishing classification; note that we only consider
     # ground-truth detections that are actually vessels
-    f_tp_inds, f_fp_inds, f_fn_inds, f_tn_inds = compute_fishing_class_performance(
+    (
+        f_tp_inds,
+        f_fp_inds,
+        f_fn_inds,
+        f_tn_inds,
+    ) = compute_fishing_class_performance(
         pred["is_fishing"].values, gt["is_fishing"].values, tp_inds, vessel_inds
     )
     fishing_precision, fishing_recall, fishing_fscore = calculate_p_r_f(
@@ -539,7 +572,9 @@ def score(
     aggregate = aggregate_f(
         loc_fscore, length_acc, vessel_fscore, fishing_fscore, loc_fscore_shore
     )
-    print(f"Loc P: {loc_precision:.04f} R: {loc_recall:.04f} F1: {loc_fscore:.04f}")
+    print(
+        f"Loc P: {loc_precision:.04f} R: {loc_recall:.04f} F1: {loc_fscore:.04f}"
+    )
     print(
         f"Loc Shore P: {loc_precision_shore:.04f} R: {loc_recall_shore:.04f} F1: {loc_fscore_shore:.04f}"
     )
@@ -575,7 +610,9 @@ def evaluate_xview_metric(args):
     # If a scene_id list is provided, run only for that scene; otherwise,
     # use all scenes in ground truth
     if args.scene_id is not None:
-        inference = inference[inference["scene_id"] == args.scene_id].reset_index()
+        inference = inference[
+            inference["scene_id"] == args.scene_id
+        ].reset_index()
         ground_truth = ground_truth[
             ground_truth["scene_id"] == args.scene_id
         ].reset_index()
@@ -621,9 +658,13 @@ def create_metric_arg_parser():
     )
     parser.add_argument("--inference_file", help="Path to the predictions CSV")
     parser.add_argument("--label_file", help="Path to the xView3 label CSV")
-    parser.add_argument("--output", help="Path to output file -- should be .json")
     parser.add_argument(
-        "--distance_tolerance", help="Distance tolerance for detection in m", type=int
+        "--output", help="Path to output file -- should be .json"
+    )
+    parser.add_argument(
+        "--distance_tolerance",
+        help="Distance tolerance for detection in m",
+        type=int,
     )
     parser.add_argument(
         "--shore_tolerance",

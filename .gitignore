@@ -4,6 +4,7 @@ __pycache__/
 *$py.class
 
 slurm/
+outputs/
 
 # C extensions
 *.so
@@ -16,7 +17,6 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
 lib64/
 parts/
 sdist/

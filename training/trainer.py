@@ -1,10 +1,9 @@
-import dataclasses
 import logging
 import math
 import os
 import re
 import time
-from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from numbers import Number
 from typing import Any, Dict, List
 
@@ -12,19 +11,10 @@ import torch
 import torch.distributed
 import torch.distributed as dist
 import torch.nn as nn
-
-import wandb
-
-WANDB_OFFLINE = False
-if os.environ.get("WANDB_MODE", None) == "offline":
-    WANDB_OFFLINE = True
-
-import logging
-import time
-
 import yaml
 from einops import rearrange
 from fvcore.nn import FlopCountAnalysis
+from omegaconf import OmegaConf
 from tensorboardX import SummaryWriter
 from timm.utils import AverageMeter
 from torch.nn import DataParallel, SyncBatchNorm
@@ -33,92 +23,72 @@ from torch.nn.parallel.distributed import DistributedDataParallel
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
-import zoo
-from training import losses
-from training.config import load_config
-from training.losses import LossCalculator
-from training.sampler import DistributedWeightedRandomSampler
-from training.utils import SmoothedValue, create_optimizer, wandb_dump_images
+import wandb
+from models import build_model
 
+# from train_val_segmentor import XviewConfig
+from .config import XviewConfig
+from .evaluator import Evaluator
+from .losses import LossCalculator, build_losses
+from .optimizer import create_optimizer
+from .sampler import DistributedWeightedRandomSampler
 from .tiling import build_tiling
+from .utils import (
+    SmoothedValue,
+    get_rank,
+    get_world_size,
+    is_dist_avail_and_initialized,
+    is_main_process,
+    wandb_dump_images,
+)
 
 logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO").upper())
-from torch.distributed.fsdp import CPUOffload, FullyShardedDataParallel, MixedPrecision
-from torch.distributed.fsdp.wrap import size_based_auto_wrap_policy
+
+WANDB_OFFLINE = False
+if os.environ.get("WANDB_MODE", None) == "offline":
+    WANDB_OFFLINE = True
 
 
-@dataclasses.dataclass
-class TrainConfiguration:
-    config_path: str
-    gpu: str = "0"
-    distributed: bool = False
-    from_zero: bool = False
-    zero_score: bool = False
-    local_rank: int = 0
-    freeze_epochs: int = 0
-    test_every: int = 1
-    world_size: int = 1
-    output_dir: str = "weights"
-    prefix: str = ""
-    resume_checkpoint: str = None
-    workers: int = 8
-    log_dir: str = "logs"
-    fp16: bool = True
-    fsdp: float = False
-    freeze_bn: bool = False
-    name: str = None
-    crop_size: int = None
-
-
-class Evaluator(ABC):
-    @abstractmethod
-    def init_metrics(self) -> Dict:
-        pass
-
-    @abstractmethod
-    def validate(
-        self,
-        dataloader: DataLoader,
-        model: torch.nn.Module,
-        distributed: bool = False,
-        local_rank: int = 0,
-        snapshot_name: str = "",
-    ) -> Dict:
-        pass
-
-    @abstractmethod
-    def get_improved_metrics(self, prev_metrics: Dict, current_metrics: Dict) -> Dict:
-        pass
-
-
-class LossFunction:
-    def __init__(
-        self, loss: LossCalculator, name: str, weight: float = 1, display: bool = False
-    ):
-        super().__init__()
-        self.loss = loss
-        self.name = name
-        self.weight = weight
-        self.display = display
-
-
-class PytorchTrainer(ABC):
+class PytorchTrainer:
     def __init__(
         self,
-        train_config: TrainConfiguration,
+        config: XviewConfig,
         evaluator: Evaluator,
-        fold: int,
         train_data: Dataset,
         val_data: Dataset,
-        args: Any,
     ) -> None:
         super().__init__()
-        self.fold = fold
-        self.train_config = train_config
-        self.conf = load_config(train_config.config_path, args=args)
-        self.tiling = self.conf.get("tiling", "naive")
+        self.config = config
+
+        self._init_distributed()
+        self.evaluator = evaluator
+        self.current_metrics = evaluator.init_metrics()
+        self.current_epoch = 0
+        self.train_data = train_data
+        self.val_data = val_data
         self.wandb_id = None
-        if self.train_config.local_rank == 0:
+        self.patch_size = config.model.patch_size # self.conf.get("patch_size", 16)
+        self.context_patch_len = config.model.xl_context.context_patch_len # self.conf.get("context_patch_len", 100)
+
+        self.model = self._init_model()
+        # self.create_train_loader()
+        # self.create_val_loader()
+        # TODO: how tf to pass in T-XL? tell shufan to do maybe
+        # self.patch_size = self.config.patch_size
+        # self.context_patch_len = self.config.context_patch_len
+
+        self.losses = build_losses(self.config.losses)
+        self.scale_learning_rate()
+
+        self._init_amp()
+        self.optimizer, self.scheduler = create_optimizer(
+            self.config.optimizer,
+            self.model,
+            len(train_data),
+            self.config.train.batch_size,
+            self.config.train.epochs,
+        )
+        if is_main_process():
             if WANDB_OFFLINE:
                 from wandb_osh.hooks import TriggerWandbSyncHook
 
@@ -128,124 +98,105 @@ class PytorchTrainer(ABC):
                 project="xview3 detection unet",
                 entity="bair-climate-initiative",
                 resume="allow",
-                name=train_config.name,
-                config=self.conf,
-                dir=train_config.log_dir,
+                name=config.name,
+                config=OmegaConf.to_container(config),
+                dir=config.log_dir,
             )
             artifact = wandb.Artifact(
                 "config_file",
                 type="config_file",
             )
-            config_dump_path = os.path.join(self.train_config.output_dir, "config.yaml")
+            config_dump_path = os.path.join(
+                self.config.output_dir, "config.yaml"
+            )
             with open(config_dump_path, "w") as outfile:
-                yaml.dump(self.conf, outfile)
+                outfile.write(OmegaConf.to_yaml(self.config))
             artifact.add_file(config_dump_path)
 
             wandb.init(**wandb_args)
             wandb.log_artifact(artifact)
             self.wandb_id = wandb.run.id
-        self._init_distributed()
-        self.evaluator = evaluator
-        self.current_metrics = evaluator.init_metrics()
-        self.current_epoch = 0
-        self.model = self._init_model()
-        self.patch_size = self.conf.get("patch_size", 16)
-        self.context_patch_len = self.conf.get("context_patch_len", 100)
 
-        self.losses = self._init_loss_functions()
-        self.scale_learning_rate()
-
-        self._init_amp()
-        self.optimizer, self.scheduler = create_optimizer(
-            self.conf["optimizer"], self.model, len(train_data), train_config.world_size
-        )
-        self.train_data = train_data
-        self.val_data = val_data
-        if self.train_config.local_rank == 0:
             print(self.model)
             self.summary_writer = SummaryWriter(
-                os.path.join(train_config.log_dir, self.snapshot_name)
+                os.path.join(config.log_dir, self.snapshot_name)
             )
 
         # self._profile_model((1, 2, self.conf["crop_size"], self.conf["crop_size"]))
 
     def validate(self, test_loader=None):
-        if self.train_config.distributed:
+        if is_dist_avail_and_initialized():
             dist.barrier()
         self.model.eval()
         metrics = self.evaluator.validate(
-            test_loader if test_loader is not None else self.get_val_loader(),
+            test_loader if test_loader is not None else self.val_data_loader,
             self.model,
-            distributed=self.train_config.distributed,
-            local_rank=self.train_config.local_rank,
+            distributed=is_dist_avail_and_initialized(),
+            local_rank=get_rank(),
             snapshot_name=self.snapshot_name,
         )
-        print(metrics)
-        if self.train_config.local_rank == 0 and wandb.run is not None:
+        if is_main_process():
+            print(metrics)
+        if is_main_process() and wandb.run is not None:
             wandb.log(metrics)
             if WANDB_OFFLINE:
                 self.trigger_sync()
 
     def fit(self):
-        for epoch in range(
-            self.current_epoch, self.conf["optimizer"]["schedule"]["epochs"]
-        ):
-            rank = self.train_config.local_rank
-            logging.debug(f"{ rank}: epoch start")
-            if self.train_config.distributed:
+        for epoch in range(self.current_epoch, self.config.train.epochs):
+            rank = get_rank()
+            logging.debug(f"{rank}: epoch start")
+            if self.config.distributed:
                 dist.barrier()
             self.current_epoch = epoch
-            logging.debug(f"{ rank}: set train mode")
+            logging.debug(f"{rank}: set train mode")
             self.model.train()
             self._freeze()
-            self._run_one_epoch_train(self.get_train_loader())
+            self._run_one_epoch_train()
             torch.cuda.synchronize()
-            if self.train_config.distributed:
+            if self.config.distributed:
                 dist.barrier()
             self.model.eval()
             self._save_last()
             logging.debug(f"{rank} Epoch finished")
-            if (self.current_epoch + 1) % self.train_config.test_every == 0:
+            if (self.current_epoch + 1) % self.config.train.test_every == 0:
                 logging.debug(f"{rank} eval launched")
                 metrics = self.evaluator.validate(
                     self.get_val_loader(),
                     self.model,
-                    distributed=self.train_config.distributed,
-                    local_rank=self.train_config.local_rank,
-                    snapshot_name=self.snapshot_name,
                 )
                 logging.debug(f"{rank} eval done")
-                if self.train_config.local_rank == 0 and wandb.run is not None:
+                if is_main_process() and wandb.run is not None:
                     metrics["epoch"] = epoch
                     wandb.log(metrics)
-                    self.trigger_sync()
+                    if WANDB_OFFLINE:
+                        self.trigger_sync()
                 improved_metrics = None
-                if self.train_config.local_rank == 0:
+                if is_main_process():
                     improved_metrics = self.evaluator.get_improved_metrics(
                         self.current_metrics, metrics
                     )
                     self.current_metrics.update(improved_metrics)
                 self._save_best(improved_metrics)
-                if self.train_config.local_rank == 0:
+                if is_main_process():
                     for k, v in metrics.items():
                         self.summary_writer.add_scalar(
-                            "val/{}".format(k), float(v), global_step=self.current_epoch
+                            "val/{}".format(k),
+                            float(v),
+                            global_step=self.current_epoch,
                         )
 
     def scale_learning_rate(self):
         # linear scale the learning rate according to total batch size, may not be optimal
-        config = self.conf["optimizer"]
-        eff_batch_size = config["train_bs"] * dist.get_world_size()
+        eff_batch_size = self.config.train.batch_size * dist.get_world_size()
         # base batch size is 8 * 1 = 32
-        lr = config["learning_rate"] * eff_batch_size / 8.0
-        classifier_lr = config["classifier_lr"] * eff_batch_size / 8.0
-        if self.train_config.local_rank == 0:
+        lr = self.config.optimizer.base_lr * eff_batch_size / 8.0
+        if is_main_process():
             print(
                 f"Effective batch size of {eff_batch_size} "
-                f"lr: {config['learning_rate']} --> {lr}"
+                f"lr: {self.config.optimizer.base_lr} --> {lr}"
             )
-        config["learning_rate"] = lr
-        self.conf["optimizer"] = config
+        self.config.optimizer.lr = lr
 
     def _profile_model(self, shape):
         input = torch.randn(shape).cuda()
@@ -254,39 +205,34 @@ class PytorchTrainer(ABC):
         print(r)
         print(dict(total_flops=sum(r.values())))
 
-    def _get_state_dict(self):
-        state_dict = self.model.state_dict()
-        return state_dict
-        # return {k:v.cpu() for k,v in state_dict.items()}
-
-    def _save_last(self):
-        # self.model = self.model.eval()
+    def _get_current_payload(self):
         payload = {
             "epoch": self.current_epoch,
-            "state_dict": self._get_state_dict(),
+            "state_dict": self.model.state_dict(),  # ? need .cpu()?
             "metrics": self.current_metrics,
         }
-        if self.train_config.local_rank == 0:
+
+        return payload
+
+    def _save_last(self):
+        if is_main_process():
+            payload = self._get_current_payload()
             torch.save(
                 payload,
                 os.path.join(
-                    self.train_config.output_dir,
+                    self.config.output_dir,
                     self.snapshot_name + "_" + str(self.wandb_id) + "_" "_last",
                 ),
             )
 
     def _save_best(self, improved_metrics: Dict):
-        payload = {
-            "epoch": self.current_epoch,
-            "state_dict": self._get_state_dict(),
-            "metrics": self.current_metrics,
-        }
-        if self.train_config.local_rank == 0:
+        if is_main_process():
+            payload = self._get_current_payload()
             for metric_name in improved_metrics.keys():
                 torch.save(
                     payload,
                     os.path.join(
-                        self.train_config.output_dir,
+                        self.config.output_dir,
                         self.snapshot_name
                         + "_"
                         + str(self.wandb_id)
@@ -309,13 +255,14 @@ class PytorchTrainer(ABC):
             )
             N, C, H, W, PH, PW, PPH, PPW = rearranged_image.shape
             rearranged_image = rearranged_image.flatten(2, 5)
-            for i, j, k in build_tiling(n, self.tiling):
+            for i, j, k in build_tiling(n, self.config.model.xl_context.tiling):
                 indices = torch.rand(N, H, W, PH, PW)
                 indices[:, i, j] = 999
                 indices = indices.flatten(1).argsort(-1)
                 indices = indices[:, : self.context_patch_len]
                 context_patches = torch.stack(
-                    [rearranged_image[i][:, v] for i, v in enumerate(indices)], dim=0
+                    [rearranged_image[i][:, v] for i, v in enumerate(indices)],
+                    dim=0,
                 )  # N C L 16 16
                 H_i = indices // (W * PH * PW)
                 W_i = (indices // (PH * PW)) % W
@@ -351,9 +298,11 @@ class PytorchTrainer(ABC):
                 new_payload["mem_only"] = k.get("mem_only", False)
                 yield new_payload
 
-    def _run_one_epoch_train(self, loader: DataLoader):
+    def _run_one_epoch_train(self):
         torch.autograd.set_detect_anomaly(True)
-        iterator = loader
+        # self.train_sampler.set_epoch(self.current_epoch)
+        train_loader = self.get_train_loader()
+        iterator = self.get_train_loader()
         # data_time = SmoothedValue(fmt="{avg:.4f}")
         loss_meter = AverageMeter()
         # forward_time = SmoothedValue(fmt="{avg:.4f}")
@@ -363,18 +312,18 @@ class PytorchTrainer(ABC):
             if loss_def.display:
                 avg_meters[loss_def.name] = AverageMeter()
 
-        if self.conf["optimizer"]["schedule"]["mode"] == "epoch":
+        if self.config.optimizer.mode == "epoch":
             self.scheduler.step(self.current_epoch)
-        extra_context = self.model.module.extra_context
+        extra_context = self.model.module.context_mode
         if extra_context:
             iterator = self.build_iterator(iterator)
-            iter_scale = (self.conf["crop_size"] // self.input_size) ** 2
-            if "two_stream" in self.tiling:
+            iter_scale = (self.config.data.crop_size // self.input_size) ** 2
+            if "two_stream" in self.config.model.xl_context.tiling:
                 iter_scale *= 2
         else:
             iter_scale = 1
         #         total_n = iter_scale * len(loader)
-        #         if self.train_config.local_rank == 0:
+        #         if self.config.local_rank == 0:
         #             t = tqdm(total=total_n)
         #         loader = iter(loader)
 
@@ -382,18 +331,17 @@ class PytorchTrainer(ABC):
         #             end = time.time()
         #             sample = next(loader)
         #             data_time.update(time.time() - end)
-        #             if self.train_config.local_rank == 0:
+        #             if self.config.local_rank == 0:
         #                 t.update()
         # Sliced Images with context_id
         # todo: make configurable
-        if self.train_config.local_rank == 0:
-            iterator = tqdm(iterator, total=iter_scale * len(loader))
+        if is_main_process():
+            iterator = tqdm(iterator, total=iter_scale * len(train_loader))
         # Broken, temporaily disable time logging
         for i, sample in enumerate(iterator):
             # if i > 2:
             #     break
             imgs = sample["image"].cuda().float()
-            print(imgs.shape)
             if extra_context:
                 if sample["context_id"] == 0:
                     mem = tuple()
@@ -409,7 +357,9 @@ class PytorchTrainer(ABC):
                 with torch.autograd.detect_anomaly():
                     if extra_context and sample["mem_only"]:
                         with torch.no_grad():
-                            output, mem = self.model(imgs, context=context, mem=mem)
+                            output, mem = self.model(
+                                imgs, context=context, mem=mem
+                            )
                         continue
                     elif extra_context:
                         output, mem = self.model(imgs, context=context, mem=mem)
@@ -418,7 +368,7 @@ class PytorchTrainer(ABC):
                     # forward_time.update(time.time() - end)
                     # if i % 400 == 0:
                     # visualize
-                    # if self.train_config.local_rank == 0:
+                    # if self.config.local_rank == 0:
                     #     all_keys = []
                     #     all_imgs = [imgs[0][0].detach().cpu()]
                     #     all_keys.append('input')
@@ -438,19 +388,18 @@ class PytorchTrainer(ABC):
                             print("is nan!")
                         if loss_def.display:
                             avg_meters[loss_def.name].update(
-                                l if isinstance(l, Number) else l.item(), imgs.size(0)
+                                l if isinstance(l, Number) else l.item(),
+                                imgs.size(0),
                             )
                         total_loss += loss_def.weight * l
             loss_meter.update(total_loss.item(), imgs.size(0))
             if math.isnan(total_loss.item()) or math.isinf(total_loss.item()):
                 raise ValueError("NaN loss !!")
             avg_metrics = {k: f"{v.avg:.4f}" for k, v in avg_meters.items()}
-            if (
-                self.train_config.local_rank == 0
-                and wandb.run is not None
-                and i % 50 == 0
-            ):
-                payload = {k: float(f"{v.avg:.4f}") for k, v in avg_meters.items()}
+            if is_main_process() and wandb.run is not None and i % 50 == 0:
+                payload = {
+                    k: float(f"{v.avg:.4f}") for k, v in avg_meters.items()
+                }
                 payload.update(dict(lr=float(self.scheduler.get_lr()[-1])))
                 wandb.log(payload)
                 if WANDB_OFFLINE:
@@ -460,7 +409,7 @@ class PytorchTrainer(ABC):
             # end = time.time()
             # print(total_loss.dtype,'hh')
             if (
-                self.train_config.fp16 and False
+                self.config.fp16 and False
             ):  # sth happened here, really need to check whats wrong
                 print(total_loss.device, "hh")
                 # self.gscaler.scale(total_loss).backward()
@@ -475,13 +424,13 @@ class PytorchTrainer(ABC):
             # backward_time.update(time.time() - end)
 
             torch.cuda.synchronize()
-            if self.train_config.distributed:
+            if is_dist_avail_and_initialized():
                 dist.barrier()
-            if self.conf["optimizer"]["schedule"]["mode"] in ("step", "poly"):
+            if self.config.optimizer.mode in ("step", "poly"):
                 self.scheduler.step(
-                    int(i / iter_scale) + self.current_epoch * len(loader)
+                    int(i / iter_scale) + self.current_epoch * len(train_loader)
                 )
-            if self.train_config.local_rank == 0:
+            if is_main_process():
                 iterator.set_postfix(
                     {
                         "lr": float(self.scheduler.get_lr()[-1]),
@@ -490,27 +439,30 @@ class PytorchTrainer(ABC):
                         **avg_metrics,
                     }
                 )
-        if self.train_config.local_rank == 0:
+        if is_main_process():
             for idx, param_group in enumerate(self.optimizer.param_groups):
                 lr = param_group["lr"]
                 self.summary_writer.add_scalar(
-                    "group{}/lr".format(idx), float(lr), global_step=self.current_epoch
+                    "group{}/lr".format(idx),
+                    float(lr),
+                    global_step=self.current_epoch,
                 )
             self.summary_writer.add_scalar(
-                "train/loss", float(loss_meter.avg), global_step=self.current_epoch
+                "train/loss",
+                float(loss_meter.avg),
+                global_step=self.current_epoch,
             )
 
     @property
     def train_batch_size(self):
-        return self.conf["optimizer"]["train_bs"]
+        return self.config.train.batch_size
 
     @property
     def val_batch_size(self):
-        return self.conf["optimizer"]["val_bs"]
+        return self.config.train.val_batch_size
 
     def get_train_loader(self) -> DataLoader:
-        train_sampler = None
-        if self.train_config.distributed:
+        if is_dist_avail_and_initialized():
             train_sampler = torch.utils.data.distributed.DistributedSampler(
                 self.train_data
             )
@@ -521,42 +473,43 @@ class PytorchTrainer(ABC):
             train_sampler.set_epoch(self.current_epoch)
         train_data_loader = DataLoader(
             self.train_data,
-            batch_size=self.train_batch_size,
-            num_workers=self.train_config.workers,
+            batch_size=self.config.train.batch_size,
+            num_workers=self.config.data.num_workers,
             shuffle=train_sampler is None,
             sampler=train_sampler,
             pin_memory=False,
             drop_last=True,
         )
-
+        # self.train_sampler = train_sampler
+        # self.train_data_loader = train_data_loader
         return train_data_loader
 
     def get_val_loader(self) -> DataLoader:
-        val_sampler = None
-        if self.train_config.distributed:
+        if is_dist_avail_and_initialized():
             val_sampler = torch.utils.data.distributed.DistributedSampler(
                 self.val_data,
                 shuffle=False,
-                num_replicas=int(os.environ["LOCAL_WORLD_SIZE"]),
-                rank=self.train_config.local_rank,
+                num_replicas=get_world_size(),
+                rank=get_rank(),
             )
         val_data_loader = DataLoader(
             self.val_data,
             sampler=val_sampler,
-            batch_size=self.val_batch_size,
-            num_workers=self.train_config.workers,
+            batch_size=self.config.train.val_batch_size,
+            num_workers=self.config.data.num_workers,
             shuffle=False,
             pin_memory=False,
         )
+        # self.val_sampler = val_sampler
+        # self.val_data_loader = val_data_loader
         return val_data_loader
 
     @property
     def snapshot_name(self):
-        return "{}{}_{}_{}".format(
-            self.train_config.prefix,
-            self.conf["network"],
-            self.conf["encoder_params"]["encoder"],
-            self.fold,
+        return (
+            f"{self.config.model.name}_"
+            f"{self.config.model.backbone_class}_"
+            f"{self.config.data.fold}"
         )
 
     def _freeze(self):
@@ -567,7 +520,7 @@ class PytorchTrainer(ABC):
         else:
             logging.warn("unknown encoder model")
             return
-        if self.current_epoch < self.train_config.freeze_epochs:
+        if self.current_epoch < self.config.train.freeze_epochs:
             encoder.eval()
             for p in encoder.parameters():
                 p.requires_grad = False
@@ -575,7 +528,7 @@ class PytorchTrainer(ABC):
             encoder.train()
             for p in encoder.parameters():
                 p.requires_grad = True
-        if self.train_config.freeze_bn:
+        if self.config.train.freeze_bn:
             for m in self.model.modules():
                 if isinstance(m, _BatchNorm):
                     m.eval()
@@ -585,7 +538,14 @@ class PytorchTrainer(ABC):
     def _init_amp(self):
         self.gscaler = torch.cuda.amp.GradScaler()
 
-        if self.train_config.distributed and self.train_config.fsdp:
+        if self.config.distributed and self.config.fsdp:
+            from torch.distributed.fsdp import (
+                CPUOffload,
+                FullyShardedDataParallel,
+                MixedPrecision,
+            )
+            from torch.distributed.fsdp.wrap import size_based_auto_wrap_policy
+
             self.model = FullyShardedDataParallel(
                 self.model,
                 auto_wrap_policy=size_based_auto_wrap_policy,
@@ -593,39 +553,41 @@ class PytorchTrainer(ABC):
                 # fsdp_auto_wrap_policy=default_auto_wrap_policy,
                 cpu_offload=CPUOffload(offload_params=True),
                 # mixed_precision=MixedPrecision(param_dtype=torch.float16)
-                # device_id=self.train_config.local_rank,
-                # output_device=self.train_config.local_rank,
+                # device_id=self.config.local_rank,
+                # output_device=self.config.local_rank,
                 # find_unused_parameters=False,
             )
-        elif self.train_config.distributed:
+        elif self.config.distributed:
             self.model = DistributedDataParallel(
                 self.model,
-                device_ids=[self.train_config.local_rank],
-                output_device=self.train_config.local_rank,
+                device_ids=[get_rank()],
+                output_device=get_rank(),
                 find_unused_parameters=False,
             )
         else:
             self.model = DataParallel(self.model).cuda()
 
     def _init_distributed(self):
-        if self.train_config.distributed:
+        # TODO!: Make sure this is initialized correctly.
+        if self.config.distributed:
             self.pg = dist.init_process_group(
                 backend="nccl",
-                # rank=self.train_config.local_rank, set to torchrun
-                # world_size=self.train_config.world_size,
+                # rank=self.config.local_rank, set to torchrun
+                # world_size=self.config.world_size,
             )
 
-            torch.cuda.set_device(self.train_config.local_rank)
+            torch.cuda.set_device(get_rank())
         else:
             os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-            os.environ["CUDA_VISIBLE_DEVICES"] = self.train_config.gpu
+            # os.environ["CUDA_VISIBLE_DEVICES"] = self.config.gpu
 
     def _load_checkpoint(self, model: torch.nn.Module):
-        checkpoint_path = self.train_config.resume_checkpoint
+        checkpoint_path = self.config.model.resume
         if not checkpoint_path:
             return
         if os.path.isfile(checkpoint_path):
-            print("=> loading checkpoint '{}'".format(checkpoint_path))
+            if is_main_process():
+                print("=> loading checkpoint '{}'".format(checkpoint_path))
             checkpoint = torch.load(checkpoint_path, map_location="cpu")
             if "state_dict" in checkpoint:
                 state_dict = checkpoint["state_dict"]
@@ -636,7 +598,9 @@ class PytorchTrainer(ABC):
                 mismatched_keys = []
                 for k, v in state_dict.items():
                     ori_size = (
-                        orig_state_dict[k].size() if k in orig_state_dict else None
+                        orig_state_dict[k].size()
+                        if k in orig_state_dict
+                        else None
                     )
                     if v.size() != ori_size:
                         print(
@@ -648,50 +612,37 @@ class PytorchTrainer(ABC):
                 for k in mismatched_keys:
                     del state_dict[k]
                 model.load_state_dict(state_dict, strict=False)
-                if not self.train_config.from_zero:
-                    self.current_epoch = checkpoint["epoch"]
-                    if not self.train_config.zero_score:
-                        self.current_metrics = checkpoint.get(
-                            "metrics", self.evaluator.init_metrics()
+                # if not self.config.from_zero:
+                #     self.current_epoch = checkpoint["epoch"]
+                #     if not self.config.zero_score:
+                #         self.current_metrics = checkpoint.get(
+                #             "metrics", self.evaluator.init_metrics()
+                #         )
+                if is_main_process():
+                    print(
+                        "=> loaded checkpoint '{}' (epoch {})".format(
+                            checkpoint_path, checkpoint["epoch"]
                         )
-                print(
-                    "=> loaded checkpoint '{}' (epoch {})".format(
-                        checkpoint_path, checkpoint["epoch"]
                     )
-                )
             else:
                 model.load_state_dict(checkpoint)
         else:
-            print("=> no checkpoint found at '{}'".format(checkpoint_path))
-        if self.train_config.from_zero:
-            self.current_metrics = self.evaluator.init_metrics()
-            self.current_epoch = 0
+            if is_main_process():
+                print("=> no checkpoint found at '{}'".format(checkpoint_path))
+        # if self.config.from_zero:
+        #     self.current_metrics = self.evaluator.init_metrics()
+        #     self.current_epoch = 0
 
     def _init_model(self):
-        print(self.train_config)
-        self.input_size = self.conf.get("encoder_crop_size", self.conf["crop_size"])
-        model = zoo.__dict__[self.conf["network"]](
-            **self.conf["encoder_params"], crop_size=self.input_size
-        )
+        self.input_size = self.config.model.backbone.img_size
+        model = build_model(self.config.model)
+
         model = model.cuda()
         self._load_checkpoint(model)
 
-        if self.train_config.distributed and not self.train_config.freeze_bn:
+        if self.config.distributed and not self.config.train.freeze_bn:
             model = SyncBatchNorm.convert_sync_batchnorm(model, self.pg)
-        channels_last = self.conf.get("channels_last", False)
+        channels_last = self.config.model.backbone.channel_last
         if channels_last:
             model = model.to(memory_format=torch.channels_last)
         return model
-
-    def _init_loss_functions(self) -> List[LossFunction]:
-        assert self.conf["losses"]
-        loss_functions = []
-        for loss_def in self.conf["losses"]:
-            loss_fn = losses.__dict__[loss_def["type"]](**loss_def["params"])
-            loss_weight = loss_def["weight"]
-            display = loss_def["display"]
-            loss_functions.append(
-                LossFunction(loss_fn, loss_def["name"], loss_weight, display)
-            )
-
-        return loss_functions

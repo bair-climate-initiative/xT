@@ -22,4 +22,6 @@ tensorboardX
 madgrad
 warmup_scheduler
 wandb-osh
+submitit
 tifffile
+omegaconf

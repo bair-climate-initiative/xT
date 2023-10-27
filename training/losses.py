@@ -1,7 +1,12 @@
 from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional
 
 import torch
 import torch.nn.functional as F
+from omegaconf import MISSING
+
+# from hydra.utils import instantiate
 from torch import nn, topk
 from torch.nn import BCEWithLogitsLoss, MSELoss, NLLLoss2d
 
@@ -10,6 +15,65 @@ class LossCalculator(ABC):
     @abstractmethod
     def calculate_loss(self, outputs, sample):
         pass
+
+
+class LossFunction:
+    def __init__(
+        self,
+        loss: LossCalculator,
+        name: str,
+        weight: float = 1,
+        display: bool = False,
+    ):
+        super().__init__()
+        self.loss = loss
+        self.name = name
+        self.weight = weight
+        self.display = display
+
+
+@dataclass
+class SingleLossConfig:
+    params: Optional[Dict[Any, Any]]
+    """Optional parameters."""
+    name: str = "mask_vessel"
+    """Shorthand name of the loss function"""
+    type: str = "Combo"
+    """Class of the loss function to directly instantiate"""
+    weight: float = 1.0
+    """Weight of the loss function in the total loss"""
+    display: bool = True
+    """Whether to display the loss in the progress bar"""
+
+
+@dataclass
+class LossConfig:
+    losses: List[SingleLossConfig] = field(default_factory=list)
+    """List of losses to be used in the training"""
+
+
+def build_losses(config: LossConfig) -> List[LossFunction]:
+    losses = []
+    for single_loss in config.losses:
+        loss_type = str.lower(single_loss.type)
+        if loss_type == "combo":
+            loss_func = ComboLossCalculator(**single_loss.params)
+        elif loss_type == "center":
+            loss_func = CenterLossCalculator()
+        elif loss_type == "length":
+            loss_func = LengthLoss()
+        else:
+            raise ValueError(f"Unknown loss type {loss_type}")
+
+        losses.append(
+            LossFunction(
+                loss_func,
+                single_loss.name,
+                single_loss.weight,
+                single_loss.display,
+            )
+        )
+    return losses
 
 
 def r2_loss(output, target):
@@ -99,7 +163,9 @@ class LengthLoss(LossCalculator):
             pred = outputs["length_mask"].float()
             if torch.sum(targets >= 0).item() == 0:
                 return 0 * pred.mean()
-            return (torch.abs(pred[mask] - targets[mask]) / targets[mask]).mean()
+            return (
+                torch.abs(pred[mask] - targets[mask]) / targets[mask]
+            ).mean()
 
 
 def dice_round(preds, trues, t=0.5):
@@ -120,7 +186,12 @@ def soft_dice_loss(outputs, targets):
 
 
 def jaccard(
-    outputs, targets, per_image=False, non_empty=False, min_pixels=5, reduce=True
+    outputs,
+    targets,
+    per_image=False,
+    non_empty=False,
+    min_pixels=5,
+    reduce=True,
 ):
     batch_size = outputs.size()[0]
     eps = 1e-5
@@ -182,7 +253,9 @@ class NoiseRobustDice(nn.Module):
         input = input.view(-1)
         target = target.view(-1)
         numerator = torch.sum(torch.pow(torch.abs(target - input), self.beta))
-        denominator = torch.sum(torch.square(target) + torch.square(input)) + eps
+        denominator = (
+            torch.sum(torch.square(target) + torch.square(input)) + eps
+        )
         loss = numerator / denominator
         return loss.mean()
 
@@ -234,7 +307,9 @@ class BinaryFocalLoss(nn.Module):
         self.eps = eps
 
     def forward(self, inputs, targets):
-        BCE_loss = F.binary_cross_entropy_with_logits(inputs, targets, reduction="none")
+        BCE_loss = F.binary_cross_entropy_with_logits(
+            inputs, targets, reduction="none"
+        )
         pt = torch.exp(-BCE_loss)
         F_loss = (1 - pt) ** self.gamma * BCE_loss
         return F_loss.mean()
@@ -243,7 +318,7 @@ class BinaryFocalLoss(nn.Module):
 class ComboLoss(nn.Module):
     def __init__(
         self,
-        weights,
+        weights: dict,
         per_image=False,
         skip_empty=False,
         channel_weights=[1] * 15,
@@ -284,7 +359,10 @@ class ComboLoss(nn.Module):
                 channels = targets.size(1)
                 for c in range(channels):
                     if not self.channel_losses or k in self.channel_losses[c]:
-                        if self.skip_empty and torch.sum(targets[:, c, ...]) < 50:
+                        if (
+                            self.skip_empty
+                            and torch.sum(targets[:, c, ...]) < 50
+                        ):
                             continue
                         c_sigmoid_input = sigmoid_input[:, c, ...].view(-1)
                         c_targets = targets[:, c, ...].view(-1)
@@ -294,7 +372,9 @@ class ComboLoss(nn.Module):
                         c_targets = c_targets[non_ignored]
                         c_outputs = c_outputs[non_ignored]
                         val += self.channel_weights[c] * self.mapping[k](
-                            c_sigmoid_input if k in self.expect_sigmoid else c_outputs,
+                            c_sigmoid_input
+                            if k in self.expect_sigmoid
+                            else c_outputs,
                             c_targets,
                         )
 
@@ -344,7 +424,9 @@ class FocalLossWithDice(nn.Module):
         self.gamma = gamma
         if weight is not None:
             weight = torch.Tensor(weight).float()
-        self.nll_loss = NLLLoss2d(weight, size_average, ignore_index=ignore_index)
+        self.nll_loss = NLLLoss2d(
+            weight, size_average, ignore_index=ignore_index
+        )
         self.ignore_index = ignore_index
 
     def forward(self, outputs, targets):
@@ -396,14 +478,16 @@ def soft_dice_loss_mc(
             loss = 0
             for i in range(batch_size):
                 loss += _soft_dice_loss(
-                    torch.unsqueeze(outputs[i], 0), torch.unsqueeze(targets[i], 0)
+                    torch.unsqueeze(outputs[i], 0),
+                    torch.unsqueeze(targets[i], 0),
                 )
             loss /= batch_size
         else:
             loss = torch.Tensor(
                 [
                     _soft_dice_loss(
-                        torch.unsqueeze(outputs[i], 0), torch.unsqueeze(targets[i], 0)
+                        torch.unsqueeze(outputs[i], 0),
+                        torch.unsqueeze(targets[i], 0),
                     )
                     for i in range(batch_size)
                 ]

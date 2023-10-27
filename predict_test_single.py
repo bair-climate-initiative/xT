@@ -13,10 +13,10 @@ cv2.ocl.setUseOpenCL(False)
 cv2.setNumThreads(0)
 import torch
 
-import zoo
+import models
 from inference.postprocessing import process_confidence
 from inference.run_inference import predict_scene_and_return_mm
-from training.config import load_config
+from training.old_config import load_config
 
 warnings.filterwarnings("ignore")
 import argparse
@@ -47,7 +47,7 @@ def process_scene(models: List[torch.nn.Module], args):
 
 def load_model(args, config_path, checkpoint):
     conf = load_config(config_path)
-    model = zoo.__dict__[conf['network']](**conf["encoder_params"])
+    model = models.__dict__[conf['network']](**conf["encoder_params"])
     model = model.cpu()
     load_checkpoint(model, checkpoint, strict=True, verbose=False)
     model = model.float().cuda()

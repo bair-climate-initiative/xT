@@ -7,10 +7,10 @@ from torch.nn.parallel import DistributedDataParallel
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
-import zoo
+import models
 from inference.postprocessing import process_confidence
 from inference.run_inference import predict_scene_and_return_mm
-from training.config import load_config
+from training.old_config import load_config
 from training.utils import load_checkpoint
 
 warnings.filterwarnings("ignore")
@@ -58,7 +58,7 @@ def process_distributed(models: List[torch.nn.Module], args):
 
 def load_model(args, config_path, checkpoint):
     conf = load_config(config_path)
-    model = zoo.__dict__[conf['network']](**conf["encoder_params"])
+    model = models.__dict__[conf['network']](**conf["encoder_params"])
     model = model.cuda()
     load_checkpoint(model, checkpoint)
     channels_last = conf["encoder_params"].get("channels_last", False)
