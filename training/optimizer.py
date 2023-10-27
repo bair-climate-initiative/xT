@@ -16,7 +16,7 @@ from .utils import get_world_size, is_main_process
 class OptimizerConfig:
     """Optimizer Configuation: name, lr + options, warmup, wd."""
 
-    name: str = "adamw"
+    name: str = "sgd"
     """Optimizer shortname: options are [sgd, adam, adamw]"""
     lr: float = 1e-3
     """Absolute learning rate, NOT SET DIRECTLY! Overridden below."""

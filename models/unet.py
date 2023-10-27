@@ -6,7 +6,7 @@ from torch.nn import Dropout2d
 
 from .backbones.vit import MAEDecoder
 from .backbones.vit import registry as VIT_CFG
-from .transformer_xl import MemTransformerLM
+from .transformer_xl import MemTransformerLM, TransformerXLConfig
 
 default_decoder_filters = [48, 96, 176, 256]
 default_last = 48
@@ -49,9 +49,9 @@ class TimmUnet(AbstractModel):
     def __init__(
         self,
         backbone: nn.Module,
+        xl_config: TransformerXLConfig,
         channels_last: bool = False,
         crop_size: int = 256,
-        context_mode: bool = False,
         skip_decoder: bool = False,
         backbone_name: str = "revswinv2_tiny",
         **kwargs
@@ -75,10 +75,14 @@ class TimmUnet(AbstractModel):
                 for i, f in enumerate(reversed(self.decoder_filters[:]))
             ]
         )
-        self.context_mode = context_mode
-        if context_mode:
+        self.context_mode = xl_config.enabled
+        if self.context_mode:
             # TODO: build transformer layers
-            transformer_xl_config = kwargs["transformer_xl"]
+            transformer_xl_config = {
+                "no_memory": xl_config.no_memory, 
+                "n_layer": xl_config.n_layer,
+            }
+
             d_model = self.filters[-1]
             n_length = (
                 self.crop_size // backbone.feature_info[-1]["reduction"]

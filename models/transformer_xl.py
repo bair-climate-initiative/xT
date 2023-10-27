@@ -1,6 +1,22 @@
+from dataclasses import dataclass
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
+
+@dataclass
+class TransformerXLConfig:
+    enabled: bool = False
+    """If True, use Transformer-XL as context mode."""
+    no_memory: bool = False 
+    """If True, use Transformer-XL without memory."""
+    n_layer: int = 12 
+    """Number of layers."""
+    tiling: str = "naive"
+    """Tiling strategy for XL."""
+    context_patch_len: int = 100 
+    """Context Patch Length."""
 
 
 class PositionalEmbedding(nn.Module):

@@ -90,7 +90,7 @@ def normalize_band(band, ignored_mask=0):
 
 
 def create_data_datasets(config: DataConfig):
-    if is_main_process():
+    if os.environ.get("RANK", "0") == "0":  # needed since distrbuted not initialized
         print("dataset config crop size", config.crop_size)
         if config.shoreline_dir:
             print("Legacy Warning:shoreline_dir is no longer used")

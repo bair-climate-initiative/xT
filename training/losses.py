@@ -48,7 +48,7 @@ class SingleLossConfig:
 
 @dataclass
 class LossConfig:
-    losses: Optional[Any] = MISSING  # List[Any] = field(default_factory=list)
+    losses: List[SingleLossConfig] = field(default_factory=list)
     """List of losses to be used in the training"""
 
 

@@ -67,6 +67,8 @@ class PytorchTrainer:
         self.train_data = train_data
         self.val_data = val_data
         self.wandb_id = None
+        self.patch_size = config.model.patch_size # self.conf.get("patch_size", 16)
+        self.context_patch_len = config.model.xl_context.context_patch_len # self.conf.get("context_patch_len", 100)
 
         self.model = self._init_model()
         # self.create_train_loader()
@@ -253,7 +255,7 @@ class PytorchTrainer:
             )
             N, C, H, W, PH, PW, PPH, PPW = rearranged_image.shape
             rearranged_image = rearranged_image.flatten(2, 5)
-            for i, j, k in build_tiling(n, self.config.model.tiling):
+            for i, j, k in build_tiling(n, self.config.model.xl_context.tiling):
                 indices = torch.rand(N, H, W, PH, PW)
                 indices[:, i, j] = 999
                 indices = indices.flatten(1).argsort(-1)
@@ -315,8 +317,8 @@ class PytorchTrainer:
         extra_context = self.model.module.context_mode
         if extra_context:
             iterator = self.build_iterator(iterator)
-            iter_scale = (self.conf["crop_size"] // self.input_size) ** 2
-            if "two_stream" in self.tiling:
+            iter_scale = (self.config.data.crop_size // self.input_size) ** 2
+            if "two_stream" in self.config.model.xl_context.tiling:
                 iter_scale *= 2
         else:
             iter_scale = 1
@@ -632,7 +634,7 @@ class PytorchTrainer:
         #     self.current_epoch = 0
 
     def _init_model(self):
-        self.input_size = self.config.data.crop_size
+        self.input_size = self.config.model.backbone.img_size
         model = build_model(self.config.model)
 
         model = model.cuda()

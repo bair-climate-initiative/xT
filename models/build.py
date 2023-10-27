@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 
 from .backbones import *
+from .transformer_xl import TransformerXLConfig
 from .unet import TimmUnet
 
 # from hydra.core.config_store import ConfigStore
@@ -28,13 +29,6 @@ class BackboneConfig:
     img_size: int = 256
     """Expected input size of data."""
 
-
-@dataclass
-class TransformerXLConfig:
-    enabled: bool = False
-    """If True, use Transformer-XL as context mode."""
-
-
 @dataclass
 class ModelConfig:
     name: str = "TimmUnet"
@@ -45,6 +39,8 @@ class ModelConfig:
     """Transformer-XL tiling strategy"""
     backbone_class: str = "revswinv2_tiny_window16_256_xview"
     """Class name for backbone."""
+    patch_size: int = 16
+    """Patch sized used for transformer XL.""" # TODO: properly derive this
 
     backbone: BackboneConfig = field(default_factory=BackboneConfig)
     xl_context: TransformerXLConfig = field(default_factory=TransformerXLConfig)
@@ -61,6 +57,7 @@ def build_model(config: ModelConfig):
     if config.name == "TimmUnet":
         model = TimmUnet(
             backbone=backbone,
+            xl_config=config.xl_context,
             channels_last=config.backbone.channel_last,
             crop_size=config.backbone.img_size,
             context_mode=config.xl_context.enabled,

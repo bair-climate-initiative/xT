@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+import os
 
 # from hydra.core.config_store import ConfigStore
 from omegaconf import DictConfig, OmegaConf
@@ -61,12 +62,12 @@ def _merge_configs(cfg: XviewConfig, cfg_file: str):
     """Merge config at cfg_file with cfg."""
     other_cfg = OmegaConf.load(cfg_file)
 
-    if hasattr(other_cfg, "base_config"):  # equiv to .get("base_config", [])
-        for base_cfg in other_cfg.base_config:
+    if hasattr(other_cfg, "base_configs"):  # equiv to .get("base_config", [])
+        for base_cfg in other_cfg.base_configs:
             cfg = _merge_configs(cfg, base_cfg)
 
-    # TODO: Best way to get rank for printing since torch.distributed is not initialized yet?
-    print(f"==> Merging config file {cfg_file} into config.")
+    if os.environ.get("RANK", "0") == "0":  # needed since distrbuted not initialized
+        print(f"==> Merging config file {cfg_file} into config.")
     cfg = OmegaConf.merge(cfg, other_cfg)
     return cfg
 
