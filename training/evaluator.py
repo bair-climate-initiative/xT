@@ -56,7 +56,7 @@ class XviewEvaluator(Evaluator):
 
         self.crop_size = config.data.val_crop_size
         self.tiling = config.model.tiling
-        self.input_size = config.data.crop_size
+        self.input_size = config.model.backbone.img_size
         # self.patch_size = config.model.backbone.patch_size
         # self.context_patch_len = config.context_patch_len
         self.overlap = config.data.overlap

@@ -129,7 +129,7 @@ class PytorchTrainer:
             dist.barrier()
         self.model.eval()
         metrics = self.evaluator.validate(
-            test_loader if test_loader is not None else self.val_data_loader,
+            test_loader if test_loader is not None else self.get_val_loader(),
             self.model,
             distributed=is_dist_avail_and_initialized(),
             local_rank=get_rank(),
@@ -221,7 +221,8 @@ class PytorchTrainer:
                 payload,
                 os.path.join(
                     self.config.output_dir,
-                    self.snapshot_name + "_" + str(self.wandb_id) + "_" "_last",
+                    self.config.name,
+                    self.snapshot_name + "_" + str(self.wandb_id) + "_last.tar",
                 ),
             )
 
