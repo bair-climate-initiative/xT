@@ -2,14 +2,14 @@ distributed: True
 fsdp: False
 fp16: True
 name: revswinv2_chip512_swinpt_lr1e-3
-output_dir: ''
+output_dir: ${oc.env:OUTPUT_DIR, "/shared/jacklishufan/large-image-models/new"} 
 test: False
 val: False
 data:
   dataset: xview3
   dir: ${oc.env:XVIEW3_ROOT, "/shared/group/xview3"} 
   shoreline_dir: ${oc.env:XVIEW3_ROOT, "/shared/group/xview3"} /shoreline/validation
-  folds_csv: ''
+  folds_csv:  ${oc.env:XVIEW3_FOLD_PATH, "meta/folds.csv"} 
   fold: 77
   multiplier: 64
   num_workers: 8
@@ -25,7 +25,7 @@ model:
     in_chans: 3
     input_dim: 2
     drop_path_rate: 0.2
-    pretrained:  ${oc.env:PRETRAIN_CKPT_PATH, "./ckpt"}/swinv2_tiny_window16_256.pth
+    pretrained:  ${oc.env:PRETRAIN_CKPT_PATH, "./ckpts"}/swinv2_tiny_window16_256.pth
     channel_last: True
     img_size: 512
   resume: ''

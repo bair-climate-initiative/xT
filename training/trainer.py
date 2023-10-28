@@ -35,6 +35,7 @@ from .losses import LossCalculator, build_losses
 from .optimizer import create_optimizer
 from .sampler import DistributedWeightedRandomSampler
 from .tiling import build_tiling
+from pathlib import Path
 from .utils import (
     SmoothedValue,
     get_rank,
@@ -92,6 +93,7 @@ class PytorchTrainer:
             self.config.train.epochs,
         )
         if is_main_process():
+            Path(self.config.output_dir).mkdir(parents=True,exist_ok=True)
             if WANDB_OFFLINE:
                 from wandb_osh.hooks import TriggerWandbSyncHook
 
@@ -218,8 +220,8 @@ class PytorchTrainer:
         return payload
 
     def _save_last(self):
+        payload = self._get_current_payload()
         if is_main_process():
-            payload = self._get_current_payload()
             torch.save(
                 payload,
                 os.path.join(
@@ -230,8 +232,8 @@ class PytorchTrainer:
             )
 
     def _save_best(self, improved_metrics: Dict):
+        payload = self._get_current_payload()
         if is_main_process():
-            payload = self._get_current_payload()
             for metric_name in improved_metrics.keys():
                 torch.save(
                     payload,

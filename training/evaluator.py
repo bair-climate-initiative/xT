@@ -89,7 +89,7 @@ class XviewEvaluator(Evaluator):
                 self.input_size * (j + 1),
                 batch.shape[-2],
                 batch.shape[-1],
-            )
+            ),{} 
 
     # def build_iterator(self, batch):
     #     old_dim = self.crop_size
@@ -155,16 +155,17 @@ class XviewEvaluator(Evaluator):
         self,
         dataloader: DataLoader,
         model: torch.nn.Module,
+        *args,**kwargs,
     ) -> Dict:
         if is_main_process():
-            print("HH")
+            print("DEBUG: MAIN")
         conf_name = os.path.splitext(os.path.basename(self.config.name))[0]
         val_dir = os.path.join(
             self.config.output_dir, conf_name, str(self.config.data.fold)
         )
         os.makedirs(val_dir, exist_ok=True)
         dataset_dir = os.path.join(self.config.data.dir, self.dataset_dir)
-        extra_context = False
+        extra_context = True # always set to True, this flag just mean we will perform the check on each
         if is_main_process() and self.config.train.test_reset:
             csv_paths = glob.glob(os.path.join(val_dir, "*.csv"))
             for csv_file in csv_paths:
