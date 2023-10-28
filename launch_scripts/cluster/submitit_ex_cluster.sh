@@ -19,13 +19,13 @@ cd $PROJECT_DIR
 # TORCH_DISTRIBUTED_DEBUG=DETAIL \
 NUMEXPR_MAX_THREADS=128 \
 WANDB_MODE=offline \
-python $PROJECT_DIR/launch_scripts/cluster/submitit_train_cluster.py \
+EXP_NAME=$EXP_NAME python $PROJECT_DIR/launch_scripts/cluster/submitit_train_cluster.py \
     --job_dir $HOME/logs/$EXP_NAME \
-    --constraint mla \
+    --constraint $CONSTRAINT \
     --qos frontier \
     --account ODEFN5169CYFZ \
     --nodes 1 \
-    --config $PROJECT_DIR/config/revswin/revswin_tiny.yaml
+    --config $PROJECT_DIR/config/revswin_xl/4096_chip512_lr1e-3.yaml
 
 # use the below for non-slurm launches.
 # OMP_NUM_THREADS=1 CUDA_VISIBLE_DEVICES=6,7 \

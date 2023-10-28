@@ -56,14 +56,6 @@ class XviewConfig:
     """Validation only flag."""
     name: str = ""
     """Run name."""
-    dist_url: str = ""
-    """PyTorch distributed dist_url"""
-    local_rank: int = 0
-    """Local rank for distributed"""
-    global_rank: int = 0
-    """Global rank for distributed"""
-    world_size: int = 1
-    """World size for distributed"""
 
 
 def _merge_configs(cfg: XviewConfig, cfg_file: str):

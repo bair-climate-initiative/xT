@@ -114,11 +114,10 @@ class Trainer(object):
         import submitit
 
         job_env = submitit.JobEnvironment()
-        dist_env = submitit.helpers.TorchDistributedEnvironment().export()
+        dist_env = submitit.helpers.TorchDistributedEnvironment().export(set_cuda_visible_devices=False)
         self.config.output_dir = Path(
-            str(self.config.output_dir).replace("%j", str(job_env.job_id))
+            str(self.config.output_dir).replace("%j", os.environ["EXP_NAME"])
         )
-        self.config.log_dir = self.config.output_dir
 
         # These are needed because submitit errors out otherwise.
         # I thought these were deprecated? Who knows.
@@ -147,6 +146,8 @@ def main():
         num_gpus_per_node = 1
     else:
         num_gpus_per_node = 0
+
+    print(f"Num GPUs per node: {num_gpus_per_node}")
 
     nodes = args.nodes
     timeout_min = args.timeout

@@ -1,0 +1,5 @@
+output_dir: /p/home/ritwik/logs/%j
+data:
+  dir: /p/app/projects/nga-frontier/xview3
+  shoreline_dir: /p/app/projects/nga-frontier/xview3/shoreline/validation
+  folds_csv: /p/home/ritwik/dev/xview3-detection/meta/folds.csv
