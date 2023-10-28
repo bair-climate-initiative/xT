@@ -591,7 +591,6 @@ class HierVitND(AbstractModel):
                     dpr_start_idx_d : dpr_start_idx_d
                     + block_extr_args_swin["decode_depths"][i]
                 ]
-                # breakpoint()
                 encoder_layer = block_cls(
                     block_extr_args_swin["embed_dim"][i],
                     block_extr_args_swin["num_heads"][i],

@@ -61,7 +61,7 @@ def predict_scene_and_return_mm(
     num_workers=8,
     crop_size=3584,
     overlap=704,
-    extra_context=False,
+    extra_context=False, #if it is possible for ant model to have external context
     iter_function=None,
     position=0,
 ):
@@ -84,9 +84,10 @@ def predict_scene_and_return_mm(
         num_workers=num_workers,
         pin_memory=False,
     )
+    
     if extra_context:  # XL inner loop
 
-        def model_foward(x):
+        def model_foward(x,model):
             mem = set()
             output = None
             iterator = iter_function(x)
@@ -114,8 +115,9 @@ def predict_scene_and_return_mm(
             with torch.cuda.amp.autocast(enabled=False):
                 outputs = []
                 for model in models:
+                    extra_context = model.module.context_mode
                     if extra_context:
-                        output = model_foward(batch)
+                        output = model_foward(batch,model)
                     else:
                         output = model(batch)
                     sigmoid_keys = ["fishing_mask", "vessel_mask"]
@@ -126,7 +128,7 @@ def predict_scene_and_return_mm(
                 with torch.cuda.amp.autocast(enabled=use_fp16):
                     if extra_context:
                         out180 = model_foward(
-                            torch.rot90(batch, 2, dims=(2, 3))
+                            torch.rot90(batch, 2, dims=(2, 3)),model
                         )
                     else:
                         out180 = model(torch.rot90(batch, 2, dims=(2, 3)))

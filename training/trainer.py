@@ -2,9 +2,11 @@ import logging
 import math
 import os
 import re
+import subprocess
 import time
 from dataclasses import dataclass
 from numbers import Number
+from pathlib import Path
 from typing import Any, Dict, List
 
 import torch
@@ -25,8 +27,6 @@ from tqdm import tqdm
 
 import wandb
 from models import build_model
-
-import subprocess
 
 # from train_val_segmentor import XviewConfig
 from .config import XviewConfig
@@ -92,6 +92,7 @@ class PytorchTrainer:
             self.config.train.epochs,
         )
         if is_main_process():
+            Path(self.config.output_dir).mkdir(parents=True,exist_ok=True)
             if WANDB_OFFLINE:
                 from wandb_osh.hooks import TriggerWandbSyncHook
 
@@ -218,8 +219,8 @@ class PytorchTrainer:
         return payload
 
     def _save_last(self):
+        payload = self._get_current_payload()
         if is_main_process():
-            payload = self._get_current_payload()
             torch.save(
                 payload,
                 os.path.join(
@@ -230,8 +231,8 @@ class PytorchTrainer:
             )
 
     def _save_best(self, improved_metrics: Dict):
+        payload = self._get_current_payload()
         if is_main_process():
-            payload = self._get_current_payload()
             for metric_name in improved_metrics.keys():
                 torch.save(
                     payload,

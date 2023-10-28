@@ -17,11 +17,7 @@ from inference.postprocessing import process_confidence
 from inference.run_inference import predict_scene_and_return_mm
 from metrics import xview_metric
 from metrics.xview_metric import create_metric_arg_parser
-from training.utils import (
-    get_rank,
-    is_dist_avail_and_initialized,
-    is_main_process,
-)
+from training.utils import get_rank, is_dist_avail_and_initialized, is_main_process
 
 from .config import XviewConfig
 from .tiling import build_tiling
@@ -89,7 +85,7 @@ class XviewEvaluator(Evaluator):
                 self.input_size * (j + 1),
                 batch.shape[-2],
                 batch.shape[-1],
-            )
+            ),{} 
 
     # def build_iterator(self, batch):
     #     old_dim = self.crop_size
@@ -155,16 +151,16 @@ class XviewEvaluator(Evaluator):
         self,
         dataloader: DataLoader,
         model: torch.nn.Module,
+        *args,**kwargs,
     ) -> Dict:
         if is_main_process():
-            print("HH")
+            print("DEBUG: MAIN")
         conf_name = os.path.splitext(os.path.basename(self.config.name))[0]
         val_dir = os.path.join(
             self.config.output_dir, conf_name, str(self.config.data.fold)
         )
         os.makedirs(val_dir, exist_ok=True)
         dataset_dir = os.path.join(self.config.data.dir, self.dataset_dir)
-        extra_context = False
         if is_main_process() and self.config.train.test_reset:
             csv_paths = glob.glob(os.path.join(val_dir, "*.csv"))
             for csv_file in csv_paths:
@@ -191,7 +187,6 @@ class XviewEvaluator(Evaluator):
                 rotate=True,
                 crop_size=self.crop_size,
                 overlap=self.overlap,
-                extra_context=extra_context,
                 iter_function=self.build_iterator,
                 position=get_rank() + 1,
             )
