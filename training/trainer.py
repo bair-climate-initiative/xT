@@ -2,9 +2,11 @@ import logging
 import math
 import os
 import re
+import subprocess
 import time
 from dataclasses import dataclass
 from numbers import Number
+from pathlib import Path
 from typing import Any, Dict, List
 
 import torch
@@ -26,8 +28,6 @@ from tqdm import tqdm
 import wandb
 from models import build_model
 
-import subprocess
-
 # from train_val_segmentor import XviewConfig
 from .config import XviewConfig
 from .evaluator import Evaluator
@@ -35,7 +35,6 @@ from .losses import LossCalculator, build_losses
 from .optimizer import create_optimizer
 from .sampler import DistributedWeightedRandomSampler
 from .tiling import build_tiling
-from pathlib import Path
 from .utils import (
     SmoothedValue,
     get_rank,

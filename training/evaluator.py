@@ -17,11 +17,7 @@ from inference.postprocessing import process_confidence
 from inference.run_inference import predict_scene_and_return_mm
 from metrics import xview_metric
 from metrics.xview_metric import create_metric_arg_parser
-from training.utils import (
-    get_rank,
-    is_dist_avail_and_initialized,
-    is_main_process,
-)
+from training.utils import get_rank, is_dist_avail_and_initialized, is_main_process
 
 from .config import XviewConfig
 from .tiling import build_tiling
@@ -165,7 +161,6 @@ class XviewEvaluator(Evaluator):
         )
         os.makedirs(val_dir, exist_ok=True)
         dataset_dir = os.path.join(self.config.data.dir, self.dataset_dir)
-        extra_context = True # always set to True, this flag just mean we will perform the check on each
         if is_main_process() and self.config.train.test_reset:
             csv_paths = glob.glob(os.path.join(val_dir, "*.csv"))
             for csv_file in csv_paths:
@@ -192,7 +187,6 @@ class XviewEvaluator(Evaluator):
                 rotate=True,
                 crop_size=self.crop_size,
                 overlap=self.overlap,
-                extra_context=extra_context,
                 iter_function=self.build_iterator,
                 position=get_rank() + 1,
             )

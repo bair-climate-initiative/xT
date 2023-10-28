@@ -7,13 +7,13 @@ from pathlib import Path
 import albumentations as A
 import cv2
 import numpy as np
+import openslide
 import pandas as pd
+import tifffile
 import torch
 from rasterio.windows import Window
 from torch.utils.data import Dataset
 
-import openslide
-import tifffile
 
 def slide_fname_to_patient_barcode(slide_name):
     """
