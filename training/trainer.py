@@ -582,7 +582,6 @@ class PytorchTrainer:
 
             print(f"Setting rank. Rank is {get_rank()}")
             print(f"There are {torch.cuda.device_count()} GPUs: {[torch.cuda.get_device_properties(i) for i in range(torch.cuda.device_count())]}")
-            print(os.environ)
             torch.cuda.set_device(get_rank())
         else:
             os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
