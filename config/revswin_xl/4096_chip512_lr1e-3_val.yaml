@@ -6,14 +6,14 @@ data:
   crop_size: 4096
   val_crop_size: 4096
 model: 
-  backbone:
+  backbone: 
     img_size: 512
     pretrained: ${oc.env:PRETRAIN_CKPT_PATH, "./ckpts"}/swinv2_tiny_window16_256.pth
   xl_context:
     enabled: True
     no_memory: False
     n_layer: 12
-  resume: ''
+  resume: /shared/jacklishufan/val_only_TimmUnet_revswinv2_tiny_window16_256_xview_77_4nh9if07__last 
 optimizer:
   base_lr: 1e-3
   classifier_ratio: 1.0

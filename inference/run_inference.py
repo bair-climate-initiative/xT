@@ -61,7 +61,6 @@ def predict_scene_and_return_mm(
     num_workers=8,
     crop_size=3584,
     overlap=704,
-    extra_context=False, #if it is possible for ant model to have external context
     iter_function=None,
     position=0,
 ):
@@ -85,28 +84,27 @@ def predict_scene_and_return_mm(
         pin_memory=False,
     )
     
-    if extra_context:  # XL inner loop
 
-        def model_foward(x,model):
-            mem = set()
-            output = None
-            iterator = iter_function(x)
-            for batch_new, k, (x0, x1, y0, y1, hh, ww), context in iterator:
-                mem_only = k.get("mem_only", False)
-                local_output, mem = model(batch_new, context=context, mem=mem)
-                if mem_only:
-                    continue
-                # context_id = k["context_id"]
-                if output is None:
-                    output = {
-                        k: torch.zeros(
-                            *(v.shape[:-2]), hh, ww, dtype=v.dtype, device="cpu"
-                        )
-                        for k, v in local_output.items()
-                    }
-                for k, v in output.items():
-                    output[k][..., x0:x1, y0:y1] = local_output[k].cpu()
-            return output
+    def model_foward(x,model):
+        mem = set()
+        output = None
+        iterator = iter_function(x)
+        for batch_new, k, (x0, x1, y0, y1, hh, ww), context in iterator:
+            mem_only = k.get("mem_only", False)
+            local_output, mem = model(batch_new, context=context, mem=mem)
+            if mem_only:
+                continue
+            # context_id = k["context_id"]
+            if output is None:
+                output = {
+                    k: torch.zeros(
+                        *(v.shape[:-2]), hh, ww, dtype=v.dtype, device="cpu"
+                    )
+                    for k, v in local_output.items()
+                }
+            for k, v in output.items():
+                output[k][..., x0:x1, y0:y1] = local_output[k].cpu()
+        return output
 
     for batch, slice_vals in tqdm(slice_loader, position=position):
         slice = TileSlice(*slice_vals[0])

@@ -13,7 +13,7 @@ import uuid
 from pathlib import Path
 
 import submitit
-import os
+
 os.chdir("/home/jacklishufan/xView3_second_place/")
 
 import train_val_segmentor as segmentor

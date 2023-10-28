@@ -21,6 +21,7 @@ def slide_fname_to_patient_barcode(slide_name):
     """
     return "-".join(slide_name.stem.split("-")[:3])
 
+
 class TCGADataset(Dataset):
     def __init__(
         self,
@@ -51,7 +52,6 @@ class TCGADataset(Dataset):
             # Shuffle the rows of the dataframe
             self.files = self.files.sample(frac=1).reset_index(drop=True)
 
-
     def _process_labels(self, folds, labels):
         """
         Only keep the files specified by the folds and make them into a lookup table
@@ -65,7 +65,7 @@ class TCGADataset(Dataset):
                 labels = labels.drop("val", axis=1)
             elif self.mode == "val":
                 labels = labels.drop("train", axis=1)
-            
+
             # This column is redundant
             labels = labels.drop("bcr_patient_barcode", axis=1)
 
@@ -87,15 +87,10 @@ class TCGADataset(Dataset):
         slide = openslide.OpenSlide(fname)
         image = tifffile.imread(fname)
         try:
-            x_res_mpp = slide.properties['openslide.mpp-x']
-            y_res_mpp = slide.properties['openslide.mpp-y']
+            x_res_mpp = slide.properties["openslide.mpp-x"]
+            y_res_mpp = slide.properties["openslide.mpp-y"]
         except KeyError:
             x_res_mpp = None
             y_res_mpp = None
 
-        return {
-            "image": image,
-            **label,
-            "x_res_mpp": x_res_mpp,
-            "y_res_mpp": y_res_mpp
-        }
+        return {"image": image, **label, "x_res_mpp": x_res_mpp, "y_res_mpp": y_res_mpp}
