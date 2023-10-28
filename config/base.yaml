@@ -1,17 +1,16 @@
 distributed: True
 fsdp: False
 fp16: True
-log_dir: logs
-output_dir: outputs
 name: revswinv2_chip512_swinpt_lr1e-3
+output_dir: ''
 test: False
 val: False
 data:
   dataset: xview3
-  dir: /home/group/xview3 
-  shoreline_dir: /home/group/xview3/shoreline/validation
-  fold: 77 
-  folds_csv: meta/folds.csv
+  dir: ''
+  shoreline_dir: ''
+  folds_csv: ''
+  fold: 77
   multiplier: 64
   num_workers: 8
   test: False
@@ -26,7 +25,7 @@ model:
     in_chans: 3
     input_dim: 2
     drop_path_rate: 0.2
-    pretrained: ckpts/swinv2_tiny_window16_256.pth
+    pretrained: /p/home/ritwik/pretrained_weights/swinv2_tiny_window16_256.pth
     channel_last: True
     img_size: 512
   resume: ''

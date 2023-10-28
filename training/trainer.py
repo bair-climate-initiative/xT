@@ -26,6 +26,8 @@ from tqdm import tqdm
 import wandb
 from models import build_model
 
+import subprocess
+
 # from train_val_segmentor import XviewConfig
 from .config import XviewConfig
 from .evaluator import Evaluator
@@ -43,6 +45,7 @@ from .utils import (
 )
 
 logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO").upper())
+os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
 
 WANDB_OFFLINE = False
 if os.environ.get("WANDB_MODE", None) == "offline":
@@ -100,7 +103,7 @@ class PytorchTrainer:
                 resume="allow",
                 name=config.name,
                 config=OmegaConf.to_container(config),
-                dir=config.log_dir,
+                dir=config.output_dir,
             )
             artifact = wandb.Artifact(
                 "config_file",
@@ -119,7 +122,7 @@ class PytorchTrainer:
 
             print(self.model)
             self.summary_writer = SummaryWriter(
-                os.path.join(config.log_dir, self.snapshot_name)
+                os.path.join(config.output_dir, self.snapshot_name)
             )
 
         # self._profile_model((1, 2, self.conf["crop_size"], self.conf["crop_size"]))
@@ -129,7 +132,7 @@ class PytorchTrainer:
             dist.barrier()
         self.model.eval()
         metrics = self.evaluator.validate(
-            test_loader if test_loader is not None else self.val_data_loader,
+            test_loader if test_loader is not None else self.get_val_loader(),
             self.model,
             distributed=is_dist_avail_and_initialized(),
             local_rank=get_rank(),
@@ -221,7 +224,8 @@ class PytorchTrainer:
                 payload,
                 os.path.join(
                     self.config.output_dir,
-                    self.snapshot_name + "_" + str(self.wandb_id) + "_" "_last",
+                    self.config.name,
+                    self.snapshot_name + "_" + str(self.wandb_id) + "_last.tar",
                 ),
             )
 
@@ -576,6 +580,8 @@ class PytorchTrainer:
                 # world_size=self.config.world_size,
             )
 
+            print(f"Setting rank. Rank is {get_rank()}")
+            print(f"There are {torch.cuda.device_count()} GPUs: {[torch.cuda.get_device_properties(i) for i in range(torch.cuda.device_count())]}")
             torch.cuda.set_device(get_rank())
         else:
             os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"

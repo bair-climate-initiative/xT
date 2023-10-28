@@ -78,8 +78,8 @@ def create_config(cfg: XviewConfig, args: DictConfig):
     cfg = _merge_configs(cfg, args.config)
     del args.config
 
-    # Then resolve command line arguments
-    cfg = OmegaConf.merge(cfg, args)
+    print(cfg)
+
     return cfg
 
 
