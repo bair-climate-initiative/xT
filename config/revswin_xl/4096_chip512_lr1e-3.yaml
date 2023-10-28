@@ -1,6 +1,6 @@
 base_configs: 
   - config/base.yaml
-  # - config/cluster_paths.yaml
+  - config/cluster_paths.yaml
 name: revswinv2_xl_4096_chip512_swinpt_lr1e-3
 data:
   crop_size: 4096
@@ -8,7 +8,7 @@ data:
 model: 
   backbone:
     img_size: 512
-    pretrained: ${oc.env:PRETRAIN_CKPT_PATH, "./ckpts"}/swinv2_tiny_window16_256.pth
+    pretrained: ${oc.env:PRETRAINED_CKPT_PATH, "./ckpts"}/swinv2_tiny_window16_256.pth
   xl_context:
     enabled: True
     no_memory: False
