@@ -118,6 +118,9 @@ class Trainer(object):
         self.config.output_dir = Path(
             str(self.config.output_dir).replace("%j", os.environ["EXP_NAME"])
         )
+        self.config.model.resume = Path(
+            str(self.config.model.resume).replace("%j", os.environ["EXP_NAME"])
+        )
 
         # These are needed because submitit errors out otherwise.
         # I thought these were deprecated? Who knows.

@@ -2,10 +2,14 @@ distributed: True
 fsdp: False
 fp16: True
 name: revswinv2_chip512_swinpt_lr1e-3
+output_dir: ''
 test: False
 val: False
 data:
   dataset: xview3
+  dir: ''
+  shoreline_dir: ''
+  folds_csv: ''
   fold: 77
   multiplier: 64
   num_workers: 8
