@@ -1160,7 +1160,7 @@ def revswinv2_tiny_window16_256_xview(pretrained=True, **kwargs):
     model = ReversibleSwinTransformerV2(**dict(model_args, **kwargs))
     if pretrained:
         if is_main_process():
-            print(f"Loading pretrained weights from path {pretrained}...")
+            print(f"Loading pretrained backbone weights from path {pretrained}...")
         ckpt = torch.load(pretrained, map_location="cpu")
         state_dict = model.state_dict()
         filtered = {}
@@ -1195,7 +1195,7 @@ def revswinv2_large_window16_256_xview(pretrained=False, **kwargs):
     )
     model = ReversibleSwinTransformerV2(**dict(model_args, **kwargs))
     if pretrained:
-        print("Loading pretrained weights from path...")
+        print("Loading pretrained backbone weights from path...")
         ckpt = torch.load(pretrained, map_location="cpu")
         state_dict = model.state_dict()
         filtered = {}
