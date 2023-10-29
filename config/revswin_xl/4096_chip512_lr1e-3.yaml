@@ -5,6 +5,7 @@ name: revswinv2_xl_4096_chip512_swinpt_lr1e-3
 data:
   crop_size: 4096
   val_crop_size: 4096
+  num_workers: 1
 model: 
   backbone:
     img_size: 512
@@ -20,9 +21,9 @@ optimizer:
   warmup_epochs: 0
 train:
   epochs: 20
-  batch_size: 1
+  batch_size: 24
   val_batch_size: 1
   freeze_epochs: 0
   test_every: 1
   test_reset: True
-val: True
+val: False
