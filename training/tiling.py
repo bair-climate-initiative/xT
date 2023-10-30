@@ -44,4 +44,4 @@ def build_tiling(n, method):
     if method in REGISTRY:
         return REGISTRY[method](n)
     else:
-        raise NotImplemented
+        raise NotImplementedError

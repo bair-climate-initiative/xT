@@ -95,7 +95,7 @@ class Attention(nn.Module):
             elif self.rel_pos_bias == "rel":
                 cbp_in_dim = len(self.input_resolution)
             else:
-                raise NotImplemented
+                raise NotImplementedError
             self.cpb_mlp = nn.Sequential(
                 nn.Linear(cbp_in_dim, 512, bias=True),
                 nn.GELU(),
@@ -130,7 +130,7 @@ class Attention(nn.Module):
                         abs_coords_x - abs_coords_y, dim=-1  # L L D
                     )  #
                 else:
-                    raise NotImplemented
+                    raise NotImplementedError
                 self.register_buffer("abs_table", abs_table, persistent=False)
 
     def add_rel_pos_bias(self, attn=None):
@@ -147,7 +147,7 @@ class Attention(nn.Module):
             # print(abs_position_bias.max(),'abs_position_bias')
             return abs_position_bias
         else:
-            raise NotImplemented
+            raise NotImplementedError
         return 0.0
 
     def forward(self, x, mask=None):
@@ -244,7 +244,7 @@ class Attention(nn.Module):
             return out
             # attn = xops.memory_efficient_attention(q,k,v,attn_bias=bias)
         else:
-            raise NotImplemented
+            raise NotImplementedError
 
         x = (attn @ v).transpose(1, 2).reshape(B, N, C)
         x = self.proj(x)

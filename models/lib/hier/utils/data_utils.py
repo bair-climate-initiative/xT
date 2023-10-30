@@ -69,9 +69,9 @@ for var in SINGLE_LEVEL_VARS:
     NAME_LEVEL_TO_VAR_LEVEL[var] = NAME_TO_VAR[var]
 
 for var in PRESSURE_LEVEL_VARS:
-    for l in DEFAULT_PRESSURE_LEVELS:
-        NAME_LEVEL_TO_VAR_LEVEL[var + "_" + str(l)] = (
-            NAME_TO_VAR[var] + "_" + str(l)
+    for level in DEFAULT_PRESSURE_LEVELS:
+        NAME_LEVEL_TO_VAR_LEVEL[var + "_" + str(level)] = (
+            NAME_TO_VAR[var] + "_" + str(level)
         )
 
 VAR_LEVEL_TO_NAME_LEVEL = {v: k for k, v in NAME_LEVEL_TO_VAR_LEVEL.items()}

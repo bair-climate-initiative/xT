@@ -1,5 +1,4 @@
 import numpy as np
-import torch
 from einops import rearrange
 from torch import nn
 
@@ -20,7 +19,7 @@ class PatchEmbedND(nn.Module):
         self.layers = self.build_layers()
 
     def build_layers(self):
-        raise NotImplemented
+        raise NotImplementedError
 
     def forward(self, x):
         return self.layers(x)
@@ -162,15 +161,15 @@ class PatchRecoverND(nn.Module):
         )
 
     def preprocess(self, x):
-        raise NotImplemented
+        raise NotImplementedError
 
     def post_process(self, x):
-        raise NotImplemented
+        raise NotImplementedError
 
     def forward(self, x):
         x = self.preprocess(x)
-        for l in self.head:
-            x = l(x)
+        for layer in self.head:
+            x = layer(x)
         x = self.post_process(x)
         return x
 
@@ -200,9 +199,9 @@ class PatchRecover3D(PatchRecoverND):
         x = x[
             :,
             :,
-            self.padding[0] : self.padding[0] + self.input_shape[0],
-            self.padding[1] : self.padding[1] + self.input_shape[1],
-            self.padding[2] : self.padding[2] + self.input_shape[2],
+            self.padding[0]:self.padding[0] + self.input_shape[0],
+            self.padding[1]:self.padding[1] + self.input_shape[1],
+            self.padding[2]:self.padding[2] + self.input_shape[2],
         ]
         return x
 
@@ -235,10 +234,10 @@ class PatchRecover4D(PatchRecoverND):
         x = x[
             :,
             :,
-            self.padding[0] : self.padding[0] + self.input_shape[0],
-            self.padding[1] : self.padding[1] + self.input_shape[1],
-            self.padding[2] : self.padding[2] + self.input_shape[2],
-            self.padding[3] : self.padding[3] + self.input_shape[3],
+            self.padding[0]:self.padding[0] + self.input_shape[0],
+            self.padding[1]:self.padding[1] + self.input_shape[1],
+            self.padding[2]:self.padding[2] + self.input_shape[2],
+            self.padding[3]:self.padding[3] + self.input_shape[3],
         ]
         return x
 
@@ -297,8 +296,8 @@ def crop_4d(x, input_shape, padding=(0, 0, 0, 0)):
     return x[
         :,
         :,
-        padding[0] : padding[0] + input_shape[0],
-        padding[1] : padding[1] + input_shape[1],
-        padding[2] : padding[2] + input_shape[2],
-        padding[3] : padding[3] + input_shape[3],
+        padding[0]:padding[0] + input_shape[0],
+        padding[1]:padding[1] + input_shape[1],
+        padding[2]:padding[2] + input_shape[2],
+        padding[3]:padding[3] + input_shape[3],
     ]

@@ -4,8 +4,6 @@ from typing import Any, Dict, List, Optional
 
 import torch
 import torch.nn.functional as F
-from omegaconf import MISSING
-
 # from hydra.utils import instantiate
 from torch import nn, topk
 from torch.nn import BCEWithLogitsLoss, MSELoss, NLLLoss2d
@@ -205,7 +203,7 @@ def jaccard(
         torch.sum(dice_output + dice_target, dim=1) - intersection + eps
     )
     if non_empty:
-        assert per_image == True
+        assert per_image
         non_empty_images = 0
         sum_loss = 0
         for i in range(batch_size):

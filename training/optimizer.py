@@ -1,14 +1,13 @@
 from dataclasses import dataclass
-from typing import Literal, Tuple
 
 # from hydra.core.config_store import ConfigStore
 from timm.optim import AdamW
 from torch import nn, optim
 from torch.optim.adamw import AdamW
-from torch.optim.lr_scheduler import CosineAnnealingLR, CyclicLR, MultiStepLR
+from torch.optim.lr_scheduler import CosineAnnealingLR
 from warmup_scheduler import GradualWarmupScheduler
 
-from .schedulers import ExponentialLRScheduler, LRStepScheduler, PolyLR
+from .schedulers import LRStepScheduler
 from .utils import get_world_size, is_main_process
 
 

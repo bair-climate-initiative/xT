@@ -1,4 +1,4 @@
-from typing import Iterator, Optional, Sequence
+from typing import Optional, Sequence
 
 import numpy as np
 from torch.utils.data import Dataset, DistributedSampler, WeightedRandomSampler

@@ -1,5 +1,3 @@
-import os
-
 import timm
 import torch.hub
 from torch.nn import Dropout2d
@@ -17,16 +15,9 @@ import torch.nn.functional as F
 from torch import nn
 
 from .lib.hier.utils.blocks import registry as BLOCKS
-from .lib.hier.utils.data_utils import parse_lookbacks
-from .lib.hier.utils.patch_embed import (
-    ConvBlock4D,
-    PatchEmbed3D,
-    PatchEmbed4D,
-    PatchRecover3D,
-    PatchRecover4D,
-    build_downsample,
-    build_upsample,
-)
+from .lib.hier.utils.patch_embed import (ConvBlock4D, PatchEmbed4D,
+                                         PatchRecover4D, build_downsample,
+                                         build_upsample)
 
 
 class AbstractModel(nn.Module):
@@ -543,7 +534,7 @@ class HierVitND(AbstractModel):
         patch_out_channels = block_extr_args_swin["embed_dim"][0]
         patch_recover_channels = block_extr_args_swin["embed_dim"][0] * 2
 
-        if True:  ## swin
+        if True:  # swin
             hier_depths = block_extr_args_swin["hier_depths"]
             self.total_hierarchy = len(hier_depths)
             down_sample_size = block_extr_args_swin.get(
@@ -584,11 +575,11 @@ class HierVitND(AbstractModel):
                 dpr_start_idx = sum(block_extr_args_swin["hier_depths"][:i])
                 dpr_start_idx_d = sum(block_extr_args_swin["decode_depths"][:i])
                 dpr_layer = dpr[
-                    dpr_start_idx : dpr_start_idx
+                    dpr_start_idx:dpr_start_idx
                     + block_extr_args_swin["hier_depths"][i]
                 ]
                 dpr_layer_d = dpr_decoder[
-                    dpr_start_idx_d : dpr_start_idx_d
+                    dpr_start_idx_d:dpr_start_idx_d
                     + block_extr_args_swin["decode_depths"][i]
                 ]
                 encoder_layer = block_cls(
@@ -738,7 +729,7 @@ class HierVitND(AbstractModel):
         if len(x.shape) == 4:
             x = x[:, :, None, None]  # N C 1 1 H W
         x = self.patch_embed_level(x)  # N C T L H W
-        ## transformer
+        # transformer
 
         x = self.transformer(x)
 
@@ -860,7 +851,7 @@ class MAEPredictor(nn.Module):
         return self.layer(x)
 
 
-from .lib.hier.utils.patch_embed import Conv4d, ConvBlock4D
+from .lib.hier.utils.patch_embed import ConvBlock4D
 
 
 class MAEPredictor4D(nn.Module):

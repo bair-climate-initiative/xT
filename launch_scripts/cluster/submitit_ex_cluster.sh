@@ -1,6 +1,6 @@
 #!/bin/bash
 HOME=/p/home/ritwik
-EXP_NAME=revswinv2_xl_4096_chip1024_swinpt_lr3e-3
+EXP_NAME=revswin_xl_4096_chip512_lr3e-4_wu1
 DATA_DIR=/p/app/projects/nga-frontier/xview3
 PROJECT_DIR=/p/home/ritwik/dev/xview3-detection
 PRETRAINED_CKPT_PATH=/p/home/ritwik/pretrained_weights
@@ -28,7 +28,7 @@ python $PROJECT_DIR/launch_scripts/cluster/submitit_train_cluster.py \
     --qos frontier \
     --account ODEFN5169CYFZ \
     --nodes 1 \
-    --config $PROJECT_DIR/config/revswin_xl/4096_chip512_lr1e-3.yaml
+    --config $PROJECT_DIR/config/revswin_xl_1029/4096_chip512_lr3e-4_wu1.yaml
 
 # use the below for non-slurm launches.
 # OMP_NUM_THREADS=1 CUDA_VISIBLE_DEVICES=6,7 \

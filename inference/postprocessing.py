@@ -26,7 +26,7 @@ def process_confidence(scene_id, input_dir, mask_dict=None):
             center_preds = np.load(
                 os.path.join(input_dir, scene_id, "center_preds.npy")
             )
-        except:
+        except FileNotFoundError:
             return data
 
     centers = center_preds > 100

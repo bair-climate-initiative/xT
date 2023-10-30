@@ -19,17 +19,8 @@ from typing import Callable, Optional, Tuple, Union
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torch.utils.checkpoint as checkpoint
-from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
-from timm.layers import (  # manually add patchembed
-    ClassifierHead,
-    DropPath,
-    Format,
-    Mlp,
-    nchw_to,
-    to_2tuple,
-    trunc_normal_,
-)
+from timm.layers import DropPath  # manually add patchembed
+from timm.layers import Format, Mlp, nchw_to, to_2tuple, trunc_normal_
 from torch.autograd import Function as Function
 
 from training.utils import is_main_process
@@ -416,8 +407,8 @@ class TwoStreamFusion(nn.Module):
             proj = self.fuse_fn[1]
             trunc_normal_(proj.weight, std=0.02)
             with torch.no_grad():
-                torch.diagonal(proj.weight.data[:, : self.dim]).add_(0.5)
-                torch.diagonal(proj.weight.data[:, self.dim :]).add_(0.5)
+                torch.diagonal(proj.weight.data[:, :self.dim]).add_(0.5)
+                torch.diagonal(proj.weight.data[:, self.dim:]).add_(0.5)
 
     def forward(self, x):
         return self.fuse_fn(x)
@@ -995,7 +986,7 @@ class ReversibleSwinTransformerV2(nn.Module):
             output_fmt="NHWC",
         )
         self.feature_info += [
-            dict(num_chs=embed_dim[0], reduction=2, module=f"patch_embed")
+            dict(num_chs=embed_dim[0], reduction=2, module="patch_embed")
         ]
         self.upsample = nn.ModuleList(
             [nn.ConvTranspose2d(embed_dim[0], embed_dim[0], 2, 2)]
@@ -1099,8 +1090,8 @@ class ReversibleSwinTransformerV2(nn.Module):
 
     @torch.jit.ignore
     def set_grad_checkpointing(self, enable=True):
-        for l in self.layers:
-            l.grad_checkpointing = enable
+        for layer in self.layers:
+            layer.grad_checkpointing = enable
 
     @torch.jit.ignore
     def get_classifier(self):

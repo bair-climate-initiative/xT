@@ -1,7 +1,6 @@
 from collections import Counter
 from typing import List
 
-import numpy as np
 import torch
 from torch import Tensor
 

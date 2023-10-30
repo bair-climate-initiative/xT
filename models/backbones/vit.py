@@ -17,17 +17,13 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.checkpoint as checkpoint
-
 # from mmdet.utils import get_root_logger
 # from ..builder import BACKBONES
 from einops import rearrange
 from timm.models.layers import drop_path, to_2tuple, trunc_normal_
 
-from ..pos_embed import (
-    get_1d_sincos_pos_embed_from_grid,
-    get_1d_sincos_pos_embed_from_grid_torch,
-    get_2d_sincos_pos_embed,
-)
+from ..pos_embed import (get_1d_sincos_pos_embed_from_grid_torch,
+                         get_2d_sincos_pos_embed)
 
 
 class DropPath(nn.Module):
@@ -453,8 +449,8 @@ class Block(nn.Module):
 
     def forward(self, x, H, W):
         if self.window:
-            x_extra = x[:, H * W :]
-            x = x[:, : H * W]
+            x_extra = x[:, H * W:]
+            x = x[:, :H * W]
         if self.gamma_1 is None:
             x = x + self.drop_path(self.attn(self.norm1(x), H, W))
             x = x + self.drop_path(self.mlp(self.norm2(x)))
@@ -769,7 +765,7 @@ class ViT(nn.Module):
             x = x + self.pos_embed
         x = self.pos_drop(x)
         if context:
-            context_patches = context["context_patches"]  #' n c l hp wp'
+            context_patches = context["context_patches"]  # ' n c l hp wp'
             nc, cc, lc, hpc, wpc = context_patches.shape
             context_patches = rearrange(
                 context_patches, "n c l h w-> ( n l ) c h w"

@@ -1,4 +1,3 @@
-import re
 import warnings
 from typing import List
 
@@ -49,7 +48,7 @@ def process_distributed(models: List[torch.nn.Module], args):
     for sample in tqdm(test_loader):
         scene_id = sample[0]
         mask_dict = predict_scene_and_return_mm(models, scene_id=scene_id, dataset_dir=test_dataset_dir, use_fp16=True,
-                                                rotate=True,num_workers=0)
+                                                rotate=True, num_workers=0)
         data = process_confidence(scene_id, None, mask_dict)
         pd.DataFrame(data, columns=["detect_scene_row", "detect_scene_column", "scene_id", "is_vessel", "is_fishing",
                                     "vessel_length_m", "confidence", "mean_obj", "mean_vessel", "mean_fishing",

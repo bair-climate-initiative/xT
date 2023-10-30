@@ -2,18 +2,13 @@ import logging
 import math
 import os
 import re
-import subprocess
-import time
-from dataclasses import dataclass
 from numbers import Number
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Dict
 
 import torch
 import torch.distributed
 import torch.distributed as dist
-import torch.nn as nn
-import yaml
 from einops import rearrange
 from fvcore.nn import FlopCountAnalysis
 from omegaconf import OmegaConf
@@ -31,13 +26,12 @@ from models import build_model
 # from train_val_segmentor import XviewConfig
 from .config import XviewConfig
 from .evaluator import Evaluator
-from .losses import LossCalculator, build_losses
+from .losses import build_losses
 from .optimizer import create_optimizer
 from .sampler import DistributedWeightedRandomSampler
 from .tiling import build_tiling
-from .utils import (SmoothedValue, get_rank, get_world_size,
-                    is_dist_avail_and_initialized, is_main_process,
-                    wandb_dump_images)
+from .utils import (get_rank, get_world_size, is_dist_avail_and_initialized,
+                    is_main_process)
 
 logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO").upper())
 os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
@@ -291,8 +285,8 @@ class PytorchTrainer:
                 new_payload = {
                     k: v[
                         ...,
-                        self.input_size * i : self.input_size * (i + 1),
-                        self.input_size * j : self.input_size * (j + 1),
+                        self.input_size * i:self.input_size * (i + 1),
+                        self.input_size * j:self.input_size * (j + 1),
                     ]
                     for k, v in x.items()
                     if k != "name"
@@ -389,16 +383,16 @@ class PytorchTrainer:
                     #     wandb_dump_images(all_imgs,keys=all_keys)
                     total_loss = 0
                     for loss_def in self.losses:
-                        l = loss_def.loss.calculate_loss(output, sample)
-                        if math.isnan(l.item()) or math.isinf(l.item()):
+                        loss = loss_def.loss.calculate_loss(output, sample)
+                        if math.isnan(loss.item()) or math.isinf(loss.item()):
                             print(loss_def)
                             print("is nan!")
                         if loss_def.display:
                             avg_meters[loss_def.name].update(
-                                l if isinstance(l, Number) else l.item(),
+                                loss if isinstance(loss, Number) else loss.item(),
                                 imgs.size(0),
                             )
-                        total_loss += loss_def.weight * l
+                        total_loss += loss_def.weight * loss
             loss_meter.update(total_loss.item(), imgs.size(0))
             if math.isnan(total_loss.item()) or math.isinf(total_loss.item()):
                 raise ValueError("NaN loss !!")
@@ -547,8 +541,7 @@ class PytorchTrainer:
 
         if self.config.distributed and self.config.fsdp:
             from torch.distributed.fsdp import (CPUOffload,
-                                                FullyShardedDataParallel,
-                                                MixedPrecision)
+                                                FullyShardedDataParallel)
             from torch.distributed.fsdp.wrap import size_based_auto_wrap_policy
 
             self.model = FullyShardedDataParallel(

@@ -1,28 +1,14 @@
-from timm.models.swin_transformer_v2 import PatchMerging, SwinTransformerV2Block
+from timm.models.swin_transformer_v2 import (PatchMerging,
+                                             SwinTransformerV2Block)
 
 BasicLayer = SwinTransformerV2Block
-import math
-from typing import Optional, Tuple
 
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-import torch.utils.checkpoint as checkpoint
-from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
-from timm.models.fx_features import register_notrace_function
-from timm.models.helpers import build_model_with_cfg, named_apply
-from timm.models.layers import (
-    DropPath,
-    Mlp,
-    PatchEmbed,
-    _assert,
-    to_2tuple,
-    to_ntuple,
-    trunc_normal_,
-)
-from timm.models.registry import register_model
-from timm.models.swin_transformer_v2 import PatchMerging, SwinTransformerV2Block
+from timm.models.layers import PatchEmbed, trunc_normal_
+from timm.models.swin_transformer_v2 import (PatchMerging,
+                                             SwinTransformerV2Block)
 
 BasicLayer = SwinTransformerV2Block
 
@@ -125,7 +111,7 @@ class SwinTransformerV2Xview(nn.Module):
         self.upsample = nn.ModuleList()
         self.upsample.append(nn.ConvTranspose2d(embed_dim, embed_dim, 2, 2))
         self.feature_info += [
-            dict(num_chs=embed_dim, reduction=2, module=f"patch_embed")
+            dict(num_chs=embed_dim, reduction=2, module="patch_embed")
         ]
         for i_layer in range(self.num_layers):
             layer = BasicLayer(
@@ -142,7 +128,7 @@ class SwinTransformerV2Xview(nn.Module):
                 drop=drop_rate,
                 attn_drop=attn_drop_rate,
                 drop_path=dpr[
-                    sum(depths[:i_layer]) : sum(depths[: i_layer + 1])
+                    sum(depths[:i_layer]):sum(depths[: i_layer + 1])
                 ],
                 norm_layer=norm_layer,
                 downsample=PatchMerging
@@ -209,8 +195,8 @@ class SwinTransformerV2Xview(nn.Module):
 
     @torch.jit.ignore
     def set_grad_checkpointing(self, enable=True):
-        for l in self.layers:
-            l.grad_checkpointing = enable
+        for layer in self.layers:
+            layer.grad_checkpointing = enable
 
     @torch.jit.ignore
     def get_classifier(self):

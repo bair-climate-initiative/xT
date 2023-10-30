@@ -40,7 +40,7 @@ def build_attention_mask_adjacent(input_resolution, radius, grid=None):
             in_grid = base_mask[None,] & base_mask[:, None]
             mask = mask | in_grid
         else:
-            raise NotImplemented
+            raise NotImplementedError
     mask = torch.where(
         mask,
         torch.tensor(0.0, dtype=torch.float32),

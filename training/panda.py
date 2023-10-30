@@ -1,13 +1,10 @@
-import itertools
+
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import torch
-import torchvision.transforms as transforms
-import torchvision.transforms.functional as F
 from openslide import OpenSlide
-from PIL import Image
 from torch.utils.data import Dataset
 
 

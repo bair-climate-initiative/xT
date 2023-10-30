@@ -148,5 +148,6 @@ train3.sh
 launch.sh
 out.json
 .pre-commit-config.yaml
+*.out
 
 .vscode/

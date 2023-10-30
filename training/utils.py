@@ -7,21 +7,10 @@ import cv2
 import numpy as np
 import torch
 import torch.distributed as dist
-from einops import rearrange
-from madgrad import MADGRAD
 from matplotlib import pyplot as plt
-from timm.models import inception_v3
-from timm.optim import AdamW
-from torch import nn, optim
-from torch.optim import lr_scheduler
-from torch.optim.adamw import AdamW
-from torch.optim.lr_scheduler import CosineAnnealingLR, CyclicLR, MultiStepLR
-from torch.optim.rmsprop import RMSprop
 from torch.utils.data import Subset
-from warmup_scheduler import GradualWarmupScheduler
 
 import wandb
-from training.schedulers import ExponentialLRScheduler, LRStepScheduler, PolyLR
 
 cv2.ocl.setUseOpenCL(False)
 cv2.setNumThreads(0)

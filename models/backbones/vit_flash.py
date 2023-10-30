@@ -14,11 +14,9 @@ from functools import partial
 import timm.models.vision_transformer
 import torch
 import torch.nn as nn
-from einops import rearrange
 from flash_attn.modules.mha import MHA as FlashMHA
-from flash_attn.modules.mlp import Mlp as FlashMlp
 from timm.models.layers import DropPath, Mlp
-from timm.models.vision_transformer import Attention, LayerScale
+from timm.models.vision_transformer import LayerScale
 
 from .utils import interpolate_pos_embed
 
@@ -41,7 +39,7 @@ def load_checkpoint(model, pretrained: str):
         "pos_embed" in checkpoint_model
         and checkpoint_model["pos_embed"].shape != state_dict["pos_embed"].shape
     ):
-        print(f"Adjusting class token for pos_embed in pretrained checkpoint")
+        print("Adjusting class token for pos_embed in pretrained checkpoint")
         checkpoint_model["pos_embed"] = checkpoint_model["pos_embed"][:, 1:, :]
 
     # interpolate position embedding

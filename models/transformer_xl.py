@@ -60,16 +60,16 @@ class PositionwiseFF(nn.Module):
 
     def forward(self, inp):
         if self.pre_lnorm:
-            ##### layer normalization + positionwise feed-forward
+            # layer normalization + positionwise feed-forward
             core_out = self.CoreNet(self.layer_norm(inp))
 
-            ##### residual connection
+            # residual connection
             output = core_out + inp
         else:
-            ##### positionwise feed-forward
+            # positionwise feed-forward
             core_out = self.CoreNet(inp)
 
-            ##### residual connection + layer normalization
+            # residual connection + layer normalization
             output = self.layer_norm(inp + core_out)
 
         return output
@@ -100,7 +100,7 @@ class MultiHeadAttn(nn.Module):
         self.pre_lnorm = pre_lnorm
 
     def forward(self, h, attn_mask=None, mems=None):
-        ##### multihead attention
+        # multihead attention
         # [hlen x bsz x n_head x d_head]
 
         if mems is not None:
@@ -109,7 +109,7 @@ class MultiHeadAttn(nn.Module):
             c = h
 
         if self.pre_lnorm:
-            ##### layer normalization
+            # layer normalization
             c = self.layer_norm(c)
 
         head_q = self.q_net(h)
@@ -140,15 +140,15 @@ class MultiHeadAttn(nn.Module):
             attn_vec.size(0), attn_vec.size(1), self.n_head * self.d_head
         )
 
-        ##### linear projection
+        # linear projection
         attn_out = self.o_net(attn_vec)
         attn_out = self.drop(attn_out)
 
         if self.pre_lnorm:
-            ##### residual connection
+            # residual connection
             output = h + attn_out
         else:
-            ##### residual connection + layer normalization
+            # residual connection + layer normalization
             output = self.layer_norm(h + attn_out)
 
         return output
@@ -285,7 +285,7 @@ class RelPartialLearnableMultiHeadAttn(RelMultiHeadAttn):
             rlen, self.n_head, self.d_head
         )  # qlen x n_head x d_head
 
-        #### compute attention score
+        # compute attention score
         rw_head_q = w_head_q + r_w_bias  # qlen x bsz x n_head x d_head
         AC = torch.einsum(
             "ibnd,jbnd->ijbn", (rw_head_q, w_head_k)
@@ -301,7 +301,7 @@ class RelPartialLearnableMultiHeadAttn(RelMultiHeadAttn):
         attn_score = AC + BD
         attn_score.mul_(self.scale)
 
-        #### compute attention probability
+        # compute attention probability
         if attn_mask is not None and attn_mask.any().item():
             if attn_mask.dim() == 2:
                 attn_score = (
@@ -320,7 +320,7 @@ class RelPartialLearnableMultiHeadAttn(RelMultiHeadAttn):
         attn_prob = F.softmax(attn_score, dim=1)
         attn_prob = self.dropatt(attn_prob)
 
-        #### compute attention vector
+        # compute attention vector
         attn_vec = torch.einsum("ijbn,jbnd->ibnd", (attn_prob, w_head_v))
 
         # [qlen x bsz x n_head x d_head]
@@ -328,15 +328,15 @@ class RelPartialLearnableMultiHeadAttn(RelMultiHeadAttn):
             attn_vec.size(0), attn_vec.size(1), self.n_head * self.d_head
         )
 
-        ##### linear projection
+        # linear projection
         attn_out = self.o_net(attn_vec)
         attn_out = self.drop(attn_out)
 
         if self.pre_lnorm:
-            ##### residual connection
+            # residual connection
             output = w + attn_out
         else:
-            ##### residual connection + layer normalization
+            # residual connection + layer normalization
             output = self.layer_norm(w + attn_out)
 
         return output
@@ -384,7 +384,7 @@ class RelLearnableMultiHeadAttn(RelMultiHeadAttn):
             r_emb = r_emb[-klen:]
             r_bias = r_bias[-klen:]
 
-        #### compute attention score
+        # compute attention score
         rw_head_q = w_head_q + r_w_bias[None]  # qlen x bsz x n_head x d_head
 
         AC = torch.einsum(
@@ -400,7 +400,7 @@ class RelLearnableMultiHeadAttn(RelMultiHeadAttn):
         attn_score = AC + BD
         attn_score.mul_(self.scale)
 
-        #### compute attention probability
+        # compute attention probability
         if attn_mask is not None and attn_mask.any().item():
             if attn_mask.dim() == 2:
                 attn_score.masked_fill_(
@@ -413,7 +413,7 @@ class RelLearnableMultiHeadAttn(RelMultiHeadAttn):
         attn_prob = F.softmax(attn_score, dim=1)
         attn_prob = self.dropatt(attn_prob)
 
-        #### compute attention vector
+        # compute attention vector
         attn_vec = torch.einsum("ijbn,jbnd->ibnd", (attn_prob, w_head_v))
 
         # [qlen x bsz x n_head x d_head]
@@ -421,15 +421,15 @@ class RelLearnableMultiHeadAttn(RelMultiHeadAttn):
             attn_vec.size(0), attn_vec.size(1), self.n_head * self.d_head
         )
 
-        ##### linear projection
+        # linear projection
         attn_out = self.o_net(attn_vec)
         attn_out = self.drop(attn_out)
 
         if self.pre_lnorm:
-            ##### residual connection
+            # residual connection
             output = w + attn_out
         else:
-            ##### residual connection + layer normalization
+            # residual connection + layer normalization
             output = self.layer_norm(w + attn_out)
 
         return output
@@ -797,8 +797,8 @@ class MemTransformerLM(nn.Module):
             hids.append(core_out)
             for i, layer in enumerate(self.layers):
                 if self.clamp_len > 0:
-                    r_emb = self.r_emb[i][-self.clamp_len :]
-                    r_bias = self.r_bias[i][-self.clamp_len :]
+                    r_emb = self.r_emb[i][-self.clamp_len:]
+                    r_bias = self.r_bias[i][-self.clamp_len:]
                 else:
                     r_emb, r_bias = self.r_emb[i], self.r_bias[i]
 

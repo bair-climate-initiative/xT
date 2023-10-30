@@ -9,14 +9,10 @@ import cv2
 import numpy as np
 import pandas as pd
 import rasterio
-import tifffile
 import torch
-
 # from hydra.core.config_store import ConfigStore
 from rasterio.windows import Window
 from torch.utils.data import Dataset
-
-from .utils import is_main_process
 
 cv2.ocl.setUseOpenCL(False)
 cv2.setNumThreads(0)

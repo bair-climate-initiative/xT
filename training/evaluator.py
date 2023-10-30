@@ -8,7 +8,6 @@ from typing import Dict
 import pandas as pd
 import torch
 import torch.distributed as dist
-from einops import rearrange
 from torch.cuda import empty_cache
 from torch.utils.data import DataLoader
 from tqdm import tqdm
@@ -17,11 +16,8 @@ from inference.postprocessing import process_confidence
 from inference.run_inference import predict_scene_and_return_mm
 from metrics import xview_metric
 from metrics.xview_metric import create_metric_arg_parser
-from training.utils import (
-    get_rank,
-    is_dist_avail_and_initialized,
-    is_main_process,
-)
+from training.utils import (get_rank, is_dist_avail_and_initialized,
+                            is_main_process)
 
 from .config import XviewConfig
 from .tiling import build_tiling
@@ -78,8 +74,8 @@ class XviewEvaluator(Evaluator):
         for i, j, k in build_tiling(n, self.tiling):
             batch_new = batch[
                 ...,
-                self.input_size * i : self.input_size * (i + 1),
-                self.input_size * j : self.input_size * (j + 1),
+                self.input_size * i:self.input_size * (i + 1),
+                self.input_size * j:self.input_size * (j + 1),
             ]
             context_id = i * n + j
             yield batch_new, k, (

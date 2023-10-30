@@ -1,12 +1,11 @@
 import math
 from itertools import product
-from typing import Callable, Optional, Tuple, Union
+from typing import Tuple
 
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torch.utils.checkpoint as checkpoint
 from einops import rearrange
 
 from .patch_embed import compute_downsample_pad, crop_4d
@@ -241,7 +240,7 @@ class WindowAttention4D(nn.Module):
                     dim=-1,
                 )  # (NT NL NH NW)   (WT WL WH WW )  (WT WL WH WW ) C
             else:
-                raise NotImplemented
+                raise NotImplementedError
             self.cpb_mlp = nn.Sequential(
                 nn.Linear(abs_table.shape[-1], 512, bias=True),
                 nn.ReLU(inplace=True),
@@ -249,7 +248,7 @@ class WindowAttention4D(nn.Module):
             )
             self.register_buffer("abs_table", abs_table, persistent=False)
         else:
-            raise NotImplemented
+            raise NotImplementedError
         self.qkv = nn.Linear(dim, dim * 3, bias=False)
         if qkv_bias:
             self.q_bias = nn.Parameter(torch.zeros(dim))
