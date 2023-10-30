@@ -35,14 +35,9 @@ from .losses import LossCalculator, build_losses
 from .optimizer import create_optimizer
 from .sampler import DistributedWeightedRandomSampler
 from .tiling import build_tiling
-from .utils import (
-    SmoothedValue,
-    get_rank,
-    get_world_size,
-    is_dist_avail_and_initialized,
-    is_main_process,
-    wandb_dump_images,
-)
+from .utils import (SmoothedValue, get_rank, get_world_size,
+                    is_dist_avail_and_initialized, is_main_process,
+                    wandb_dump_images)
 
 logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO").upper())
 os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
@@ -234,14 +229,6 @@ class PytorchTrainer:
                     + "_"
                     + str(self.wandb_id)
                     + f"_{self.current_epoch}.tar",
-                ),
-            )
-            torch.save(
-                payload,
-                os.path.join(
-                    self.config.output_dir,
-                    self.config.name,
-                    self.snapshot_name + "_" + str(self.wandb_id) + "_last.tar",
                 ),
             )
 
@@ -559,11 +546,9 @@ class PytorchTrainer:
         self.gscaler = torch.cuda.amp.GradScaler()
 
         if self.config.distributed and self.config.fsdp:
-            from torch.distributed.fsdp import (
-                CPUOffload,
-                FullyShardedDataParallel,
-                MixedPrecision,
-            )
+            from torch.distributed.fsdp import (CPUOffload,
+                                                FullyShardedDataParallel,
+                                                MixedPrecision)
             from torch.distributed.fsdp.wrap import size_based_auto_wrap_policy
 
             self.model = FullyShardedDataParallel(
