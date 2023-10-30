@@ -66,7 +66,9 @@ def _merge_configs(cfg: XviewConfig, cfg_file: str):
         for base_cfg in other_cfg.base_configs:
             cfg = _merge_configs(cfg, base_cfg)
 
-    if os.environ.get("RANK", "0") == "0":  # needed since distrbuted not initialized
+    if (
+        os.environ.get("RANK", "0") == "0"
+    ):  # needed since distrbuted not initialized
         print(f"==> Merging config file {cfg_file} into config.")
     cfg = OmegaConf.merge(cfg, other_cfg)
     return cfg

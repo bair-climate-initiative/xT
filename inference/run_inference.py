@@ -27,8 +27,12 @@ class SliceDataset(Dataset):
             self.vv_full = self.vv_full.copy()
             self.vh_full = self.vh_full.copy()
         else:
-            self.vv_full = tifffile.imread(os.path.join(self.scene_dir, "VV_dB.tif"))
-            self.vh_full = tifffile.imread(os.path.join(self.scene_dir, "VH_dB.tif"))
+            self.vv_full = tifffile.imread(
+                os.path.join(self.scene_dir, "VV_dB.tif")
+            )
+            self.vh_full = tifffile.imread(
+                os.path.join(self.scene_dir, "VH_dB.tif")
+            )
             SliceDataset.file_cache[scene_dir] = (
                 self.vv_full.copy(),
                 self.vh_full.copy(),
@@ -91,7 +95,12 @@ def predict_scene_and_return_mm(
                 continue
             # context_id = k["context_id"]
             if output is None:
-                output = {k: torch.zeros(*(v.shape[:-2]), hh, ww, dtype=v.dtype, device="cpu") for k, v in local_output.items()}
+                output = {
+                    k: torch.zeros(
+                        *(v.shape[:-2]), hh, ww, dtype=v.dtype, device="cpu"
+                    )
+                    for k, v in local_output.items()
+                }
             for k, v in output.items():
                 output[k][..., x0:x1, y0:y1] = local_output[k].cpu()
         return output
@@ -115,7 +124,9 @@ def predict_scene_and_return_mm(
             if rotate:
                 with torch.cuda.amp.autocast(enabled=use_fp16):
                     if extra_context:
-                        out180 = model_foward(torch.rot90(batch, 2, dims=(2, 3)), model)
+                        out180 = model_foward(
+                            torch.rot90(batch, 2, dims=(2, 3)), model
+                        )
                     else:
                         out180 = model(torch.rot90(batch, 2, dims=(2, 3)))
                 for key in list(output.keys()):
@@ -130,10 +141,27 @@ def predict_scene_and_return_mm(
             for k in outputs[0].keys():
                 vs = [o[k][:, :3] for o in outputs]
                 output[k] = sum(vs) / len(models)
-            vessel_mask = (output["vessel_mask"][0][0] * 255).cpu().numpy().astype(np.uint8)
-            fishing_mask = (output["fishing_mask"][0][0] * 255).cpu().numpy().astype(np.uint8)
-            center_mask = torch.clamp(output["center_mask"][0][0].float(), 0, 255).cpu().numpy().astype(np.uint8)
-            length_mask = output["length_mask"][0][0].cpu().numpy().astype(np.float16)
+            vessel_mask = (
+                (output["vessel_mask"][0][0] * 255)
+                .cpu()
+                .numpy()
+                .astype(np.uint8)
+            )
+            fishing_mask = (
+                (output["fishing_mask"][0][0] * 255)
+                .cpu()
+                .numpy()
+                .astype(np.uint8)
+            )
+            center_mask = (
+                torch.clamp(output["center_mask"][0][0].float(), 0, 255)
+                .cpu()
+                .numpy()
+                .astype(np.uint8)
+            )
+            length_mask = (
+                output["length_mask"][0][0].cpu().numpy().astype(np.float16)
+            )
         tiler.update_crop(vessel_preds, vessel_mask, slice)
         tiler.update_crop(fishing_preds, fishing_mask, slice)
         tiler.update_crop(center_preds, center_mask, slice)
@@ -141,10 +169,18 @@ def predict_scene_and_return_mm(
         # tiler.update_crop(conf_preds, conf_mask, slice)
     if output_dir:
         os.makedirs(os.path.join(output_dir, scene_id), exist_ok=True)
-        np.save(os.path.join(output_dir, scene_id, "center_preds"), center_preds)
-        np.save(os.path.join(output_dir, scene_id, "vessel_preds"), vessel_preds)
-        np.save(os.path.join(output_dir, scene_id, "fishing_preds"), fishing_preds)
-        np.save(os.path.join(output_dir, scene_id, "length_preds"), length_preds)
+        np.save(
+            os.path.join(output_dir, scene_id, "center_preds"), center_preds
+        )
+        np.save(
+            os.path.join(output_dir, scene_id, "vessel_preds"), vessel_preds
+        )
+        np.save(
+            os.path.join(output_dir, scene_id, "fishing_preds"), fishing_preds
+        )
+        np.save(
+            os.path.join(output_dir, scene_id, "length_preds"), length_preds
+        )
     gc.collect()
     return {
         "center_mask": center_preds,

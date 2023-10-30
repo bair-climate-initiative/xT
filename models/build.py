@@ -29,6 +29,7 @@ class BackboneConfig:
     img_size: int = 256
     """Expected input size of data."""
 
+
 @dataclass
 class ModelConfig:
     name: str = "TimmUnet"
@@ -40,7 +41,7 @@ class ModelConfig:
     backbone_class: str = "revswinv2_tiny_window16_256_xview"
     """Class name for backbone."""
     patch_size: int = 16
-    """Patch sized used for transformer XL.""" # TODO: properly derive this
+    """Patch sized used for transformer XL."""  # TODO: properly derive this
 
     backbone: BackboneConfig = field(default_factory=BackboneConfig)
     xl_context: TransformerXLConfig = field(default_factory=TransformerXLConfig)

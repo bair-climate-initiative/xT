@@ -57,7 +57,10 @@ def parse_args():
         help="Which Nautilus constraint to use",
     )
     parser.add_argument(
-        "--config", default="config/base.yaml", type=str, help="Path to config file"
+        "--config",
+        default="config/base.yaml",
+        type=str,
+        help="Path to config file",
     )
 
     return parser.parse_args()
@@ -114,7 +117,9 @@ class Trainer(object):
         import submitit
 
         job_env = submitit.JobEnvironment()
-        dist_env = submitit.helpers.TorchDistributedEnvironment().export(set_cuda_visible_devices=False)
+        dist_env = submitit.helpers.TorchDistributedEnvironment().export(
+            set_cuda_visible_devices=False
+        )
         self.config.output_dir = Path(
             str(self.config.output_dir).replace("%j", os.environ["EXP_NAME"])
         )

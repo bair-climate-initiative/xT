@@ -17,7 +17,11 @@ from inference.postprocessing import process_confidence
 from inference.run_inference import predict_scene_and_return_mm
 from metrics import xview_metric
 from metrics.xview_metric import create_metric_arg_parser
-from training.utils import get_rank, is_dist_avail_and_initialized, is_main_process
+from training.utils import (
+    get_rank,
+    is_dist_avail_and_initialized,
+    is_main_process,
+)
 
 from .config import XviewConfig
 from .tiling import build_tiling
@@ -37,7 +41,9 @@ class Evaluator(ABC):
         pass
 
     @abstractmethod
-    def get_improved_metrics(self, prev_metrics: Dict, current_metrics: Dict) -> Dict:
+    def get_improved_metrics(
+        self, prev_metrics: Dict, current_metrics: Dict
+    ) -> Dict:
         pass
 
 
@@ -155,7 +161,9 @@ class XviewEvaluator(Evaluator):
         if is_main_process():
             print("DEBUG: MAIN")
         conf_name = os.path.splitext(os.path.basename(self.config.name))[0]
-        val_dir = os.path.join(self.config.output_dir, conf_name, str(self.config.data.fold))
+        val_dir = os.path.join(
+            self.config.output_dir, conf_name, str(self.config.data.fold)
+        )
         os.makedirs(val_dir, exist_ok=True)
         dataset_dir = os.path.join(self.config.data.dir, self.dataset_dir)
         if is_main_process() and self.config.train.test_reset:
@@ -169,7 +177,12 @@ class XviewEvaluator(Evaluator):
             scene_id = sample["name"][0]
             tgt_path = os.path.join(val_dir, f"{scene_id}.csv")
             logging.debug(f"{rank}:Evaluating {scene_id} ")
-            if self.config.test and os.path.exists(tgt_path) and datetime.datetime.fromtimestamp(os.path.getmtime(tgt_path)) > datetime.datetime.now() - datetime.timedelta(hours=10):
+            if (
+                self.config.test
+                and os.path.exists(tgt_path)
+                and datetime.datetime.fromtimestamp(os.path.getmtime(tgt_path))
+                > datetime.datetime.now() - datetime.timedelta(hours=10)
+            ):
                 continue
             mask_dict = predict_scene_and_return_mm(
                 [model],
@@ -208,7 +221,9 @@ class XviewEvaluator(Evaluator):
             csv_paths = glob.glob(os.path.join(val_dir, "*.csv"))
             pred_csv = f"pred_{conf_name}_{self.config.data.fold}.csv"
             print(csv_paths)
-            pd.concat([pd.read_csv(csv_path).reset_index() for csv_path in csv_paths]).to_csv(pred_csv, index=False)
+            pd.concat(
+                [pd.read_csv(csv_path).reset_index() for csv_path in csv_paths]
+            ).to_csv(pred_csv, index=False)
             parser = create_metric_arg_parser()
             metric_args = parser.parse_args("")
             df = pd.read_csv(pred_csv)
@@ -224,8 +239,12 @@ class XviewEvaluator(Evaluator):
                 ]
             ].to_csv(pred_csv, index=False)
             metric_args.inference_file = pred_csv
-            metric_args.label_file = os.path.join(self.config.data.dir, self.annotation_dir)
-            metric_args.shore_root = os.path.join(self.config.data.dir, self.shoreline_dir)
+            metric_args.label_file = os.path.join(
+                self.config.data.dir, self.annotation_dir
+            )
+            metric_args.shore_root = os.path.join(
+                self.config.data.dir, self.shoreline_dir
+            )
             metric_args.shore_tolerance = 2
             metric_args.costly_dist = True
             metric_args.drop_low_detect = True
@@ -238,13 +257,17 @@ class XviewEvaluator(Evaluator):
         empty_cache()
         return {"xview": xview, **output}
 
-    def get_improved_metrics(self, prev_metrics: Dict, current_metrics: Dict) -> Dict:
+    def get_improved_metrics(
+        self, prev_metrics: Dict, current_metrics: Dict
+    ) -> Dict:
         improved = {}
         for k in ("xview", "loc_fscore_shore"):
             if current_metrics[k] > prev_metrics.get(k, 0.0):
                 print(
                     k,
-                    " improved from {:.4f} to {:.4f}".format(prev_metrics["xview"], current_metrics["xview"]),
+                    " improved from {:.4f} to {:.4f}".format(
+                        prev_metrics["xview"], current_metrics["xview"]
+                    ),
                 )
                 improved[k] = current_metrics[k]
         return improved

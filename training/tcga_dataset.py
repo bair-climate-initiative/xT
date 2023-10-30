@@ -43,7 +43,9 @@ class TCGADataset(Dataset):
 
         self.mode = mode
         if self.mode not in ["train", "val"]:
-            raise NotImplementedError("Please provide a valid mode ('train', 'val').")
+            raise NotImplementedError(
+                "Please provide a valid mode ('train', 'val')."
+            )
         self.labels = self._process_labels(self.folds, self.labels)
 
         self.transforms = transforms
@@ -59,7 +61,13 @@ class TCGADataset(Dataset):
         if self.folds is not None:
             # Filter on splits
             # Drop the first index column of both folds and labels
-            labels = pd.merge(folds.iloc[:, 1:], labels.iloc[:, 1:], how="inner", left_on=self.mode, right_on="bcr_patient_barcode")
+            labels = pd.merge(
+                folds.iloc[:, 1:],
+                labels.iloc[:, 1:],
+                how="inner",
+                left_on=self.mode,
+                right_on="bcr_patient_barcode",
+            )
 
             if self.mode == "train":
                 labels = labels.drop("val", axis=1)
@@ -93,4 +101,9 @@ class TCGADataset(Dataset):
             x_res_mpp = None
             y_res_mpp = None
 
-        return {"image": image, **label, "x_res_mpp": x_res_mpp, "y_res_mpp": y_res_mpp}
+        return {
+            "image": image,
+            **label,
+            "x_res_mpp": x_res_mpp,
+            "y_res_mpp": y_res_mpp,
+        }

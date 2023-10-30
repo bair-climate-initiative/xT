@@ -79,7 +79,7 @@ class TimmUnet(AbstractModel):
         if self.context_mode:
             # TODO: build transformer layers
             transformer_xl_config = {
-                "no_memory": xl_config.no_memory, 
+                "no_memory": xl_config.no_memory,
                 "n_layer": xl_config.n_layer,
             }
 
