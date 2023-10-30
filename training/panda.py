@@ -109,7 +109,7 @@ class Panda(Dataset):
             print("DONE")
             self.chips = chips
         else:
-            raise NotImplemented
+            raise NotImplementedError
 
     def _load_file_info(self, split_file):
         df = pd.read_csv(split_file)
@@ -131,7 +131,7 @@ class Panda(Dataset):
         elif self.mode == "random":
             pass
         else:
-            raise NotImplemented
+            raise NotImplementedError
         file = self.files.iloc[idx]
         filepath = (
             f'{self.root_dir}/{self.split}_images/{file["image_id"]}.tiff'
