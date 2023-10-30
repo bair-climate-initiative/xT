@@ -230,6 +230,17 @@ class PytorchTrainer:
                 os.path.join(
                     self.config.output_dir,
                     self.config.name,
+                    self.snapshot_name
+                    + "_"
+                    + str(self.wandb_id)
+                    + f"_{self.current_epoch}.tar",
+                ),
+            )
+            torch.save(
+                payload,
+                os.path.join(
+                    self.config.output_dir,
+                    self.config.name,
                     self.snapshot_name + "_" + str(self.wandb_id) + "_last.tar",
                 ),
             )
