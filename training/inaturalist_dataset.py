@@ -13,7 +13,7 @@ class INatDataset(Dataset):
         self,
         mode: str = "train",
         dataset_dir = "/shared/ritwik/data/inaturalist2018/",
-        annotation_json: str = "mmc1.xlsx",
+        annotation_json: str = "train2018.json",
         transforms: A.Compose = None,
     ):
         """
@@ -23,7 +23,7 @@ class INatDataset(Dataset):
         if type(dataset_dir) is str:
             dataset_dir = Path(dataset_dir)
         self.dataset_dir = dataset_dir
-        self.labels = COCO(annotation_file=annotation_json)
+        self.labels = COCO(annotation_file=str(dataset_dir / annotation_json))
         self.labels = self._process_labels(self.labels)
 
         self.mode = mode
@@ -43,6 +43,7 @@ class INatDataset(Dataset):
         label = self.labels[idx]
         img_path = self.dataset_dir / label["file_name"]
         img = np.asarray(Image.open(img_path))
+        img = self.transforms(image=img)["image"]
 
         return {
             "img": img,

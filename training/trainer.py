@@ -303,7 +303,6 @@ class PytorchTrainer:
         torch.autograd.set_detect_anomaly(True)
         # self.train_sampler.set_epoch(self.current_epoch)
         train_loader = self.get_train_loader()
-        iterator = self.get_train_loader()
         # data_time = SmoothedValue(fmt="{avg:.4f}")
         loss_meter = AverageMeter()
         # forward_time = SmoothedValue(fmt="{avg:.4f}")
@@ -317,7 +316,7 @@ class PytorchTrainer:
             self.scheduler.step(self.current_epoch)
         extra_context = self.model.module.context_mode
         if extra_context:
-            iterator = self.build_iterator(iterator)
+            train_loader = self.build_iterator(train_loader)
             iter_scale = (self.config.data.crop_size // self.input_size) ** 2
             if "two_stream" in self.config.model.xl_context.tiling:
                 iter_scale *= 2
@@ -337,9 +336,9 @@ class PytorchTrainer:
         # Sliced Images with context_id
         # todo: make configurable
         if is_main_process():
-            iterator = tqdm(iterator, total=iter_scale * len(train_loader))
+            train_loader = tqdm(train_loader, total=iter_scale * len(train_loader))
         # Broken, temporaily disable time logging
-        for i, sample in enumerate(iterator):
+        for i, sample in enumerate(train_loader):
             # if i > 2:
             #     break
             imgs = sample["image"].cuda().float()
@@ -432,7 +431,7 @@ class PytorchTrainer:
                     int(i / iter_scale) + self.current_epoch * len(train_loader)
                 )
             if is_main_process():
-                iterator.set_postfix(
+                train_loader.set_postfix(
                     {
                         "lr": float(self.scheduler.get_lr()[-1]),
                         "epoch": self.current_epoch,

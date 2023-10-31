@@ -3,6 +3,9 @@ import os
 import random
 import time
 from dataclasses import dataclass
+from functools import partial
+from pathlib import Path
+from typing import List
 
 import albumentations as A
 import cv2
@@ -14,6 +17,8 @@ import torch
 from rasterio.windows import Window
 from torch.utils.data import Dataset
 
+from .inaturalist_dataset import INatDataset
+
 cv2.ocl.setUseOpenCL(False)
 cv2.setNumThreads(0)
 
@@ -23,21 +28,6 @@ cv2.setNumThreads(0)
 
 # VH mean: -24.66130160959856
 # VH std:  6.684547156770566
-
-train_transforms = A.Compose(
-    [
-        # A.Rotate(limit=30, border_mode=cv2.BORDER_CONSTANT, p=0.3),
-        #    A.HorizontalFlip(),
-        #    A.VerticalFlip()
-    ],
-    additional_targets={
-        "conf_mask": "mask",
-        "length_mask": "mask",
-        "vessel_mask": "mask",
-        "fishing_mask": "mask",
-        "center_mask": "mask",
-    },
-)
 
 
 @dataclass
@@ -70,6 +60,16 @@ class DataConfig:
     """Number of times to increase dataset by."""
 
 
+@dataclass
+class TransformConfig:
+    """General transform configuration"""
+
+    names: List[str] = None  # List of names of Albumentations transforms
+    max_size: int = None  # For SmallestMaxSize
+    height: int = None  # For RandomCrop
+    width: int = None  # For RandomCrop
+    probability: float = None  # For all transforms TODO: This should be changed per transform
+
 # cs = ConfigStore.instance()
 # cs.store(name="config", group="data", node=DataConfig)
 
@@ -90,42 +90,67 @@ def create_data_datasets(config: DataConfig):
         os.environ.get("RANK", "0") == "0"
     ):  # needed since distrbuted not initialized
         print("dataset config crop size", config.crop_size)
-        if config.shoreline_dir:
+        if config.data.dataset == "xview3" and config.shoreline_dir:
             print("Legacy Warning:shoreline_dir is no longer used")
-    if config.test:
-        train_annotations = os.path.join(config.dir, "labels/public.csv")
-        train_dataset = XviewValDataset(
-            mode="train",
-            dataset_dir=config.dir,
-            fold=12345,
-            folds_csv=config.folds_csv,
-            annotation_csv=train_annotations,
-            crop_size=config.crop_size,
-            multiplier=config.multiplier,
-        )
-        val_dataset = TestDataset(os.path.join(config.dir, "images/public"))
-    else:
-        train_annotations = os.path.join(config.dir, "labels/validation.csv")
-        train_dataset = XviewValDataset(
-            mode="train",
-            dataset_dir=config.dir,
-            fold=config.fold,
-            folds_csv=config.folds_csv,
-            annotation_csv=train_annotations,
-            crop_size=config.crop_size,
-            multiplier=config.multiplier,
-            positive_ratio=config.positive_ratio,
-        )
-        val_dataset = XviewValDataset(
-            mode="val",
-            dataset_dir=config.dir,
-            fold=config.fold,
-            folds_csv=config.folds_csv,
-            annotation_csv=train_annotations,
-            crop_size=config.val_crop_size,
-        )
+    if config.data.dataset == "xview3":
+        if config.test:
+            train_annotations = os.path.join(config.dir, "labels/public.csv")
+            train_dataset = XviewValDataset(
+                mode="train",
+                dataset_dir=config.dir,
+                fold=12345,
+                folds_csv=config.folds_csv,
+                annotation_csv=train_annotations,
+                crop_size=config.crop_size,
+                multiplier=config.multiplier,
+            )
+            val_dataset = TestDataset(os.path.join(config.dir, "images/public"))
+        else:
+            train_annotations = os.path.join(config.dir, "labels/validation.csv")
+            train_dataset = XviewValDataset(
+                mode="train",
+                dataset_dir=config.dir,
+                fold=config.fold,
+                folds_csv=config.folds_csv,
+                annotation_csv=train_annotations,
+                crop_size=config.crop_size,
+                multiplier=config.multiplier,
+                positive_ratio=config.positive_ratio,
+            )
+            val_dataset = XviewValDataset(
+                mode="val",
+                dataset_dir=config.dir,
+                fold=config.fold,
+                folds_csv=config.folds_csv,
+                annotation_csv=train_annotations,
+                crop_size=config.val_crop_size,
+            )
+    elif config.data.dataset == "inaturalist":
+        train_transforms = create_transforms(config)
+        train_dataset = INatDataset(mode="train",
+                                    dataset_dir=Path(config.data.dir),
+                                    annotation_json="train2018.json",
+                                    transforms=train_transforms)
+        val_dataset = INatDataset(mode="val",
+                                  dataset_dir=Path(config.data.dir),
+                                  annotation_json="val2018.json",
+                                  transforms=None)
+
     return train_dataset, val_dataset
 
+
+def create_transforms(config: DataConfig):
+    transforms = []
+    if config.data.dataset == "inaturalist":
+        for transform in config.transforms.names:
+            if transform == "RandomCrop":
+                transforms.append(A.RandomCrop(height=config.transform.height, width=config.transform.width))
+            elif transform == "SmallestMaxSize":
+                transforms.append(A.SmallestMaxSize(max_size=config.transforms.max_size))
+            else:
+                raise NotImplementedError
+
+    return A.Compose(transforms)
 
 class TestDataset(Dataset):
     def __init__(self, root_dir):
@@ -429,4 +454,7 @@ class XviewValDataset(Dataset):
         }
 
     def __len__(self):
+        return len(self.names)
+    def __len__(self):
+        return len(self.names)
         return len(self.names)

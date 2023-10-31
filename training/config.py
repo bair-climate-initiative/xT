@@ -6,7 +6,7 @@ from omegaconf import DictConfig, OmegaConf
 
 # from training.trainer import TrainConfig
 from models import ModelConfig
-from training.datasets import DataConfig
+from training.datasets import DataConfig, TransformConfig
 from training.losses import LossConfig
 from training.optimizer import OptimizerConfig
 
@@ -36,6 +36,7 @@ class XviewConfig:
     data: DataConfig = field(default_factory=DataConfig)
     model: ModelConfig = field(default_factory=ModelConfig)
     optimizer: OptimizerConfig = field(default_factory=OptimizerConfig)
+    transforms: TransformConfig = field(default_factory=TransformConfig)
     train: TrainConfig = field(default_factory=TrainConfig)
     losses: LossConfig = field(default_factory=LossConfig)
 
