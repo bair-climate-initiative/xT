@@ -149,6 +149,21 @@ def create_transforms(config: DataConfig):
                 transforms.append(A.SmallestMaxSize(max_size=config.transforms.max_size))
             else:
                 raise NotImplementedError
+    elif config.data.dataset == "xview3":
+        return A.Compose(
+                [
+                    # A.Rotate(limit=30, border_mode=cv2.BORDER_CONSTANT, p=0.3),
+                    #    A.HorizontalFlip(),
+                    #    A.VerticalFlip()
+                ],
+                additional_targets={
+                    "conf_mask": "mask",
+                    "length_mask": "mask",
+                    "vessel_mask": "mask",
+                    "fishing_mask": "mask",
+                    "center_mask": "mask",
+                },
+            )
 
     return A.Compose(transforms)
 
@@ -162,6 +177,21 @@ class TestDataset(Dataset):
 
     def __len__(self):
         return len(self.names)
+
+train_transforms = A.Compose(
+    [
+        # A.Rotate(limit=30, border_mode=cv2.BORDER_CONSTANT, p=0.3),
+        #    A.HorizontalFlip(),
+        #    A.VerticalFlip()
+    ],
+    additional_targets={
+        "conf_mask": "mask",
+        "length_mask": "mask",
+        "vessel_mask": "mask",
+        "fishing_mask": "mask",
+        "center_mask": "mask",
+    },
+)
 
 
 class XviewValDataset(Dataset):
