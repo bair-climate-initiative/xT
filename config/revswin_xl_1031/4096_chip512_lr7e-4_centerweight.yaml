@@ -1,0 +1,42 @@
+base_configs: 
+  - config/revswin_xl/4096_chip512_lr1e-3.yaml
+name: revswinv2_xl_4096_chip512_swinpt_lr7e-4_centerweight
+optimizer:
+  base_lr: 7e-4
+  classifier_ratio: 1.0
+  warmup_epochs: 0
+train:
+  epochs: 20
+  batch_size: 24
+losses:
+  losses:
+    - name: mask_vessel
+      type: Combo
+      params: 
+        field: vessel_mask 
+        weights: 
+          bce: 1
+          focal: 3
+          dice: 1
+      weight: 1.0 
+      display: True
+    - name: mask_fishing 
+      type: Combo
+      params: 
+        field: fishing_mask
+        weights: 
+          bce: 1
+          focal: 3
+          dice: 1
+      weight: 2.0 
+      display: True
+    - name: center 
+      type: Center
+      params: 
+      weight: 1e-8
+      display: True
+    - name: length
+      type: Length
+      params: 
+      weight: 2.0
+      display: True

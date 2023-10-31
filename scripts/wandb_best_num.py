@@ -23,6 +23,6 @@ for r in tqdm(runs):
         summary["best_shore"] = max_val
         try:
             summary.update()
-            print("SUCCESS")
+            # print("SUCCESS")
         except:
             print("FAIL")
