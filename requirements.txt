@@ -25,3 +25,4 @@ wandb-osh
 submitit
 tifffile
 omegaconf
+pycocotools
