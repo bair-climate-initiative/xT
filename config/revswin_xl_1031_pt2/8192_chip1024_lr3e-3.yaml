@@ -1,0 +1,11 @@
+base_configs: 
+  - config/revswin_xl/8192_chip1024_lr1e-3.yaml
+name: revswinv2_xl_8192_chip1024_lr3e-3
+data:
+  crop_size: 8192
+  val_crop_size: 8192
+  num_workers: 1
+optimizer:
+  base_lr: 3e-3
+  classifier_ratio: 1.0
+  warmup_epochs: 0
