@@ -23,7 +23,7 @@ from timm.layers import DropPath  # manually add patchembed
 from timm.layers import Format, Mlp, nchw_to, to_2tuple, trunc_normal_
 from torch.autograd import Function as Function
 
-from training.utils import is_main_process
+from gigaformer.utils import is_main_process
 
 _int_or_tuple_2_t = Union[int, Tuple[int, int]]
 
@@ -407,8 +407,8 @@ class TwoStreamFusion(nn.Module):
             proj = self.fuse_fn[1]
             trunc_normal_(proj.weight, std=0.02)
             with torch.no_grad():
-                torch.diagonal(proj.weight.data[:, :self.dim]).add_(0.5)
-                torch.diagonal(proj.weight.data[:, self.dim:]).add_(0.5)
+                torch.diagonal(proj.weight.data[:, : self.dim]).add_(0.5)
+                torch.diagonal(proj.weight.data[:, self.dim :]).add_(0.5)
 
     def forward(self, x):
         return self.fuse_fn(x)

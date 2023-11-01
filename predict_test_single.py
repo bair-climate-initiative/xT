@@ -11,19 +11,19 @@ import cv2
 
 cv2.ocl.setUseOpenCL(False)
 cv2.setNumThreads(0)
+import models
 import torch
 
-import models
+from gigaformer.old_config import load_config
 from inference.postprocessing import process_confidence
 from inference.run_inference import predict_scene_and_return_mm
-from training.old_config import load_config
 
 warnings.filterwarnings("ignore")
 import argparse
 
 import pandas as pd
 
-from training.utils import load_checkpoint
+from gigaformer.utils import load_checkpoint
 
 
 def process_scene(models: List[torch.nn.Module], args):

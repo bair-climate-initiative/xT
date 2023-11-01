@@ -1,5 +1,4 @@
-from timm.models.swin_transformer_v2 import (PatchMerging,
-                                             SwinTransformerV2Block)
+from timm.models.swin_transformer_v2 import PatchMerging, SwinTransformerV2Block
 
 BasicLayer = SwinTransformerV2Block
 
@@ -7,8 +6,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from timm.models.layers import PatchEmbed, trunc_normal_
-from timm.models.swin_transformer_v2 import (PatchMerging,
-                                             SwinTransformerV2Block)
+from timm.models.swin_transformer_v2 import PatchMerging, SwinTransformerV2Block
 
 BasicLayer = SwinTransformerV2Block
 
@@ -128,7 +126,7 @@ class SwinTransformerV2Xview(nn.Module):
                 drop=drop_rate,
                 attn_drop=attn_drop_rate,
                 drop_path=dpr[
-                    sum(depths[:i_layer]):sum(depths[: i_layer + 1])
+                    sum(depths[:i_layer]) : sum(depths[: i_layer + 1])
                 ],
                 norm_layer=norm_layer,
                 downsample=PatchMerging

@@ -13,11 +13,12 @@ import numpy as np
 import pandas as pd
 import rasterio
 import torch
+
 # from hydra.core.config_store import ConfigStore
 from rasterio.windows import Window
 from torch.utils.data import Dataset
 
-from .inaturalist_dataset import INatDataset
+from .inaturalist import INatDataset
 
 cv2.ocl.setUseOpenCL(False)
 cv2.setNumThreads(0)
@@ -29,154 +30,6 @@ cv2.setNumThreads(0)
 # VH mean: -24.66130160959856
 # VH std:  6.684547156770566
 
-
-@dataclass
-class DataConfig:
-    """General Dataset Configuration."""
-
-    dataset: str = "xview3"
-    """Name of the dataset to use."""
-    dir: str = "/home/group/xview3"
-    """Path to the dataset directory."""
-    num_workers: int = 8
-    """Number of workers for the data loader."""
-    test: bool = False
-    """Whether to use the test dataset."""
-    crop_size: int = 512
-    """Size of the crop for training."""
-    val_crop_size: int = 512
-    """Size of the crop for validation."""
-    overlap: int = 10
-    """Overlap of the crops for validation."""
-    positive_ratio: float = 0.85
-    """Ratio of positive samples in a batch."""
-    fold: int = 77
-    """Fold number."""
-    folds_csv: str = "meta/folds.csv"
-    """Path to csv for folds."""
-    shoreline_dir: str = "/home/group/xview3/shoreline/validation"
-    """Shoreline validation path."""
-    multiplier: int = 64
-    """Number of times to increase dataset by."""
-
-
-@dataclass
-class TransformConfig:
-    """General transform configuration"""
-
-    names: Optional[List[str]] = field(default_factory=list)  # List of names of Albumentations transforms
-    max_size: int = 2048  # For SmallestMaxSize
-    height: int = 2048  # For RandomCrop
-    width: int = 2048  # For RandomCrop
-    probability: float = 0.5  # For all transforms TODO: This should be changed per transform
-
-# cs = ConfigStore.instance()
-# cs.store(name="config", group="data", node=DataConfig)
-
-
-def normalize_band(band, ignored_mask=0):
-    band[band < -32760] = -100
-    ignored_idx = band == -100
-    if np.count_nonzero(band != -100) == 0:
-        band[:, :] = ignored_mask
-    else:
-        band = (band + 40) / 15
-        band[ignored_idx] = ignored_mask
-    return band
-
-
-def create_data_datasets(config: DataConfig):
-    if (
-        os.environ.get("RANK", "0") == "0"
-    ):  # needed since distrbuted not initialized
-        print("dataset config crop size", config.data.crop_size)
-        if config.data.dataset == "xview3" and config.data.shoreline_dir:
-            print("Legacy Warning:shoreline_dir is no longer used")
-    if config.data.dataset == "xview3":
-        if config.test:
-            train_annotations = os.path.join(config.data.dir, "labels/public.csv")
-            train_dataset = XviewValDataset(
-                mode="train",
-                dataset_dir=config.data.dir,
-                fold=12345,
-                folds_csv=config.data.folds_csv,
-                annotation_csv=train_annotations,
-                crop_size=config.data.crop_size,
-                multiplier=config.data.multiplier,
-            )
-            val_dataset = TestDataset(os.path.join(config.data.dir, "images/public"))
-        else:
-            train_annotations = os.path.join(config.data.dir, "labels/validation.csv")
-            train_dataset = XviewValDataset(
-                mode="train",
-                dataset_dir=config.data.dir,
-                fold=config.data.fold,
-                folds_csv=config.data.folds_csv,
-                annotation_csv=train_annotations,
-                crop_size=config.data.crop_size,
-                multiplier=config.data.multiplier,
-                positive_ratio=config.data.positive_ratio,
-            )
-            val_dataset = XviewValDataset(
-                mode="val",
-                dataset_dir=config.data.dir,
-                fold=config.data.fold,
-                folds_csv=config.data.folds_csv,
-                annotation_csv=train_annotations,
-                crop_size=config.data.val_crop_size,
-            )
-    elif config.data.dataset == "inaturalist":
-        train_transforms = create_transforms(config)
-        train_dataset = INatDataset(mode="train",
-                                    dataset_dir=Path(config.data.dir),
-                                    annotation_json="train2018.json",
-                                    transforms=train_transforms)
-        val_dataset = INatDataset(mode="val",
-                                  dataset_dir=Path(config.data.dir),
-                                  annotation_json="val2018.json",
-                                  transforms=None)
-
-    return train_dataset, val_dataset
-
-
-def create_transforms(config: DataConfig):
-    transforms = []
-    if config.data.dataset == "inaturalist":
-        for transform in config.transforms.names:
-            if transform == "RandomCrop":
-                transforms.append(A.RandomCrop(height=config.transform.height, width=config.transform.width))
-            elif transform == "SmallestMaxSize":
-                transforms.append(A.SmallestMaxSize(max_size=config.transforms.max_size))
-            else:
-                raise NotImplementedError
-    elif config.data.dataset == "xview3":
-        return A.Compose(
-                [
-                    # A.Rotate(limit=30, border_mode=cv2.BORDER_CONSTANT, p=0.3),
-                    #    A.HorizontalFlip(),
-                    #    A.VerticalFlip()
-                ],
-                additional_targets={
-                    "conf_mask": "mask",
-                    "length_mask": "mask",
-                    "vessel_mask": "mask",
-                    "fishing_mask": "mask",
-                    "center_mask": "mask",
-                },
-            )
-
-    return A.Compose(transforms)
-
-class TestDataset(Dataset):
-    def __init__(self, root_dir):
-        super().__init__()
-        self.names = os.listdir(root_dir)
-
-    def __getitem__(self, index):
-        return dict(name=self.names[index])
-
-    def __len__(self):
-        return len(self.names)
 
 train_transforms = A.Compose(
     [
@@ -194,7 +47,18 @@ train_transforms = A.Compose(
 )
 
 
-class XviewValDataset(Dataset):
+def normalize_band(band, ignored_mask=0):
+    band[band < -32760] = -100
+    ignored_idx = band == -100
+    if np.count_nonzero(band != -100) == 0:
+        band[:, :] = ignored_mask
+    else:
+        band = (band + 40) / 15
+        band[ignored_idx] = ignored_mask
+    return band
+
+
+class XviewDataset(Dataset):
     def __init__(
         self,
         mode: str,
@@ -484,7 +348,4 @@ class XviewValDataset(Dataset):
         }
 
     def __len__(self):
-        return len(self.names)
-    def __len__(self):
-        return len(self.names)
         return len(self.names)

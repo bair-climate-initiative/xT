@@ -19,7 +19,7 @@ import submitit
 from omegaconf import OmegaConf
 
 import train_val_segmentor as segmentor
-from training.config import XviewConfig, create_config
+from gigaformer.config import XviewConfig, create_config
 
 
 def parse_args():

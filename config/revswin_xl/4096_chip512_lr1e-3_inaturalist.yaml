@@ -8,6 +8,10 @@ data:
   crop_size: 4096
   val_crop_size: 4096
   num_workers: 1
+  transforms:
+    names:
+      - SmallestMaxSize
+    max_size: 2048
 model: 
   backbone:
     img_size: 512
@@ -19,10 +23,6 @@ optimizer:
   base_lr: 1e-3
   classifier_ratio: 1.0
   warmup_epochs: 0
-transforms:
-  names:
-    - SmallestMaxSize
-  max_size: 2048
 train:
   epochs: 20
   batch_size: 1

@@ -11,6 +11,7 @@ import torch.distributed
 import torch.distributed as dist
 from einops import rearrange
 from fvcore.nn import FlopCountAnalysis
+from models import build_model
 from omegaconf import OmegaConf
 from tensorboardX import SummaryWriter
 from timm.utils import AverageMeter
@@ -21,7 +22,6 @@ from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
 import wandb
-from models import build_model
 
 # from train_val_segmentor import XviewConfig
 from .config import XviewConfig
@@ -30,8 +30,12 @@ from .losses import build_losses
 from .optimizer import create_optimizer
 from .sampler import DistributedWeightedRandomSampler
 from .tiling import build_tiling
-from .utils import (get_rank, get_world_size, is_dist_avail_and_initialized,
-                    is_main_process)
+from .utils import (
+    get_rank,
+    get_world_size,
+    is_dist_avail_and_initialized,
+    is_main_process,
+)
 
 logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO").upper())
 os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
@@ -285,8 +289,8 @@ class PytorchTrainer:
                 new_payload = {
                     k: v[
                         ...,
-                        self.input_size * i:self.input_size * (i + 1),
-                        self.input_size * j:self.input_size * (j + 1),
+                        self.input_size * i : self.input_size * (i + 1),
+                        self.input_size * j : self.input_size * (j + 1),
                     ]
                     for k, v in x.items()
                     if k != "name"
@@ -301,12 +305,10 @@ class PytorchTrainer:
 
     def _run_one_epoch_train(self):
         torch.autograd.set_detect_anomaly(True)
-        # self.train_sampler.set_epoch(self.current_epoch)
         train_loader = self.get_train_loader()
-        # data_time = SmoothedValue(fmt="{avg:.4f}")
+        len_train_loader = len(train_loader)
+
         loss_meter = AverageMeter()
-        # forward_time = SmoothedValue(fmt="{avg:.4f}")
-        # backward_time = SmoothedValue(fmt="{avg:.4f}")
         avg_meters = {"loss": loss_meter}
         for loss_def in self.losses:
             if loss_def.display:
@@ -336,11 +338,11 @@ class PytorchTrainer:
         # Sliced Images with context_id
         # todo: make configurable
         if is_main_process():
-            train_loader = tqdm(train_loader, total=iter_scale * len(train_loader))
+            train_loader = tqdm(
+                train_loader, total=iter_scale * len_train_loader
+            )
         # Broken, temporaily disable time logging
         for i, sample in enumerate(train_loader):
-            # if i > 2:
-            #     break
             imgs = sample["image"].cuda().float()
             if extra_context:
                 if sample["context_id"] == 0:
@@ -365,7 +367,6 @@ class PytorchTrainer:
                         output, mem = self.model(imgs, context=context, mem=mem)
                     else:
                         output = self.model(imgs)
-                    # forward_time.update(time.time() - end)
                     # if i % 400 == 0:
                     # visualize
                     # if self.config.local_rank == 0:
@@ -388,7 +389,9 @@ class PytorchTrainer:
                             print("is nan!")
                         if loss_def.display:
                             avg_meters[loss_def.name].update(
-                                loss if isinstance(loss, Number) else loss.item(),
+                                loss
+                                if isinstance(loss, Number)
+                                else loss.item(),
                                 imgs.size(0),
                             )
                         total_loss += loss_def.weight * loss
@@ -428,7 +431,7 @@ class PytorchTrainer:
                 dist.barrier()
             if self.config.optimizer.mode in ("step", "poly"):
                 self.scheduler.step(
-                    int(i / iter_scale) + self.current_epoch * len(train_loader)
+                    int(i / iter_scale) + self.current_epoch * len_train_loader
                 )
             if is_main_process():
                 train_loader.set_postfix(
@@ -539,8 +542,10 @@ class PytorchTrainer:
         self.gscaler = torch.cuda.amp.GradScaler()
 
         if self.config.distributed and self.config.fsdp:
-            from torch.distributed.fsdp import (CPUOffload,
-                                                FullyShardedDataParallel)
+            from torch.distributed.fsdp import (
+                CPUOffload,
+                FullyShardedDataParallel,
+            )
             from torch.distributed.fsdp.wrap import size_based_auto_wrap_policy
 
             self.model = FullyShardedDataParallel(
