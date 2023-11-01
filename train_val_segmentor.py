@@ -8,11 +8,11 @@ import torch.distributed
 from omegaconf import OmegaConf
 from torch.utils.data import DataLoader
 
-from training.config import XviewConfig, create_config
-from training.datasets import create_data_datasets
-from training.evaluator import XviewEvaluator
-from training.trainer import PytorchTrainer
-from training.utils import get_rank, get_world_size, is_main_process
+from gigaformer.config import XviewConfig, create_config
+from gigaformer.datasets import create_data_datasets
+from gigaformer.evaluator import XviewEvaluator
+from gigaformer.trainer import PytorchTrainer
+from gigaformer.utils import get_rank, get_world_size, is_main_process
 
 os.environ["MKL_NUM_THREADS"] = "1"
 os.environ["NUMEXPR_NUM_THREADS"] = "1"
@@ -27,7 +27,7 @@ warnings.filterwarnings("ignore")
 
 # @hydra.main(config_path="config", config_name="base_config")
 def main(cfg: XviewConfig) -> None:
-    data_train, data_val = create_data_datasets(cfg.data)
+    data_train, data_val = create_data_datasets(cfg.data, cfg.test)
     seg_evaluator = XviewEvaluator(cfg)
     trainer = PytorchTrainer(
         config=cfg,

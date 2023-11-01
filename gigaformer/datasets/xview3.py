@@ -2,7 +2,10 @@ import math
 import os
 import random
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from functools import partial
+from pathlib import Path
+from typing import List, Optional
 
 import albumentations as A
 import cv2
@@ -10,9 +13,12 @@ import numpy as np
 import pandas as pd
 import rasterio
 import torch
+
 # from hydra.core.config_store import ConfigStore
 from rasterio.windows import Window
 from torch.utils.data import Dataset
+
+from .inaturalist import INatDataset
 
 cv2.ocl.setUseOpenCL(False)
 cv2.setNumThreads(0)
@@ -23,6 +29,7 @@ cv2.setNumThreads(0)
 
 # VH mean: -24.66130160959856
 # VH std:  6.684547156770566
+
 
 train_transforms = A.Compose(
     [
@@ -40,40 +47,6 @@ train_transforms = A.Compose(
 )
 
 
-@dataclass
-class DataConfig:
-    """General Dataset Configuration."""
-
-    dataset: str = "xview3"
-    """Name of the dataset to use."""
-    dir: str = "/home/group/xview3"
-    """Path to the dataset directory."""
-    num_workers: int = 8
-    """Number of workers for the data loader."""
-    test: bool = False
-    """Whether to use the test dataset."""
-    crop_size: int = 512
-    """Size of the crop for training."""
-    val_crop_size: int = 512
-    """Size of the crop for validation."""
-    overlap: int = 10
-    """Overlap of the crops for validation."""
-    positive_ratio: float = 0.85
-    """Ratio of positive samples in a batch."""
-    fold: int = 77
-    """Fold number."""
-    folds_csv: str = "meta/folds.csv"
-    """Path to csv for folds."""
-    shoreline_dir: str = "/home/group/xview3/shoreline/validation"
-    """Shoreline validation path."""
-    multiplier: int = 64
-    """Number of times to increase dataset by."""
-
-
-# cs = ConfigStore.instance()
-# cs.store(name="config", group="data", node=DataConfig)
-
-
 def normalize_band(band, ignored_mask=0):
     band[band < -32760] = -100
     ignored_idx = band == -100
@@ -85,61 +58,7 @@ def normalize_band(band, ignored_mask=0):
     return band
 
 
-def create_data_datasets(config: DataConfig):
-    if (
-        os.environ.get("RANK", "0") == "0"
-    ):  # needed since distrbuted not initialized
-        print("dataset config crop size", config.crop_size)
-        if config.shoreline_dir:
-            print("Legacy Warning:shoreline_dir is no longer used")
-    if config.test:
-        train_annotations = os.path.join(config.dir, "labels/public.csv")
-        train_dataset = XviewValDataset(
-            mode="train",
-            dataset_dir=config.dir,
-            fold=12345,
-            folds_csv=config.folds_csv,
-            annotation_csv=train_annotations,
-            crop_size=config.crop_size,
-            multiplier=config.multiplier,
-        )
-        val_dataset = TestDataset(os.path.join(config.dir, "images/public"))
-    else:
-        train_annotations = os.path.join(config.dir, "labels/validation.csv")
-        train_dataset = XviewValDataset(
-            mode="train",
-            dataset_dir=config.dir,
-            fold=config.fold,
-            folds_csv=config.folds_csv,
-            annotation_csv=train_annotations,
-            crop_size=config.crop_size,
-            multiplier=config.multiplier,
-            positive_ratio=config.positive_ratio,
-        )
-        val_dataset = XviewValDataset(
-            mode="val",
-            dataset_dir=config.dir,
-            fold=config.fold,
-            folds_csv=config.folds_csv,
-            annotation_csv=train_annotations,
-            crop_size=config.val_crop_size,
-        )
-    return train_dataset, val_dataset
-
-
-class TestDataset(Dataset):
-    def __init__(self, root_dir):
-        super().__init__()
-        self.names = os.listdir(root_dir)
-
-    def __getitem__(self, index):
-        return dict(name=self.names[index])
-
-    def __len__(self):
-        return len(self.names)
-
-
-class XviewValDataset(Dataset):
+class XviewDataset(Dataset):
     def __init__(
         self,
         mode: str,

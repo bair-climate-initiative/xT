@@ -797,8 +797,8 @@ class MemTransformerLM(nn.Module):
             hids.append(core_out)
             for i, layer in enumerate(self.layers):
                 if self.clamp_len > 0:
-                    r_emb = self.r_emb[i][-self.clamp_len:]
-                    r_bias = self.r_bias[i][-self.clamp_len:]
+                    r_emb = self.r_emb[i][-self.clamp_len :]
+                    r_bias = self.r_bias[i][-self.clamp_len :]
                 else:
                     r_emb, r_bias = self.r_emb[i], self.r_bias[i]
 

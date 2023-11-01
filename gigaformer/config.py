@@ -1,14 +1,12 @@
 import os
 from dataclasses import dataclass, field
 
-# from hydra.core.config_store import ConfigStore
 from omegaconf import DictConfig, OmegaConf
 
-# from training.trainer import TrainConfig
-from models import ModelConfig
-from training.datasets import DataConfig
-from training.losses import LossConfig
-from training.optimizer import OptimizerConfig
+from .datasets import DataConfig
+from .losses import LossConfig
+from .optimizer import OptimizerConfig
+from .models import ModelConfig
 
 
 @dataclass

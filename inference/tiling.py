@@ -48,8 +48,8 @@ class Tiler:
         for slice in slices:
             crop = img[
                 :,
-                slice.y:slice.y + self.tile_size,
-                slice.x:slice.x + self.tile_size,
+                slice.y : slice.y + self.tile_size,
+                slice.x : slice.x + self.tile_size,
             ].astype(np.float16)
             c, c_h, c_w = crop.shape
             if c_h < self.tile_size or c_w < self.tile_size:
@@ -66,8 +66,8 @@ class Tiler:
         out = np.zeros((self.height, self.width), dtype)
         for pred, slice in preds_slices:
             out_crop = out[
-                slice.y:slice.y + self.tile_size,
-                slice.x:slice.x + self.tile_size,
+                slice.y : slice.y + self.tile_size,
+                slice.x : slice.x + self.tile_size,
             ]
             left_pad = self.overlap // 2 if slice.column > 0 else 0
             top_pad = self.overlap // 2 if slice.row > 0 else 0
@@ -80,8 +80,8 @@ class Tiler:
 
     def update_crop(self, out, pred, slice):
         out_crop = out[
-            slice.y:slice.y + self.tile_size,
-            slice.x:slice.x + self.tile_size,
+            slice.y : slice.y + self.tile_size,
+            slice.x : slice.x + self.tile_size,
         ]
         left_pad = self.overlap // 2 if slice.column > 0 else 0
         top_pad = self.overlap // 2 if slice.row > 0 else 0
@@ -94,8 +94,8 @@ class Tiler:
 
     def get_crop(self, img, slice):
         crop = img[
-            slice.y:slice.y + self.tile_size,
-            slice.x:slice.x + self.tile_size,
+            slice.y : slice.y + self.tile_size,
+            slice.x : slice.x + self.tile_size,
         ].astype(np.float16)
         c_h, c_w = crop.shape
         if c_h < self.tile_size or c_w < self.tile_size:

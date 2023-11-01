@@ -15,9 +15,13 @@ import torch.nn.functional as F
 from torch import nn
 
 from .lib.hier.utils.blocks import registry as BLOCKS
-from .lib.hier.utils.patch_embed import (ConvBlock4D, PatchEmbed4D,
-                                         PatchRecover4D, build_downsample,
-                                         build_upsample)
+from .lib.hier.utils.patch_embed import (
+    ConvBlock4D,
+    PatchEmbed4D,
+    PatchRecover4D,
+    build_downsample,
+    build_upsample,
+)
 
 
 class AbstractModel(nn.Module):
@@ -575,11 +579,11 @@ class HierVitND(AbstractModel):
                 dpr_start_idx = sum(block_extr_args_swin["hier_depths"][:i])
                 dpr_start_idx_d = sum(block_extr_args_swin["decode_depths"][:i])
                 dpr_layer = dpr[
-                    dpr_start_idx:dpr_start_idx
+                    dpr_start_idx : dpr_start_idx
                     + block_extr_args_swin["hier_depths"][i]
                 ]
                 dpr_layer_d = dpr_decoder[
-                    dpr_start_idx_d:dpr_start_idx_d
+                    dpr_start_idx_d : dpr_start_idx_d
                     + block_extr_args_swin["decode_depths"][i]
                 ]
                 encoder_layer = block_cls(

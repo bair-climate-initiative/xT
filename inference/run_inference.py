@@ -10,8 +10,8 @@ from torch import nn
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
+from gigaformer.datasets import normalize_band
 from inference.tiling import Tiler, TileSlice
-from training.datasets import normalize_band
 
 
 class SliceDataset(Dataset):

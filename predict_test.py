@@ -1,16 +1,16 @@
 import warnings
 from typing import List
 
+import models
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
-import models
+from gigaformer.old_config import load_config
+from gigaformer.utils import load_checkpoint
 from inference.postprocessing import process_confidence
 from inference.run_inference import predict_scene_and_return_mm
-from training.old_config import load_config
-from training.utils import load_checkpoint
 
 warnings.filterwarnings("ignore")
 import argparse

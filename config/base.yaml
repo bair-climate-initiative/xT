@@ -18,6 +18,12 @@ data:
   val_crop_size: 512
   overlap: 10 
   positive_ratio: 0.85
+  transforms:
+    names:
+      - None
+    max_size: 2048
+    height: 2048
+    width: 2048
 model: 
   name: TimmUnet
   backbone_class: revswinv2_tiny_window16_256_xview

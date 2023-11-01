@@ -12,8 +12,9 @@ class INatDataset(Dataset):
     def __init__(
         self,
         mode: str = "train",
-        dataset_dir = "/shared/ritwik/data/inaturalist2018/",
-        annotation_json: str = "mmc1.xlsx",
+        dataset_dir="/shared/ritwik/data/inaturalist2018/",
+        annotation_json: str = "train2018.json",
+        channels_first: bool = True,
         transforms: A.Compose = None,
     ):
         """
@@ -23,8 +24,9 @@ class INatDataset(Dataset):
         if type(dataset_dir) is str:
             dataset_dir = Path(dataset_dir)
         self.dataset_dir = dataset_dir
-        self.labels = COCO(annotation_file=annotation_json)
+        self.labels = COCO(annotation_file=str(dataset_dir / annotation_json))
         self.labels = self._process_labels(self.labels)
+        self.channels_first = channels_first
 
         self.mode = mode
         if self.mode not in ["train", "val"]:
@@ -34,32 +36,32 @@ class INatDataset(Dataset):
 
         self.transforms = transforms
 
-    
     def __len__(self):
-        return len(self.labels.keys())
-    
+        return len(self.labels)
 
     def __getitem__(self, idx):
         label = self.labels[idx]
         img_path = self.dataset_dir / label["file_name"]
         img = np.asarray(Image.open(img_path))
+        img = self.transforms(image=img)["image"]
+        if self.channels_first:
+            img = img.transpose((2, 0, 1))
 
-        return {
-            "img": img,
-            **label
-        }
-
+        return {"image": img, **label}
 
     def _process_labels(self, labels: COCO):
         """
         Load keys, images, and annotations
         """
         ids = sorted(list(labels.anns.keys()))
-        labels = [{
-            "id": id,
-            "file_name": labels.imgs[id]["file_name"],
-            "label": labels.anns[id]["category_id"],
-            "id": labels.imgs[id]["id"]
-        } for id in ids]
+        labels = [
+            {
+                "id": id,
+                "file_name": labels.imgs[id]["file_name"],
+                "label": labels.anns[id]["category_id"],
+                "id": labels.imgs[id]["id"],
+            }
+            for id in ids
+        ]
 
         return labels
