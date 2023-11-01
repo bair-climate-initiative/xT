@@ -1,0 +1,33 @@
+base_configs: 
+  - config/base.yaml
+  - config/cluster_paths.yaml
+name: revswinv2_xl_4096_chip512_swinpt_lr1e-3_inaturalist
+data:
+  dataset: inaturalist
+  dir: /shared/ritwik/data/inaturalist2018
+  crop_size: 4096
+  val_crop_size: 4096
+  num_workers: 1
+model: 
+  backbone:
+    img_size: 512
+    pretrained: ${oc.env:PRETRAINED_CKPT_PATH, "./ckpts"}/swinv2_tiny_window16_256.pth
+  xl_context:
+    enabled: False
+  resume: ''
+optimizer:
+  base_lr: 1e-3
+  classifier_ratio: 1.0
+  warmup_epochs: 0
+transforms:
+  names:
+    - SmallestMaxSize
+  max_size: 2048
+train:
+  epochs: 20
+  batch_size: 1
+  val_batch_size: 1
+  freeze_epochs: 0
+  test_every: 1
+  test_reset: True
+val: False

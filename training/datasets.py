@@ -2,10 +2,10 @@ import math
 import os
 import random
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import partial
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 import albumentations as A
 import cv2
@@ -64,11 +64,11 @@ class DataConfig:
 class TransformConfig:
     """General transform configuration"""
 
-    names: List[str] = None  # List of names of Albumentations transforms
-    max_size: int = None  # For SmallestMaxSize
-    height: int = None  # For RandomCrop
-    width: int = None  # For RandomCrop
-    probability: float = None  # For all transforms TODO: This should be changed per transform
+    names: Optional[List[str]] = field(default_factory=list)  # List of names of Albumentations transforms
+    max_size: int = 2048  # For SmallestMaxSize
+    height: int = 2048  # For RandomCrop
+    width: int = 2048  # For RandomCrop
+    probability: float = 0.5  # For all transforms TODO: This should be changed per transform
 
 # cs = ConfigStore.instance()
 # cs.store(name="config", group="data", node=DataConfig)
@@ -89,41 +89,41 @@ def create_data_datasets(config: DataConfig):
     if (
         os.environ.get("RANK", "0") == "0"
     ):  # needed since distrbuted not initialized
-        print("dataset config crop size", config.crop_size)
-        if config.data.dataset == "xview3" and config.shoreline_dir:
+        print("dataset config crop size", config.data.crop_size)
+        if config.data.dataset == "xview3" and config.data.shoreline_dir:
             print("Legacy Warning:shoreline_dir is no longer used")
     if config.data.dataset == "xview3":
         if config.test:
-            train_annotations = os.path.join(config.dir, "labels/public.csv")
+            train_annotations = os.path.join(config.data.dir, "labels/public.csv")
             train_dataset = XviewValDataset(
                 mode="train",
-                dataset_dir=config.dir,
+                dataset_dir=config.data.dir,
                 fold=12345,
-                folds_csv=config.folds_csv,
+                folds_csv=config.data.folds_csv,
                 annotation_csv=train_annotations,
-                crop_size=config.crop_size,
-                multiplier=config.multiplier,
+                crop_size=config.data.crop_size,
+                multiplier=config.data.multiplier,
             )
-            val_dataset = TestDataset(os.path.join(config.dir, "images/public"))
+            val_dataset = TestDataset(os.path.join(config.data.dir, "images/public"))
         else:
-            train_annotations = os.path.join(config.dir, "labels/validation.csv")
+            train_annotations = os.path.join(config.data.dir, "labels/validation.csv")
             train_dataset = XviewValDataset(
                 mode="train",
-                dataset_dir=config.dir,
-                fold=config.fold,
-                folds_csv=config.folds_csv,
+                dataset_dir=config.data.dir,
+                fold=config.data.fold,
+                folds_csv=config.data.folds_csv,
                 annotation_csv=train_annotations,
-                crop_size=config.crop_size,
-                multiplier=config.multiplier,
-                positive_ratio=config.positive_ratio,
+                crop_size=config.data.crop_size,
+                multiplier=config.data.multiplier,
+                positive_ratio=config.data.positive_ratio,
             )
             val_dataset = XviewValDataset(
                 mode="val",
-                dataset_dir=config.dir,
-                fold=config.fold,
-                folds_csv=config.folds_csv,
+                dataset_dir=config.data.dir,
+                fold=config.data.fold,
+                folds_csv=config.data.folds_csv,
                 annotation_csv=train_annotations,
-                crop_size=config.val_crop_size,
+                crop_size=config.data.val_crop_size,
             )
     elif config.data.dataset == "inaturalist":
         train_transforms = create_transforms(config)

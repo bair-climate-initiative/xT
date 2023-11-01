@@ -84,6 +84,7 @@ losses:
       display: True
 transforms:
   names:
-  max_size:
-  height:
-  width:
+    - None
+  max_size: 2048
+  height: 2048
+  width: 2048

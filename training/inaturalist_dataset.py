@@ -14,6 +14,7 @@ class INatDataset(Dataset):
         mode: str = "train",
         dataset_dir = "/shared/ritwik/data/inaturalist2018/",
         annotation_json: str = "train2018.json",
+        channels_first: bool = True,
         transforms: A.Compose = None,
     ):
         """
@@ -25,6 +26,7 @@ class INatDataset(Dataset):
         self.dataset_dir = dataset_dir
         self.labels = COCO(annotation_file=str(dataset_dir / annotation_json))
         self.labels = self._process_labels(self.labels)
+        self.channels_first = channels_first
 
         self.mode = mode
         if self.mode not in ["train", "val"]:
@@ -36,7 +38,7 @@ class INatDataset(Dataset):
 
     
     def __len__(self):
-        return len(self.labels.keys())
+        return len(self.labels)
     
 
     def __getitem__(self, idx):
@@ -44,9 +46,11 @@ class INatDataset(Dataset):
         img_path = self.dataset_dir / label["file_name"]
         img = np.asarray(Image.open(img_path))
         img = self.transforms(image=img)["image"]
+        if self.channels_first:
+            img = img.transpose((2, 0, 1))
 
         return {
-            "img": img,
+            "image": img,
             **label
         }
 

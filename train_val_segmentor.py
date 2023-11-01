@@ -27,7 +27,7 @@ warnings.filterwarnings("ignore")
 
 # @hydra.main(config_path="config", config_name="base_config")
 def main(cfg: XviewConfig) -> None:
-    data_train, data_val = create_data_datasets(cfg.data)
+    data_train, data_val = create_data_datasets(cfg)
     seg_evaluator = XviewEvaluator(cfg)
     trainer = PytorchTrainer(
         config=cfg,
