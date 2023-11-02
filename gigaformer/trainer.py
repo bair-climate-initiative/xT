@@ -11,7 +11,6 @@ import torch.distributed
 import torch.distributed as dist
 from einops import rearrange
 from fvcore.nn import FlopCountAnalysis
-from models import build_model
 from omegaconf import OmegaConf
 from tensorboardX import SummaryWriter
 from timm.utils import AverageMeter
@@ -27,8 +26,9 @@ import wandb
 from .config import XviewConfig
 from .evaluator import Evaluator
 from .losses import build_losses
+from .models import build_model
 from .optimizer import create_optimizer
-from .sampler import DistributedWeightedRandomSampler
+from .datasets.sampler import DistributedWeightedRandomSampler, DistributedEvalSampler
 from .tiling import build_tiling
 from .utils import (
     get_rank,
@@ -489,12 +489,20 @@ class PytorchTrainer:
 
     def get_val_loader(self) -> DataLoader:
         if is_dist_avail_and_initialized():
-            val_sampler = torch.utils.data.distributed.DistributedSampler(
-                self.val_data,
-                shuffle=False,
-                num_replicas=get_world_size(),
-                rank=get_rank(),
-            )
+            if self.config.eval_sampler:
+                val_sampler = DistributedEvalSampler(
+                    self.val_data,
+                    shuffle=False,
+                    num_replicas=get_world_size(),
+                    rank=get_rank(),
+                )
+            else:
+                val_sampler = torch.utils.data.distributed.DistributedSampler(
+                    self.val_data,
+                    shuffle=False,
+                    num_replicas=get_world_size(),
+                    rank=get_rank(),
+                )
         val_data_loader = DataLoader(
             self.val_data,
             sampler=val_sampler,

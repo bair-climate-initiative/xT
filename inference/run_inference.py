@@ -10,7 +10,7 @@ from torch import nn
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
-from gigaformer.datasets import normalize_band
+from gigaformer.datasets.xview3 import normalize_band
 from inference.tiling import Tiler, TileSlice
 
 

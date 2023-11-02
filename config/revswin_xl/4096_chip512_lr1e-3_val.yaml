@@ -13,7 +13,7 @@ model:
     enabled: True
     no_memory: False
     n_layer: 12
-  resume: /shared/jacklishufan/val_only_TimmUnet_revswinv2_tiny_window16_256_xview_77_4nh9if07__last 
+  resume: ./revswinv2_xl_4096_ckpt.tar
 optimizer:
   base_lr: 1e-3
   classifier_ratio: 1.0
@@ -26,3 +26,4 @@ train:
   test_every: 1
   test_reset: True
 val: True
+eval_sampler: True
