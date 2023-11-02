@@ -24,11 +24,14 @@ import wandb
 
 # from train_val_segmentor import XviewConfig
 from .config import XviewConfig
+from .datasets.sampler import (
+    DistributedEvalSampler,
+    DistributedWeightedRandomSampler,
+)
 from .evaluator import Evaluator
 from .losses import build_losses
 from .models import build_model
 from .optimizer import create_optimizer
-from .datasets.sampler import DistributedWeightedRandomSampler, DistributedEvalSampler
 from .tiling import build_tiling
 from .utils import (
     get_rank,
