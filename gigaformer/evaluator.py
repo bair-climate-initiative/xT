@@ -12,11 +12,8 @@ from torch.cuda import empty_cache
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from gigaformer.utils import (
-    get_rank,
-    is_dist_avail_and_initialized,
-    is_main_process,
-)
+from gigaformer.utils import (get_rank, is_dist_avail_and_initialized,
+                              is_main_process)
 from inference.postprocessing import process_confidence
 from inference.run_inference import predict_scene_and_return_mm
 from metrics import xview_metric
@@ -222,7 +219,7 @@ class XviewEvaluator(Evaluator):
             print(csv_paths)
             pd.concat(
                 [pd.read_csv(csv_path).reset_index() for csv_path in csv_paths]
-            ).to_csv(pred_csv, index=False)
+            ).to_csv(os.path.join(self.config.output_dir, pred_csv), index=False)
             parser = create_metric_arg_parser()
             metric_args = parser.parse_args("")
             df = pd.read_csv(pred_csv)
