@@ -151,3 +151,4 @@ out.json
 *.out
 
 .vscode/
+zoo/
