@@ -157,8 +157,6 @@ class XviewEvaluator(Evaluator):
         *args,
         **kwargs,
     ) -> Dict:
-        if is_main_process():
-            print("DEBUG: MAIN")
         conf_name = os.path.splitext(os.path.basename(self.config.name))[0]
         val_dir = os.path.join(
             self.config.output_dir, conf_name, str(self.config.data.fold)
