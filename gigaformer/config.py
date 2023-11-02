@@ -5,8 +5,8 @@ from omegaconf import DictConfig, OmegaConf
 
 from .datasets import DataConfig
 from .losses import LossConfig
-from .optimizer import OptimizerConfig
 from .models import ModelConfig
+from .optimizer import OptimizerConfig
 
 
 @dataclass
@@ -27,6 +27,7 @@ class TrainConfig:
     """Run test every n epochs."""
     test_reset: bool = True
     """Removes existing test csv before testing."""
+
 
 @dataclass
 class XviewConfig:
@@ -53,9 +54,8 @@ class XviewConfig:
     """Validation only flag."""
     name: str = ""
     """Run name."""
-    eval_sampler: bool = False 
+    eval_sampler: bool = False
     """Use evaluation sampler for validation, i.e. no repeated samples."""
-
 
 
 def _merge_configs(cfg: XviewConfig, cfg_file: str):

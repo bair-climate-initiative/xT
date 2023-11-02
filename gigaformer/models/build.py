@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 
 from .backbones import *
 from .transformer_xl import TransformerXLConfig
-from .unet import TimmUnet
+from .unet import EncoderDecoderV2, TimmUnet
 
 # from hydra.core.config_store import ConfigStore
 # from hydra.utils import instantiate
@@ -57,6 +57,16 @@ def build_model(config: ModelConfig):
 
     if config.name == "TimmUnet":
         model = TimmUnet(
+            backbone=backbone,
+            xl_config=config.xl_context,
+            channels_last=config.backbone.channel_last,
+            crop_size=config.backbone.img_size,
+            context_mode=config.xl_context.enabled,
+            skip_decoder=False,
+            backbone_name=config.backbone_class,
+        )
+    elif config.name == "EncoderDecoderV2":
+        model = EncoderDecoderV2(
             backbone=backbone,
             xl_config=config.xl_context,
             channels_last=config.backbone.channel_last,

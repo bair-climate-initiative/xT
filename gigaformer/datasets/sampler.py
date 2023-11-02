@@ -2,14 +2,18 @@
 DistributedEvalSampler taken from https://github.com/SeungjunNah/DeepDeblur-PyTorch/blob/master/src/data/sampler.py. 
 """
 
+import math
 from typing import Optional, Sequence
 
 import numpy as np
-from torch.utils.data import Dataset, DistributedSampler, WeightedRandomSampler, Sampler
-import math
 import torch
 import torch.distributed as dist
-
+from torch.utils.data import (
+    Dataset,
+    DistributedSampler,
+    Sampler,
+    WeightedRandomSampler,
+)
 
 
 class DistributedWeightedRandomSampler(DistributedSampler):
@@ -36,7 +40,6 @@ class DistributedWeightedRandomSampler(DistributedSampler):
         )
         indices = [indices[wi] for wi in weighted_indices]
         return iter(indices)
-
 
 
 class DistributedEvalSampler(Sampler):
@@ -93,14 +96,20 @@ class DistributedEvalSampler(Sampler):
         ...     train(loader)
     """
 
-    def __init__(self, dataset, num_replicas=None, rank=None, shuffle=False, seed=0):
+    def __init__(
+        self, dataset, num_replicas=None, rank=None, shuffle=False, seed=0
+    ):
         if num_replicas is None:
             if not dist.is_available():
-                raise RuntimeError("Requires distributed package to be available")
+                raise RuntimeError(
+                    "Requires distributed package to be available"
+                )
             num_replicas = dist.get_world_size()
         if rank is None:
             if not dist.is_available():
-                raise RuntimeError("Requires distributed package to be available")
+                raise RuntimeError(
+                    "Requires distributed package to be available"
+                )
             rank = dist.get_rank()
         self.dataset = dataset
         self.num_replicas = num_replicas
@@ -108,10 +117,10 @@ class DistributedEvalSampler(Sampler):
         self.epoch = 0
         # self.num_samples = int(math.ceil(len(self.dataset) * 1.0 / self.num_replicas))
         # self.total_size = self.num_samples * self.num_replicas
-        self.total_size = len(self.dataset)         # true value without extra samples
+        self.total_size = len(self.dataset)  # true value without extra samples
         indices = list(range(self.total_size))
-        indices = indices[self.rank:self.total_size:self.num_replicas]
-        self.num_samples = len(indices)             # true value without extra samples
+        indices = indices[self.rank : self.total_size : self.num_replicas]
+        self.num_samples = len(indices)  # true value without extra samples
 
         self.shuffle = shuffle
         self.seed = seed
@@ -125,13 +134,12 @@ class DistributedEvalSampler(Sampler):
         else:
             indices = list(range(len(self.dataset)))
 
-
         # # add extra samples to make it evenly divisible
         # indices += indices[:(self.total_size - len(indices))]
         # assert len(indices) == self.total_size
 
         # subsample
-        indices = indices[self.rank:self.total_size:self.num_replicas]
+        indices = indices[self.rank : self.total_size : self.num_replicas]
         assert len(indices) == self.num_samples
 
         return iter(indices)

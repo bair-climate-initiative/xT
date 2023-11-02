@@ -5,3 +5,5 @@ optimizer:
   base_lr: 1e-2
   classifier_ratio: 1.0
   warmup_epochs: 1
+train:
+  batch_size: 6

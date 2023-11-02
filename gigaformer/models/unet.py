@@ -444,6 +444,216 @@ class EncoderDecoder(AbstractModel):
         )
 
 
+class UNetDecoder(nn.Module):
+    def __init__(
+        self,
+        bottleneck_type,
+        filters,
+        decoder_block,
+        decoder_filters,
+        skip_decoder,
+        last_upsample_filters,
+        *args,
+        **kwargs
+    ) -> None:
+        super().__init__(*args, **kwargs)
+
+        self.decoder_filters = decoder_filters
+        self.last_upsample_filters = last_upsample_filters
+        self.filters = filters
+        self.bottleneck_type = bottleneck_type
+        self.decoder_block = decoder_block
+        self.bottlenecks = nn.ModuleList(
+            [
+                self.bottleneck_type(self.filters[-i - 2] + f, f)
+                for i, f in enumerate(reversed(self.decoder_filters[:]))
+            ]
+        )
+        self.decoder_stages = nn.ModuleList(
+            [
+                self.get_decoder(idx)
+                for idx in range(0, len(self.decoder_filters))
+            ]
+        )
+        decoder_cls = UnetDecoderLastConv
+        if skip_decoder:
+            decoder_cls = UnetDecoderLastConvSkip
+        self.vessel_mask = decoder_cls(
+            self.decoder_filters[0], self.last_upsample_filters, 1
+        )
+        self.fishing_mask = decoder_cls(
+            self.decoder_filters[0], self.last_upsample_filters, 1
+        )
+        self.center_mask = decoder_cls(
+            self.decoder_filters[0], self.last_upsample_filters, 1
+        )
+        self.length_mask = decoder_cls(
+            self.decoder_filters[0], self.last_upsample_filters, 1
+        )
+
+    def forward(self, enc_results, x_skip):
+        x = enc_results[-1]
+        bottlenecks = self.bottlenecks
+        pp = []
+        for idx, bottleneck in enumerate(bottlenecks):
+            rev_idx = -(idx + 1)
+            x = self.decoder_stages[rev_idx](x)
+            a = x.shape
+            x = bottleneck(x, enc_results[rev_idx - 1])
+            b = x.shape
+            pp.append((a, b))
+
+        fishing_mask = self.fishing_mask(x, x_skip).contiguous(
+            memory_format=torch.contiguous_format
+        )
+        vessel_mask = self.vessel_mask(x, x_skip).contiguous(
+            memory_format=torch.contiguous_format
+        )
+        center_mask = self.center_mask(x, x_skip).contiguous(
+            memory_format=torch.contiguous_format
+        )
+        length_mask = self.length_mask(x, x_skip).contiguous(
+            memory_format=torch.contiguous_format
+        )
+        output = {
+            "fishing_mask": fishing_mask,
+            "vessel_mask": vessel_mask,
+            "center_mask": center_mask,
+            "length_mask": length_mask,
+        }
+        return output
+
+    def get_decoder(self, layer):
+        in_channels = (
+            self.filters[layer + 1]
+            if layer + 1 == len(self.decoder_filters)
+            else self.decoder_filters[layer + 1]
+        )
+        return self.decoder_block(
+            in_channels,
+            self.decoder_filters[layer],
+            self.decoder_filters[max(layer, 0)],
+        )
+
+
+class TransformerXLContextModel(nn.Module):
+    def __init__(
+        self, xl_config, crop_size, reduction, d_model, *args, **kwargs
+    ) -> None:
+        super().__init__(*args, **kwargs)
+
+        transformer_xl_config = {
+            "no_memory": xl_config.no_memory,
+            "n_layer": xl_config.n_layer,
+        }
+
+        n_length = (crop_size // reduction) ** 2
+        n_crops = 9
+        n_token = d_model
+        cutoffs = [n_token // 2]
+        tie_projs = [False] + [True] * len(cutoffs)
+        xl_args = dict(
+            n_token=n_token,
+            n_layer=4,
+            n_head=2,
+            d_model=d_model,
+            d_head=2,
+            d_inner=d_model,
+            dropout=0.1,
+            dropatt=0.1,
+            tie_weight=False,
+            d_embed=d_model,
+            div_val=1,
+            tie_projs=tie_projs,
+            pre_lnorm=True,
+            tgt_len=n_length,
+            ext_len=n_length,
+            mem_len=n_length,
+            cutoffs=cutoffs,
+            attn_type=0,
+        )
+
+        xl_args.update(transformer_xl_config)
+        self.model = MemTransformerLM(**xl_args)
+
+    def forward(self, enc_results, mem):
+        xx = enc_results[-1]  # N C H W
+        old_shape = xx.shape
+        xx = xx.flatten(2).permute(2, 0, 1)  # L N C
+        xx = self.model(xx, xx, *mem)
+        pred_out, mem = xx[0], xx[1:]
+        pred_out = pred_out.permute(1, 2, 0).view(*old_shape)
+        enc_results[-1] = pred_out  # overwrite
+        mem = mem
+        return enc_results, mem
+
+
+class EncoderDecoderV2(AbstractModel):
+    def __init__(
+        self,
+        backbone: nn.Module,
+        xl_config: TransformerXLConfig,
+        channels_last: bool = False,
+        crop_size: int = 256,
+        skip_decoder: bool = False,
+        backbone_name: str = "revswinv2_tiny",
+        **kwargs
+    ):
+        # if not hasattr(self, "first_layer_stride_two"):
+        # if not hasattr(self, "decoder_block"):
+        self.channels_last = channels_last
+        self.crop_size = crop_size
+        self.filters = [f["num_chs"] for f in backbone.feature_info]
+        self.decoder_filters = default_decoder_filters
+        self.skip_decoder = skip_decoder
+
+        super().__init__()
+
+        self.context_mode = xl_config.enabled
+        if self.context_mode:
+            self.init_context_model(xl_config, backbone)
+
+        self.init_decoder()
+
+        self.name = "u-{}".format(backbone_name)
+
+        self._initialize_weights()
+        self.dropout = Dropout2d(p=0.0)
+        self.encoder = backbone
+
+    def init_context_model(self, xl_config, backbone):
+        self.context_model = TransformerXLContextModel(
+            xl_config,
+            self.crop_size,
+            backbone.feature_info[-1]["reduction"],
+            d_model=self.filters[-1],
+        )
+
+    def forward(self, x, mem=tuple(), **kwargs):
+        # Encoder
+        if self.channels_last:
+            x = x.contiguous(memory_format=torch.channels_last)
+        x_skip = x
+        enc_results = self.encoder(x)
+        if self.context_mode:
+            enc_results, mem = self.context_model(enc_results, mem)
+        output = self.decoder(enc_results, x_skip)
+        if self.context_mode:
+            return output, mem
+        else:
+            return output
+
+    def init_decoder(self):
+        self.decoder = UNetDecoder(
+            ConvBottleneck,
+            self.filters,
+            UnetDecoderBlock,
+            self.decoder_filters,
+            self.skip_decoder,
+            default_last,
+        )
+
+
 class HierVitND(AbstractModel):
     def __init__(
         self,
