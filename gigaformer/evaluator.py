@@ -234,7 +234,7 @@ class XviewEvaluator(Evaluator):
 
             parser = create_metric_arg_parser()
             metric_args = parser.parse_args("")
-            metric_args.inference_file = pred_csv
+            metric_args.inference_file = Path(self.config.output_dir) / pred_csv
             metric_args.label_file = str(Path(self.config.data.dir) / self.annotation_dir)
             metric_args.shore_root = str(Path(self.config.data.dir) / self.shoreline_dir)
             metric_args.shore_tolerance = 2
