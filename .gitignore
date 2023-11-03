@@ -151,4 +151,5 @@ out.json
 *.out
 
 .vscode/
+*.tar
 zoo/

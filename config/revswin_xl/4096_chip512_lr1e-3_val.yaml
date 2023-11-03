@@ -26,4 +26,4 @@ train:
   test_every: 1
   test_reset: True
 val: True
-eval_sampler: True
+eval_sampler: False
