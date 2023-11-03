@@ -37,7 +37,8 @@ def main(cfg: XviewConfig) -> None:
     )
 
     if is_main_process():
-        os.makedirs(cfg.output_dir, exist_ok=True)
+        # os.makedirs(cfg.output_dir, exist_ok=True)
+        os.makedirs(os.path.join(cfg.output_dir, cfg.name), exist_ok=True)
         print(OmegaConf.to_yaml(cfg))
 
     if cfg.test:

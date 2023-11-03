@@ -80,7 +80,7 @@ def create_config(cfg: XviewConfig, args: DictConfig):
     cfg = _merge_configs(cfg, args.config)
     del args.config
 
-    print(OmegaConf.to_yaml(cfg))
+    # print(OmegaConf.to_yaml(cfg))
 
     return cfg
 
