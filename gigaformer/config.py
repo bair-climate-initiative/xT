@@ -43,8 +43,6 @@ class XviewConfig:
     """Whether to use distributed training."""
     output_dir: str = "outputs/"
     """Output directory for weights, etc.."""
-    log_dir: str = "logs/"
-    """Log directory for training info."""
     fp16: bool = False
     fsdp: bool = False
     """Whether to use Fully Sharded Data Parallel training."""

@@ -12,7 +12,6 @@ import torch.distributed as dist
 from einops import rearrange
 from fvcore.nn import FlopCountAnalysis
 from omegaconf import OmegaConf
-from tensorboardX import SummaryWriter
 from timm.utils import AverageMeter
 from torch.nn import DataParallel, SyncBatchNorm
 from torch.nn.modules.batchnorm import _BatchNorm
@@ -24,21 +23,15 @@ import wandb
 
 # from train_val_segmentor import XviewConfig
 from .config import XviewConfig
-from .datasets.sampler import (
-    DistributedEvalSampler,
-    DistributedWeightedRandomSampler,
-)
+from .datasets.sampler import (DistributedEvalSampler,
+                               DistributedWeightedRandomSampler)
 from .evaluator import Evaluator
 from .losses import build_losses
 from .models import build_model
 from .optimizer import create_optimizer
 from .tiling import build_tiling
-from .utils import (
-    get_rank,
-    get_world_size,
-    is_dist_avail_and_initialized,
-    is_main_process,
-)
+from .utils import (get_rank, get_world_size, is_dist_avail_and_initialized,
+                    is_main_process)
 
 logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO").upper())
 os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
@@ -92,7 +85,6 @@ class PytorchTrainer:
             self.config.train.epochs,
         )
         if is_main_process():
-            Path(self.config.output_dir).mkdir(parents=True, exist_ok=True)
             if WANDB_OFFLINE:
                 from wandb_osh.hooks import TriggerWandbSyncHook
 
@@ -104,15 +96,13 @@ class PytorchTrainer:
                 resume="allow",
                 name=config.name,
                 config=OmegaConf.to_container(config),
-                dir=config.output_dir,
+                dir=str(Path(config.output_dir)),
             )
             artifact = wandb.Artifact(
                 "config_file",
                 type="config_file",
             )
-            config_dump_path = os.path.join(
-                self.config.output_dir, "config.yaml"
-            )
+            config_dump_path = Path(self.config.output_dir) / "config.yaml"
             with open(config_dump_path, "w") as outfile:
                 outfile.write(OmegaConf.to_yaml(self.config))
             artifact.add_file(config_dump_path)
@@ -122,9 +112,6 @@ class PytorchTrainer:
             self.wandb_id = wandb.run.id
 
             print(self.model)
-            self.summary_writer = SummaryWriter(
-                os.path.join(config.output_dir, self.snapshot_name)
-            )
 
         # self._profile_model((1, 2, self.conf["crop_size"], self.conf["crop_size"]))
 
@@ -182,13 +169,6 @@ class PytorchTrainer:
                     )
                     self.current_metrics.update(improved_metrics)
                 self._save_best(improved_metrics)
-                if is_main_process():
-                    for k, v in metrics.items():
-                        self.summary_writer.add_scalar(
-                            "val/{}".format(k),
-                            float(v),
-                            global_step=self.current_epoch,
-                        )
 
     def scale_learning_rate(self):
         # linear scale the learning rate according to total batch size, may not be optimal
@@ -220,33 +200,21 @@ class PytorchTrainer:
 
     def _save_last(self):
         payload = self._get_current_payload()
+        checkpoint_dir = Path(self.config.output_dir) / "checkpoints"
         if is_main_process():
             torch.save(
                 payload,
-                os.path.join(
-                    self.config.output_dir,
-                    self.config.name,
-                    self.snapshot_name
-                    + "_"
-                    + str(self.wandb_id)
-                    + f"_{self.current_epoch}.tar",
-                ),
+                checkpoint_dir / f"{self.snapshot_name}_{str(self.wandb_id)}_{self.current_epoch}.ckpt"
             )
 
     def _save_best(self, improved_metrics: Dict):
         payload = self._get_current_payload()
+        checkpoint_dir = Path(self.config.output_dir) / "checkpoints"
         if is_main_process():
             for metric_name in improved_metrics.keys():
                 torch.save(
                     payload,
-                    os.path.join(
-                        self.config.output_dir,
-                        self.snapshot_name
-                        + "_"
-                        + str(self.wandb_id)
-                        + "_"
-                        + metric_name,
-                    ),
+                    checkpoint_dir / f"{self.snapshot_name}_{str(self.wandb_id)}_{metric_name}.ckpt"
                 )
 
     def build_iterator(self, dataloader):
@@ -445,19 +413,6 @@ class PytorchTrainer:
                         **avg_metrics,
                     }
                 )
-        if is_main_process():
-            for idx, param_group in enumerate(self.optimizer.param_groups):
-                lr = param_group["lr"]
-                self.summary_writer.add_scalar(
-                    "group{}/lr".format(idx),
-                    float(lr),
-                    global_step=self.current_epoch,
-                )
-            self.summary_writer.add_scalar(
-                "train/loss",
-                float(loss_meter.avg),
-                global_step=self.current_epoch,
-            )
 
     @property
     def train_batch_size(self):
@@ -553,10 +508,8 @@ class PytorchTrainer:
         self.gscaler = torch.cuda.amp.GradScaler()
 
         if self.config.distributed and self.config.fsdp:
-            from torch.distributed.fsdp import (
-                CPUOffload,
-                FullyShardedDataParallel,
-            )
+            from torch.distributed.fsdp import (CPUOffload,
+                                                FullyShardedDataParallel)
             from torch.distributed.fsdp.wrap import size_based_auto_wrap_policy
 
             self.model = FullyShardedDataParallel(

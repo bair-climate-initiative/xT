@@ -67,8 +67,8 @@ def parse_args():
 
 
 def get_shared_folder() -> Path:
-    if Path("/p/home/ritwik/checkpoints/").is_dir():
-        p = Path(f"/p/home/ritwik/checkpoints/xview3/")
+    if Path("/p/home/ritwik/jobs/").is_dir():
+        p = Path(f"/p/home/ritwik/jobs/xview3/")
         p.mkdir(exist_ok=True)
         return p
     raise RuntimeError("No shared folder available")
@@ -103,9 +103,6 @@ class Trainer(object):
         import submitit
 
         self.config.dist_url = get_init_file().as_uri()
-        # checkpoint_file = os.path.join(self.args.output_dir, "checkpoint.pth")
-        # if os.path.exists(checkpoint_file):
-        #     self.args.resume = checkpoint_file
         print("Requeuing ", self.config)
         empty_trainer = type(self)(self.config)
         return submitit.helpers.DelayedSubmission(empty_trainer)
@@ -121,10 +118,10 @@ class Trainer(object):
             set_cuda_visible_devices=False
         )
         self.config.output_dir = Path(
-            str(self.config.output_dir).replace("%j", os.environ["EXP_NAME"])
+            str(self.config.output_dir).replace("%j", f"{job_env.job_id}_{self.config.name}")
         )
         self.config.model.resume = Path(
-            str(self.config.model.resume).replace("%j", os.environ["EXP_NAME"])
+            str(self.config.model.resume).replace("%j", f"{job_env.job_id}_{self.config.name}")
         )
 
         # These are needed because submitit errors out otherwise.
