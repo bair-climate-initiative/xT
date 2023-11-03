@@ -96,7 +96,7 @@ class PytorchTrainer:
                 resume="allow",
                 name=config.name,
                 config=OmegaConf.to_container(config),
-                dir=str(Path(config.output_dir) / "wandb"),
+                dir=str(Path(config.output_dir)),
             )
             artifact = wandb.Artifact(
                 "config_file",
