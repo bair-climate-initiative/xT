@@ -1,5 +1,6 @@
 import gc
 import os
+from pathlib import Path
 from typing import List
 
 import numpy as np
@@ -168,19 +169,12 @@ def predict_scene_and_return_mm(
         tiler.update_crop(length_preds, length_mask, slice)
         # tiler.update_crop(conf_preds, conf_mask, slice)
     if output_dir:
-        os.makedirs(os.path.join(output_dir, scene_id), exist_ok=True)
-        np.save(
-            os.path.join(output_dir, scene_id, "center_preds"), center_preds
-        )
-        np.save(
-            os.path.join(output_dir, scene_id, "vessel_preds"), vessel_preds
-        )
-        np.save(
-            os.path.join(output_dir, scene_id, "fishing_preds"), fishing_preds
-        )
-        np.save(
-            os.path.join(output_dir, scene_id, "length_preds"), length_preds
-        )
+        scene_id_output = Path(output_dir) / scene_id
+        scene_id_output.mkdir(exist_ok=True)
+        np.save(scene_id_output / "center_preds", center_preds)
+        np.save(scene_id_output / "vessel_preds", vessel_preds)
+        np.save(scene_id_output / "fishing_preds", fishing_preds)
+        np.save(scene_id_output / "length_preds", length_preds)
     gc.collect()
     return {
         "center_mask": center_preds,

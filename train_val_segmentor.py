@@ -1,6 +1,7 @@
 import logging
 import os
 import warnings
+from pathlib import Path
 
 # import hydra
 import torch
@@ -27,6 +28,10 @@ warnings.filterwarnings("ignore")
 
 # @hydra.main(config_path="config", config_name="base_config")
 def main(cfg: XviewConfig) -> None:
+    if is_main_process():
+        _make_output_directory_structure(cfg)
+        print(OmegaConf.to_yaml(cfg))
+
     data_train, data_val = create_data_datasets(cfg.data, cfg.test)
     seg_evaluator = XviewEvaluator(cfg)
     trainer = PytorchTrainer(
@@ -35,10 +40,6 @@ def main(cfg: XviewConfig) -> None:
         train_data=data_train,
         val_data=data_val,
     )
-
-    if is_main_process():
-        os.makedirs(cfg.output_dir, exist_ok=True)
-        print(OmegaConf.to_yaml(cfg))
 
     if cfg.test:
         sampler = torch.utils.data.distributed.DistributedSampler(
@@ -62,6 +63,15 @@ def main(cfg: XviewConfig) -> None:
         return
     trainer.fit()
 
+
+def _make_output_directory_structure(cfg):
+    if is_main_process():
+        print("Making directories...")
+        print(f"Making {cfg.output_dir}")
+        output_dir = Path(cfg.output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        (output_dir / "checkpoints").mkdir(exist_ok=True)
+        (output_dir / "predictions").mkdir(exist_ok=True)
 
 if __name__ == "__main__":
     args = OmegaConf.from_cli()  # first grab from cli to determine config

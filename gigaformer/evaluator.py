@@ -3,6 +3,7 @@ import glob
 import logging
 import os
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import Dict
 
 import pandas as pd
@@ -156,27 +157,26 @@ class XviewEvaluator(Evaluator):
     ) -> Dict:
         if is_main_process():
             print("DEBUG: MAIN")
-        conf_name = os.path.splitext(os.path.basename(self.config.name))[0]
-        val_dir = os.path.join(
-            self.config.output_dir, conf_name, str(self.config.data.fold)
-        )
-        os.makedirs(val_dir, exist_ok=True)
-        dataset_dir = os.path.join(self.config.data.dir, self.dataset_dir)
+        predictions_dir = Path(self.config.output_dir) / "predictions"
+        dataset_dir = Path(self.config.data.dir) / self.dataset_dir
+
         if is_main_process() and self.config.train.test_reset:
-            csv_paths = glob.glob(os.path.join(val_dir, "*.csv"))
+            csv_paths = predictions_dir.glob("*.csv")
             for csv_file in csv_paths:
                 os.remove(csv_file)
+
         if is_dist_avail_and_initialized():
             dist.barrier()
         rank = get_rank()
+
         for sample in tqdm(dataloader, position=0):
             scene_id = sample["name"][0]
-            tgt_path = os.path.join(val_dir, f"{scene_id}.csv")
+            tgt_path = predictions_dir / f"{scene_id}.csv"
             logging.debug(f"{rank}:Evaluating {scene_id} ")
             if (
                 self.config.test
-                and os.path.exists(tgt_path)
-                and datetime.datetime.fromtimestamp(os.path.getmtime(tgt_path))
+                and tgt_path.exists()
+                and datetime.datetime.fromtimestamp(os.path.getmtime(str(tgt_path)))
                 > datetime.datetime.now() - datetime.timedelta(hours=10)
             ):
                 continue
@@ -208,22 +208,19 @@ class XviewEvaluator(Evaluator):
                     "mean_length",
                     "mean_center",
                 ],
-            ).to_csv(os.path.join(val_dir, f"{scene_id}.csv"))
+            ).to_csv(predictions_dir / f"{scene_id}.csv")
         if is_dist_avail_and_initialized():
             dist.barrier()
         xview = 0
         output = {}
         if is_main_process():
-            csv_paths = glob.glob(os.path.join(val_dir, "*.csv"))
-            pred_csv = f"pred_{conf_name}_{self.config.data.fold}.csv"
+            csv_paths = list(predictions_dir.glob("*.csv"))
+            pred_csv = f"pred_{self.config.name}_{self.config.data.fold}.csv"
             print(csv_paths)
-            pd.concat(
+
+            df = pd.concat(
                 [pd.read_csv(csv_path).reset_index() for csv_path in csv_paths]
-            ).to_csv(os.path.join(self.config.output_dir, pred_csv), index=False)
-            parser = create_metric_arg_parser()
-            metric_args = parser.parse_args("")
-            df = pd.read_csv(pred_csv)
-            df = df.reset_index()
+            ).reset_index()
             df[
                 [
                     "detect_scene_row",
@@ -233,19 +230,18 @@ class XviewEvaluator(Evaluator):
                     "is_fishing",
                     "vessel_length_m",
                 ]
-            ].to_csv(pred_csv, index=False)
+            ].to_csv(Path(self.config.output_dir) / pred_csv, index=False)
+
+            parser = create_metric_arg_parser()
+            metric_args = parser.parse_args("")
             metric_args.inference_file = pred_csv
-            metric_args.label_file = os.path.join(
-                self.config.data.dir, self.annotation_dir
-            )
-            metric_args.shore_root = os.path.join(
-                self.config.data.dir, self.shoreline_dir
-            )
+            metric_args.label_file = str(Path(self.config.data.dir) / self.annotation_dir)
+            metric_args.shore_root = str(Path(self.config.data.dir) / self.shoreline_dir)
             metric_args.shore_tolerance = 2
             metric_args.costly_dist = True
             metric_args.drop_low_detect = True
             metric_args.distance_tolerance = 200
-            metric_args.output = os.path.join(self.config.log_dir, "out.json")
+            metric_args.output = str(predictions_dir / "out.json")
             output = xview_metric.evaluate_xview_metric(metric_args)
             xview = output["aggregate"]
         if is_dist_avail_and_initialized():
