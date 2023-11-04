@@ -61,6 +61,8 @@ def build_losses(config: LossConfig) -> List[LossFunction]:
             loss_func = CenterLossCalculator()
         elif loss_type == "length":
             loss_func = LengthLoss()
+        elif loss_type == 'crossentrophy':
+            loss_func = CrossEntrophy(**single_loss.params)
         else:
             raise ValueError(f"Unknown loss type {loss_type}")
 

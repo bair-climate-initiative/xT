@@ -798,6 +798,7 @@ class ReversibleSwinTransformerV2Stage(nn.Module):
         norm_layer=nn.LayerNorm,
         pretrained_window_size=0,
         output_nchw=False,
+        use_vanilla_backward=False
     ):
         """
         Args:
@@ -840,7 +841,7 @@ class ReversibleSwinTransformerV2Stage(nn.Module):
             assert dim == out_dim
             self.downsample = nn.Identity()
 
-        self.use_vanilla_backward = False
+        self.use_vanilla_backward = use_vanilla_backward
 
         # build blocks
         self.blocks = nn.ModuleList(
@@ -925,6 +926,7 @@ class ReversibleSwinTransformerV2(nn.Module):
         norm_layer: Callable = nn.LayerNorm,
         pretrained_window_sizes: Tuple[int, ...] = (0, 0, 0, 0),
         input_dim=2,
+        use_vanilla_backward=False,
         **kwargs,
     ):
         """
@@ -1022,6 +1024,7 @@ class ReversibleSwinTransformerV2(nn.Module):
                     drop_path=dpr[i],
                     norm_layer=norm_layer,
                     pretrained_window_size=pretrained_window_sizes[i],
+                    use_vanilla_backward=use_vanilla_backward,
                 )
             ]
             in_dim = out_dim

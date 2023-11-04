@@ -9,9 +9,10 @@ import torch.distributed
 from omegaconf import OmegaConf
 from torch.utils.data import DataLoader
 
-from gigaformer.config import XviewConfig, create_config
+from gigaformer.config import create_config
+from typing import Any
 from gigaformer.datasets import create_data_datasets
-from gigaformer.evaluator import XviewEvaluator
+from gigaformer.evaluator import build_evaluator 
 from gigaformer.trainer import PytorchTrainer
 from gigaformer.utils import get_rank, get_world_size, is_main_process
 
@@ -27,13 +28,13 @@ warnings.filterwarnings("ignore")
 
 
 # @hydra.main(config_path="config", config_name="base_config")
-def main(cfg: XviewConfig) -> None:
+def main(cfg: Any) -> None:
     if is_main_process():
         _make_output_directory_structure(cfg)
-        print(OmegaConf.to_yaml(cfg))
+        #print(OmegaConf.to_yaml(cfg))
 
-    data_train, data_val = create_data_datasets(cfg.data, cfg.test)
-    seg_evaluator = XviewEvaluator(cfg)
+    data_train, data_val = create_data_datasets(cfg, cfg.test)
+    seg_evaluator = build_evaluator(cfg)
     trainer = PytorchTrainer(
         config=cfg,
         evaluator=seg_evaluator,
@@ -80,6 +81,5 @@ def _make_output_directory_structure(cfg):
 
 if __name__ == "__main__":
     args = OmegaConf.from_cli()  # first grab from cli to determine config
-    schema = OmegaConf.structured(XviewConfig)
-    config = create_config(schema, args)
+    config = create_config(args)
     main(config)

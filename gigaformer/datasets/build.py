@@ -65,10 +65,10 @@ def create_data_datasets(config: DataConfig, test: bool = False):
     if (
         os.environ.get("RANK", "0") == "0"
     ):  # needed since distrbuted not initialized
-        print("dataset config crop size", config.crop_size)
-        if config.dataset == "xview3" and config.shoreline_dir:
+        print("dataset config crop size", config.data.crop_size)
+        if config.data.dataset == "xview3" and config.data.shoreline_dir:
             print("Legacy Warning:shoreline_dir is no longer used")
-    if config.dataset == "xview3":
+    if config.data.dataset == "xview3":
         if test:
             # TODO: Do we need to construct the Xview Dataset when testing?
             train_annotations = os.path.join(config.dir, "labels/public.csv")
@@ -108,15 +108,15 @@ def create_data_datasets(config: DataConfig, test: bool = False):
         train_transforms = create_transforms(config.transforms, config.dataset)
         train_dataset = INatDataset(
             mode="train",
-            dataset_dir=Path(config.dir),
+            dataset_dir=Path(config.data.dir),
             annotation_json="train2018.json",
             transforms=train_transforms,
         )
         val_dataset = INatDataset(
             mode="val",
-            dataset_dir=Path(config.dir),
+            dataset_dir=Path(config.data.dir),
             annotation_json="val2018.json",
-            transforms=None,
+            transforms=create_transforms(config.transforms_val,config.dataset),
         )
 
     return train_dataset, val_dataset
@@ -132,6 +132,11 @@ def create_transforms(config: TransformConfig, dataset: str = "xview3"):
                 )
             elif transform == "SmallestMaxSize":
                 transforms.append(A.SmallestMaxSize(max_size=config.max_size))
+            elif transform == "CenterCrop":
+                transforms.append(A.CenterCrop(height=config.height,width=config.width))
+            elif transform == "Normalize":
+                transforms.append(A.Normalize(mean=config.mean,std=config.std))
+
             else:
                 raise NotImplementedError
     elif dataset == "xview3":

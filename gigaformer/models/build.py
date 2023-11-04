@@ -74,5 +74,7 @@ def build_model(config: ModelConfig):
             context_mode=config.xl_context.enabled,
             skip_decoder=False,
             backbone_name=config.backbone_class,
+            task=config.task,
+            task_config=config.task_config,
         )
     return model
