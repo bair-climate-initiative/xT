@@ -739,7 +739,7 @@ class EncoderDecoderV2(AbstractModel):
             return output
 
     def init_decoder(self):
-        if self.task == 'xview':
+        if self.dataset == 'xview':
             self.decoder = UNetDecoder(
                 ConvBottleneck,
                 self.filters,
@@ -748,14 +748,14 @@ class EncoderDecoderV2(AbstractModel):
                 self.skip_decoder,
                 default_last,
             )
-        elif self.task == 'classification':
+        elif self.dataset == 'inaturalist':
             self.decoder = ClassificationDecoder(
                 in_dim=self.filters[-1],
                 num_classes=self.num_classes,
                 mlp_ratio=self.mlp_ratio
             )
         else:
-            raise NotImplemented
+            raise Exception('Unknown dataset {}'.format(self.dataset))
 
 
 class HierVitND(AbstractModel):
