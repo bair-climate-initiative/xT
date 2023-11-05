@@ -4,7 +4,7 @@ fp16: True
 name: revswinv2_chip512_swinpt_lr1e-3
 output_dir: ${oc.env:OUTPUT_DIR, "/shared/jacklishufan/large-image-models/new"} 
 test: False
-val: True
+val: False
 data:
   dataset: xview3
   dir: ${oc.env:XVIEW3_ROOT, "/shared/group/xview3"} 
