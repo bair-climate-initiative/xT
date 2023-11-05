@@ -1,9 +1,6 @@
 base_configs: 
   - config/base.yaml
 name: revswinv2_xl_4096_chip512_swinpt_lr1e-3_inaturalist
-transforms: ${data.transforms}
-transforms_val: ${data.transforms_val}
-dataset: ${data.dataset}
 data:
   dataset: inaturalist
   dir: /shared/ritwik/data/inaturalist2018
@@ -20,7 +17,7 @@ data:
     max_size: 2048
     height: 2048
     width: 2048
-  transforms_val:
+  transforms_val: 
     names:
       - SmallestMaxSize
       - RandomCrop
@@ -32,14 +29,12 @@ data:
     width: 2048
 model: 
   name: EncoderDecoderV2
-  task: classification
-  task_config:
-    num_classes: 9999 # Monkey 
-    mlp_ratio: 4
+  num_classes: 9999 # Monkey 
+  mlp_ratio: 4
   backbone:
     img_size: 512
     input_dim: 3
-    use_vanilla_backward: on
+    use_vanilla_backward: True
     pretrained: ${oc.env:PRETRAINED_CKPT_PATH, "./ckpts"}/swinv2_tiny_window16_256.pth
   xl_context:
     enabled: true

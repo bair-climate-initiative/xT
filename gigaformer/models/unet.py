@@ -675,6 +675,7 @@ class ClassificationDecoder(nn.Module):
         xx = xx.mean((-1,-2)) # GAP->N X C
         logits = self.layers(xx) # CLS
         return {'label':logits}
+
 from typing import Any
 class EncoderDecoderV2(AbstractModel):
     def __init__(
@@ -685,8 +686,9 @@ class EncoderDecoderV2(AbstractModel):
         crop_size: int = 256,
         skip_decoder: bool = False,
         backbone_name: str = "revswinv2_tiny",
-        task:str = 'xview',
-        task_config: Any = {},
+        dataset: str = 'xview3',
+        num_classes: int = 9999,
+        mlp_ratio: int = 4,
         **kwargs
     ):
         # if not hasattr(self, "first_layer_stride_two"):
@@ -696,8 +698,9 @@ class EncoderDecoderV2(AbstractModel):
         self.filters = [f["num_chs"] for f in backbone.feature_info]
         self.decoder_filters = default_decoder_filters
         self.skip_decoder = skip_decoder
-        self.task = task
-        self.task_config =task_config
+        self.dataset = dataset
+        self.num_classes = num_classes
+        self.mlp_ratio = mlp_ratio
 
         super().__init__()
 
@@ -748,8 +751,8 @@ class EncoderDecoderV2(AbstractModel):
         elif self.task == 'classification':
             self.decoder = ClassificationDecoder(
                 in_dim=self.filters[-1],
-                num_classes=self.task_config.num_classes,
-                mlp_ratio=self.task_config.mlp_ratio
+                num_classes=self.num_classes,
+                mlp_ratio=self.mlp_ratio
             )
         else:
             raise NotImplemented

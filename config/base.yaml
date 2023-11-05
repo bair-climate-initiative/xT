@@ -20,15 +20,12 @@ data:
   positive_ratio: 0.85
   transforms:
     names:
-      - None
     max_size: 2048
     height: 2048
     width: 2048
 model: 
   name: TimmUnet
   patch_size: 16
-  task: xview
-  task_config: {}
   backbone_class: revswinv2_tiny_window16_256_xview
   backbone:
     in_chans: 3
@@ -96,4 +93,4 @@ losses:
       params: 
       weight: 2.0
       display: True
-eval_sampler: off
+eval_sampler: False

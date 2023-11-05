@@ -7,7 +7,6 @@ data:
   crop_size: 2048
   val_crop_size: 2048
   transforms:
-
     max_size: 2048
     crop_size: 2048
 model: 
