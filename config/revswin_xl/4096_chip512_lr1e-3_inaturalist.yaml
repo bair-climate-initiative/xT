@@ -34,8 +34,9 @@ model:
   backbone:
     img_size: 512
     input_dim: 3
-    use_vanilla_backward: True
+    use_vanilla_backward: False
     pretrained: ${oc.env:PRETRAINED_CKPT_PATH, "./ckpts"}/swinv2_tiny_window16_256.pth
+    upsample: False
   xl_context:
     enabled: true
     n_layer: 12
@@ -46,7 +47,7 @@ optimizer:
   warmup_epochs: 0
 train:
   epochs: 20
-  batch_size: 1
+  batch_size: 16
   val_batch_size: 1
   freeze_epochs: 0
   test_every: 1

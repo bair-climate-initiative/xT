@@ -927,6 +927,7 @@ class ReversibleSwinTransformerV2(nn.Module):
         pretrained_window_sizes: Tuple[int, ...] = (0, 0, 0, 0),
         input_dim=2,
         use_vanilla_backward=False,
+        upsample=True,
         **kwargs,
     ):
         """
@@ -949,6 +950,7 @@ class ReversibleSwinTransformerV2(nn.Module):
             patch_norm: If True, add normalization after patch embedding.
             pretrained_window_sizes: Pretrained window sizes of each layer.
             output_fmt: Output tensor format if not None, otherwise output 'NHWC' by default.
+            upsample: If we use upsample in dense prediction (False for EncDecv2)
         """
         super().__init__()
         if input_dim == in_chans:
@@ -990,9 +992,12 @@ class ReversibleSwinTransformerV2(nn.Module):
         self.feature_info += [
             dict(num_chs=embed_dim[0], reduction=2, module="patch_embed")
         ]
-        self.upsample = nn.ModuleList(
-            [nn.ConvTranspose2d(embed_dim[0], embed_dim[0], 2, 2)]
-        )
+        if upsample:
+            self.upsample = nn.ModuleList(
+                [nn.ConvTranspose2d(embed_dim[0], embed_dim[0], 2, 2)]
+            )
+        else:
+            self.upsample = nn.ModuleList([nn.Identity()])
 
         dpr = [
             x.tolist()

@@ -30,6 +30,8 @@ class BackboneConfig:
     """Expected input size of data."""
     use_vanilla_backward: bool = False 
     """Use vanilla backward pass for Revswin (debug only)."""
+    upsample: bool = True
+    """Whether to add an upsample on top of feature maps for RevSwin (False for EncDecv2)"""
 
 
 @dataclass
