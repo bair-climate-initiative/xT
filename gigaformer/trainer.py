@@ -2,6 +2,7 @@ import logging
 import math
 import os
 import re
+import time
 from numbers import Number
 from pathlib import Path
 from typing import Dict
@@ -21,8 +22,6 @@ from tqdm import tqdm
 
 import wandb
 
-# from train_val_segmentor import XviewConfig
-from .config import XviewConfig
 from .datasets.sampler import (DistributedEvalSampler,
                                DistributedWeightedRandomSampler)
 from .evaluator import Evaluator
@@ -30,8 +29,8 @@ from .losses import build_losses
 from .models import build_model
 from .optimizer import create_optimizer
 from .tiling import build_tiling
-from .utils import (get_rank, get_world_size, is_dist_avail_and_initialized,
-                    is_main_process)
+from .utils import (SmoothedValue, get_rank, get_world_size,
+                    is_dist_avail_and_initialized, is_main_process)
 
 logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO").upper())
 os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
@@ -44,7 +43,7 @@ if os.environ.get("WANDB_MODE", None) == "offline":
 class PytorchTrainer:
     def __init__(
         self,
-        config: XviewConfig,
+        config,
         evaluator: Evaluator,
         train_data: Dataset,
         val_data: Dataset,
@@ -258,18 +257,19 @@ class PytorchTrainer:
                 )
                 patch_indices = torch.stack([h_idx, w_idx])  # 2 X B X L
                 new_payload = {
-                    k: v[
-                        ...,
-                        self.input_size * i : self.input_size * (i + 1),
-                        self.input_size * j : self.input_size * (j + 1),
-                    ]
-                    for k, v in x.items()
-                    if k != "name"
                 }
+                for key, v in x.items():
+                    if torch.is_tensor(v) and len(v.shape) >= 2:
+                        new_payload[key] = v[
+                            ...,
+                            self.input_size * i : self.input_size * (i + 1),
+                            self.input_size * j : self.input_size * (j + 1),
+                        ]
+                    else:
+                        new_payload[key] = v
                 new_payload["context_patches"] = context_patches
                 new_payload["patch_indices"] = patch_indices
                 new_payload["raw_indices"] = raw_indices
-                new_payload["name"] = x["name"]
                 new_payload["context_id"] = k["context_id"]
                 new_payload["mem_only"] = k.get("mem_only", False)
                 yield new_payload
@@ -284,6 +284,7 @@ class PytorchTrainer:
         for loss_def in self.losses:
             if loss_def.display:
                 avg_meters[loss_def.name] = AverageMeter()
+        data_time = SmoothedValue(fmt="{avg:.4f}")
 
         if self.config.optimizer.mode == "epoch":
             self.scheduler.step(self.current_epoch)
@@ -309,11 +310,15 @@ class PytorchTrainer:
         # Sliced Images with context_id
         # todo: make configurable
         if is_main_process():
-            train_loader = tqdm(
+            train_loader_tqdm = tqdm(
                 train_loader, total=iter_scale * len_train_loader
             )
+        train_loader = iter(train_loader)
         # Broken, temporaily disable time logging
-        for i, sample in enumerate(train_loader):
+        for i in range(iter_scale * len_train_loader):
+            start_time = time.time()
+            sample = next(train_loader)
+            data_time.update(time.time() - start_time)
             imgs = sample["image"].cuda().float()
             if extra_context:
                 if sample["context_id"] == 0:
@@ -405,14 +410,16 @@ class PytorchTrainer:
                     int(i / iter_scale) + self.current_epoch * len_train_loader
                 )
             if is_main_process():
-                train_loader.set_postfix(
+                train_loader_tqdm.set_postfix(
                     {
                         "lr": float(self.scheduler.get_lr()[-1]),
                         "epoch": self.current_epoch,
                         "mem": f"{torch.cuda.max_memory_reserved() / 1024 ** 3:.2f}G",
                         **avg_metrics,
+                        "data": data_time
                     }
                 )
+                train_loader_tqdm.update()
 
     @property
     def train_batch_size(self):
@@ -528,7 +535,7 @@ class PytorchTrainer:
                 self.model,
                 device_ids=[get_rank()],
                 output_device=get_rank(),
-                find_unused_parameters=False,
+                # find_unused_parameters=True,
             )
         else:
             self.model = DataParallel(self.model).cuda()
@@ -605,7 +612,7 @@ class PytorchTrainer:
 
     def _init_model(self):
         self.input_size = self.config.model.backbone.img_size
-        model = build_model(self.config.model)
+        model = build_model(self.config.model, self.config.data.dataset)
 
         model = model.cuda()
         self._load_checkpoint(model)

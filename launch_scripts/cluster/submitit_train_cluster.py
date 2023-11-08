@@ -84,7 +84,7 @@ def get_init_file():
 
 
 class Trainer(object):
-    def __init__(self, config: XviewConfig):
+    def __init__(self, config):
         self.config = config
         print(self.config)
 
@@ -180,9 +180,8 @@ def main():
 
     args.dist_url = get_init_file().as_uri()
     args.output_dir = args.job_dir
-
-    schema = OmegaConf.structured(XviewConfig)
-    config = create_config(schema, args)
+    config = create_config(schema=OmegaConf.structured(XviewConfig), cfg_path=args.config)
+    print(OmegaConf.to_yaml(config))
 
     trainer = Trainer(config)
     job = executor.submit(trainer)

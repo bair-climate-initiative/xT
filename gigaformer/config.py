@@ -2,12 +2,14 @@ import os
 from dataclasses import dataclass, field
 
 from omegaconf import DictConfig, OmegaConf
-
+from typing import Any
 from .datasets import DataConfig
 from .losses import LossConfig
 from .models import ModelConfig
 from .optimizer import OptimizerConfig
 
+from .utils import ConflictResolver
+# Get rid of all conflicts
 
 @dataclass
 class TrainConfig:
@@ -44,6 +46,7 @@ class XviewConfig:
     output_dir: str = "outputs/"
     """Output directory for weights, etc.."""
     fp16: bool = False
+    """Whether to use mixed precision training."""
     fsdp: bool = False
     """Whether to use Fully Sharded Data Parallel training."""
     test: bool = False
@@ -64,25 +67,51 @@ def _merge_configs(cfg: XviewConfig, cfg_file: str):
         for base_cfg in other_cfg.base_configs:
             cfg = _merge_configs(cfg, base_cfg)
 
-    if (
-        os.environ.get("RANK", "0") == "0"
-    ):  # needed since distrbuted not initialized
+    if os.environ.get("RANK", "0") == "0":  
+        # needed since distrbuted not initialized
         print(f"==> Merging config file {cfg_file} into config.")
     cfg = OmegaConf.merge(cfg, other_cfg)
     return cfg
 
 
-def create_config(cfg: XviewConfig, args: DictConfig):
+def create_config(schema: XviewConfig, cfg_path: str):
     """Create config from input config, recursively resolving base configs."""
     # First resolve input config and it's base_configs
-    cfg = _merge_configs(cfg, args.config)
-    del args.config
-
-    # print(OmegaConf.to_yaml(cfg))
+    cfg = _merge_configs(schema, cfg_path)
 
     return cfg
 
 
-# cs = ConfigStore.instance()
-# cs.store(name="config", node=XviewConfig)
-# cs.store(name="config", group="train", node=TrainConfig)
+# def merge_dict(src,tgt):
+#     if not hasattr(src,'items'):
+#         return tgt
+#     new_dict = {}
+#     for k,v in tgt.items():
+#         new_dict[k] = v
+#     for k,v in src.items():
+#         if k not in new_dict:
+#             new_dict[k] = v
+#         else:
+#             new_dict[k] = merge_dict(src[k],tgt[k])
+#     return new_dict
+
+# def create_config(args: Any):
+#     # Dict like objects
+#     """Create config from input config, recursively resolving base configs."""
+#     config = OmegaConf.load(args.config)
+#     queue = config.get('base_configs',[])
+#     seen = set()
+#     while queue: # DFS
+#         curr_config = OmegaConf.load(queue.pop(0))
+#         add_queue = curr_config.get('base_configs',[])
+#         for parent in add_queue:
+#             if parent not in seen:
+#                 seen.add(parent)
+#                 queue.insert(0,parent)
+#         config = merge_dict(curr_config,config)
+#     config = OmegaConf.create(config)
+#     del args.config
+
+#     # print(OmegaConf.to_yaml(cfg))
+
+#     return config

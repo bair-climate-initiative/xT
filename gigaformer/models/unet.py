@@ -536,6 +536,77 @@ class UNetDecoder(nn.Module):
         )
 
 
+class SemanticSegDecoder(nn.Module):
+    def __init__(
+        self,
+        bottleneck_type,
+        filters,
+        decoder_block,
+        decoder_filters,
+        skip_decoder,
+        last_upsample_filters,
+        num_classes,
+        *args,
+        **kwargs
+    ) -> None:
+        super().__init__(*args, **kwargs)
+
+        self.decoder_filters = decoder_filters
+        self.last_upsample_filters = last_upsample_filters
+        self.filters = filters
+        self.bottleneck_type = bottleneck_type
+        self.decoder_block = decoder_block
+        self.bottlenecks = nn.ModuleList(
+            [
+                self.bottleneck_type(self.filters[-i - 2] + f, f)
+                for i, f in enumerate(reversed(self.decoder_filters[:]))
+            ]
+        )
+        self.decoder_stages = nn.ModuleList(
+            [
+                self.get_decoder(idx)
+                for idx in range(0, len(self.decoder_filters))
+            ]
+        )
+        decoder_cls = UnetDecoderLastConv
+        if skip_decoder:
+            decoder_cls = UnetDecoderLastConvSkip
+        self.seg = decoder_cls(
+            self.decoder_filters[0], self.last_upsample_filters, num_classes
+        )
+
+    def forward(self, enc_results, x_skip):
+        x = enc_results[-1]
+        bottlenecks = self.bottlenecks
+        pp = []
+        for idx, bottleneck in enumerate(bottlenecks):
+            rev_idx = -(idx + 1)
+            x = self.decoder_stages[rev_idx](x)
+            a = x.shape
+            x = bottleneck(x, enc_results[rev_idx - 1])
+            b = x.shape
+            pp.append((a, b))
+
+        seg = self.seg(x, x_skip).contiguous(
+            memory_format=torch.contiguous_format
+        )
+        output = {
+            "seg": seg,
+        }
+        return output
+
+    def get_decoder(self, layer):
+        in_channels = (
+            self.filters[layer + 1]
+            if layer + 1 == len(self.decoder_filters)
+            else self.decoder_filters[layer + 1]
+        )
+        return self.decoder_block(
+            in_channels,
+            self.decoder_filters[layer],
+            self.decoder_filters[max(layer, 0)],
+        )
+    
 class TransformerXLContextModel(nn.Module):
     def __init__(
         self, xl_config, crop_size, reduction, d_model, *args, **kwargs
@@ -588,6 +659,24 @@ class TransformerXLContextModel(nn.Module):
         return enc_results, mem
 
 
+class ClassificationDecoder(nn.Module):
+
+    def __init__(self,in_dim,num_classes,mlp_ratio=4):
+        super().__init__()
+        self.layers =  nn.Sequential(
+            nn.Linear(in_dim,in_dim*mlp_ratio),
+            nn.GELU(),
+            nn.LayerNorm(in_dim*mlp_ratio),
+            nn.Linear(in_dim*mlp_ratio,num_classes),
+        )
+
+    def forward(self, enc_results, mem):
+        xx = enc_results[-1]  # N C H W
+        xx = xx.mean((-1,-2)) # GAP->N X C
+        logits = self.layers(xx) # CLS
+        return {'label':logits}
+
+from typing import Any
 class EncoderDecoderV2(AbstractModel):
     def __init__(
         self,
@@ -597,6 +686,9 @@ class EncoderDecoderV2(AbstractModel):
         crop_size: int = 256,
         skip_decoder: bool = False,
         backbone_name: str = "revswinv2_tiny",
+        dataset: str = 'xview3',
+        num_classes: int = 9999,
+        mlp_ratio: int = 4,
         **kwargs
     ):
         # if not hasattr(self, "first_layer_stride_two"):
@@ -606,6 +698,9 @@ class EncoderDecoderV2(AbstractModel):
         self.filters = [f["num_chs"] for f in backbone.feature_info]
         self.decoder_filters = default_decoder_filters
         self.skip_decoder = skip_decoder
+        self.dataset = dataset
+        self.num_classes = num_classes
+        self.mlp_ratio = mlp_ratio
 
         super().__init__()
 
@@ -644,14 +739,23 @@ class EncoderDecoderV2(AbstractModel):
             return output
 
     def init_decoder(self):
-        self.decoder = UNetDecoder(
-            ConvBottleneck,
-            self.filters,
-            UnetDecoderBlock,
-            self.decoder_filters,
-            self.skip_decoder,
-            default_last,
-        )
+        if self.dataset == 'xview':
+            self.decoder = UNetDecoder(
+                ConvBottleneck,
+                self.filters,
+                UnetDecoderBlock,
+                self.decoder_filters,
+                self.skip_decoder,
+                default_last,
+            )
+        elif self.dataset == 'inaturalist':
+            self.decoder = ClassificationDecoder(
+                in_dim=self.filters[-1],
+                num_classes=self.num_classes,
+                mlp_ratio=self.mlp_ratio
+            )
+        else:
+            raise Exception('Unknown dataset {}'.format(self.dataset))
 
 
 class HierVitND(AbstractModel):

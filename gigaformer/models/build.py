@@ -28,6 +28,10 @@ class BackboneConfig:
     """If channels are last in data format."""
     img_size: int = 256
     """Expected input size of data."""
+    use_vanilla_backward: bool = False 
+    """Use vanilla backward pass for Revswin (debug only)."""
+    upsample: bool = True
+    """Whether to add an upsample on top of feature maps for RevSwin (False for EncDecv2)"""
 
 
 @dataclass
@@ -42,6 +46,10 @@ class ModelConfig:
     """Class name for backbone."""
     patch_size: int = 16
     """Patch sized used for transformer XL."""  # TODO: properly derive this
+    num_classes: int = 9999
+    """Number of classes for head on dataset."""
+    mlp_ratio: int = 4 
+    """MLP ratio for Enc/Dec."""
 
     backbone: BackboneConfig = field(default_factory=BackboneConfig)
     xl_context: TransformerXLConfig = field(default_factory=TransformerXLConfig)
@@ -51,7 +59,7 @@ class ModelConfig:
 # cs.store(name="config", group="model", node=ModelConfig)
 
 
-def build_model(config: ModelConfig):
+def build_model(config: ModelConfig, dataset: str = "xview3"):
     backbone_class = config.backbone_class
     backbone = eval(backbone_class)(**config.backbone)
 
@@ -74,5 +82,8 @@ def build_model(config: ModelConfig):
             context_mode=config.xl_context.enabled,
             skip_decoder=False,
             backbone_name=config.backbone_class,
+            dataset=dataset,
+            num_classes=config.num_classes,
+            mlp_ratio=config.mlp_ratio,
         )
     return model

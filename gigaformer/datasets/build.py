@@ -6,6 +6,7 @@ from typing import List, Optional
 import albumentations as A
 import cv2
 from torch.utils.data import Dataset
+from typing import Tuple
 
 from .inaturalist import INatDataset
 from .xview3 import XviewDataset
@@ -18,15 +19,19 @@ cv2.setNumThreads(0)
 class TransformConfig:
     """General transform configuration"""
 
-    names: Optional[List[str]] = field(
-        default_factory=list
-    )  # List of names of Albumentations transforms
-    max_size: int = 2048  # For SmallestMaxSize
-    height: int = 2048  # For RandomCrop
-    width: int = 2048  # For RandomCrop
-    probability: float = (
-        0.5  # For all transforms TODO: This should be changed per transform
-    )
+    names: Optional[List[str]] = field(default_factory=list)  
+    """List of names of Albumentations transforms."""
+
+    mean: List[float] = field(default_factory=lambda: [0., 0., 0.])
+    std: List[float] = field(default_factory=lambda: [1., 1., 1.])
+    max_size: int = 2048  
+    """For SmallestMaxSize"""
+    height: int = 2048 
+    width: int = 2048  
+    """For RandomCrop"""
+    probability: float = 0.5  
+    """For all transforms.""" 
+    # TODO: This should be changed per transform
 
 
 @dataclass
@@ -59,6 +64,9 @@ class DataConfig:
     """Number of times to increase dataset by."""
 
     transforms: TransformConfig = field(default_factory=TransformConfig)
+    """Transforms for training."""
+    transforms_val: TransformConfig = field(default_factory=TransformConfig)
+    """Transforms for validation."""
 
 
 def create_data_datasets(config: DataConfig, test: bool = False):
@@ -104,7 +112,7 @@ def create_data_datasets(config: DataConfig, test: bool = False):
                 annotation_csv=train_annotations,
                 crop_size=config.val_crop_size,
             )
-    elif config.data.dataset == "inaturalist":
+    elif config.dataset == "inaturalist":
         train_transforms = create_transforms(config.transforms, config.dataset)
         train_dataset = INatDataset(
             mode="train",
@@ -116,7 +124,7 @@ def create_data_datasets(config: DataConfig, test: bool = False):
             mode="val",
             dataset_dir=Path(config.dir),
             annotation_json="val2018.json",
-            transforms=None,
+            transforms=create_transforms(config.transforms_val, config.dataset),
         )
 
     return train_dataset, val_dataset
@@ -132,6 +140,10 @@ def create_transforms(config: TransformConfig, dataset: str = "xview3"):
                 )
             elif transform == "SmallestMaxSize":
                 transforms.append(A.SmallestMaxSize(max_size=config.max_size))
+            elif transform == "CenterCrop":
+                transforms.append(A.CenterCrop(height=config.height,width=config.width))
+            elif transform == "Normalize":
+                transforms.append(A.Normalize(mean=config.mean,std=config.std))
             else:
                 raise NotImplementedError
     elif dataset == "xview3":

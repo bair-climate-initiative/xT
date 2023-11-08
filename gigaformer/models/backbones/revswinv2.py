@@ -798,6 +798,7 @@ class ReversibleSwinTransformerV2Stage(nn.Module):
         norm_layer=nn.LayerNorm,
         pretrained_window_size=0,
         output_nchw=False,
+        use_vanilla_backward=False
     ):
         """
         Args:
@@ -840,7 +841,7 @@ class ReversibleSwinTransformerV2Stage(nn.Module):
             assert dim == out_dim
             self.downsample = nn.Identity()
 
-        self.use_vanilla_backward = False
+        self.use_vanilla_backward = use_vanilla_backward
 
         # build blocks
         self.blocks = nn.ModuleList(
@@ -925,6 +926,8 @@ class ReversibleSwinTransformerV2(nn.Module):
         norm_layer: Callable = nn.LayerNorm,
         pretrained_window_sizes: Tuple[int, ...] = (0, 0, 0, 0),
         input_dim=2,
+        use_vanilla_backward=False,
+        upsample=True,
         **kwargs,
     ):
         """
@@ -947,6 +950,7 @@ class ReversibleSwinTransformerV2(nn.Module):
             patch_norm: If True, add normalization after patch embedding.
             pretrained_window_sizes: Pretrained window sizes of each layer.
             output_fmt: Output tensor format if not None, otherwise output 'NHWC' by default.
+            upsample: If we use upsample in dense prediction (False for EncDecv2)
         """
         super().__init__()
         if input_dim == in_chans:
@@ -988,9 +992,12 @@ class ReversibleSwinTransformerV2(nn.Module):
         self.feature_info += [
             dict(num_chs=embed_dim[0], reduction=2, module="patch_embed")
         ]
-        self.upsample = nn.ModuleList(
-            [nn.ConvTranspose2d(embed_dim[0], embed_dim[0], 2, 2)]
-        )
+        if upsample:
+            self.upsample = nn.ModuleList(
+                [nn.ConvTranspose2d(embed_dim[0], embed_dim[0], 2, 2)]
+            )
+        else:
+            self.upsample = nn.ModuleList([nn.Identity()])
 
         dpr = [
             x.tolist()
@@ -1022,6 +1029,7 @@ class ReversibleSwinTransformerV2(nn.Module):
                     drop_path=dpr[i],
                     norm_layer=norm_layer,
                     pretrained_window_size=pretrained_window_sizes[i],
+                    use_vanilla_backward=use_vanilla_backward,
                 )
             ]
             in_dim = out_dim

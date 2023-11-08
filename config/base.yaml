@@ -20,24 +20,28 @@ data:
   positive_ratio: 0.85
   transforms:
     names:
-      - None
     max_size: 2048
     height: 2048
     width: 2048
 model: 
   name: TimmUnet
+  patch_size: 16
   backbone_class: revswinv2_tiny_window16_256_xview
   backbone:
     in_chans: 3
     input_dim: 2
     drop_path_rate: 0.2
-    pretrained:  ckpts/swinv2_tiny_window16_256.pth
+    pretrained:  ${oc.env:PRETRAINED_CKPT_PATH, "./ckpts"}/swinv2_tiny_window16_256.pth
     channel_last: True
+    use_vanilla_backward: False
     img_size: 512
   resume: ''
   tiling: 'naive'
   xl_context:
     enabled: False
+    context_patch_len: 100
+    no_memory: false
+    tiling: ${model.tiling}
 optimizer:
   name: sgd 
   base_lr: 1e-3
@@ -54,6 +58,7 @@ train:
   batch_size: 8
   val_batch_size: 2
   freeze_epochs: 0
+  freeze_bn: false
   test_every: 20 
   test_reset: True
 losses:
@@ -88,3 +93,4 @@ losses:
       params: 
       weight: 2.0
       display: True
+eval_sampler: False

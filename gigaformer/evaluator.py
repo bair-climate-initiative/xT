@@ -20,7 +20,6 @@ from inference.run_inference import predict_scene_and_return_mm
 from metrics import xview_metric
 from metrics.xview_metric import create_metric_arg_parser
 
-from .config import XviewConfig
 from .tiling import build_tiling
 
 
@@ -45,7 +44,7 @@ class Evaluator(ABC):
 
 
 class XviewEvaluator(Evaluator):
-    def __init__(self, config: XviewConfig):
+    def __init__(self, config):
         super().__init__()
         self.config = config
         mode = "public" if config.test else "val"
@@ -263,3 +262,104 @@ class XviewEvaluator(Evaluator):
                 )
                 improved[k] = current_metrics[k]
         return improved
+
+
+class ClsEvaluator(Evaluator):
+    def __init__(self, config):
+        super().__init__()
+        self.config = config
+        mode = "public" if config.test else "val"
+        self.mode = mode
+
+        self.crop_size = config.data.val_crop_size
+        self.tiling = config.model.tiling
+        self.input_size = config.model.backbone.img_size
+        # self.patch_size = config.model.backbone.patch_size
+        # self.context_patch_len = config.context_patch_len
+        self.overlap = config.data.overlap
+
+    def init_metrics(self) -> Dict:
+        return {"acc": 0}
+
+    def build_iterator(self, batch):
+        old_dim = self.crop_size
+        n = old_dim // self.input_size
+        for i, j, k in build_tiling(n, self.tiling):
+            batch_new = batch[
+                ...,
+                self.input_size * i : self.input_size * (i + 1),
+                self.input_size * j : self.input_size * (j + 1),
+            ]
+            context_id = i * n + j
+            yield batch_new, k, (
+                self.input_size * i,
+                self.input_size * (i + 1),
+                self.input_size * j,
+                self.input_size * (j + 1),
+                batch.shape[-2],
+                batch.shape[-1],
+            ), {}
+
+    @torch.no_grad()
+    def validate(
+        self,
+        dataloader: DataLoader,
+        model: torch.nn.Module,
+        *args,
+        **kwargs,
+    ) -> Dict:
+        if is_main_process():
+            print("DEBUG: MAIN")
+        extra_context = model.module.context_mode
+        correct_c = 0
+        tol_c = 0
+        def model_foward(x, model):
+            mem = set()
+            output = []
+            iterator = self.build_iterator(x)
+            for batch_new, k, (x0, x1, y0, y1, hh, ww), context in iterator:
+                mem_only = k.get("mem_only", False)
+                local_output, mem = model(batch_new, context=context, mem=mem)
+                if mem_only:
+                    continue
+                # context_id = k["context_id"]
+                output.append({k:v.cpu() for k,v in local_output.items()})
+            final_out = {}
+            for k,v in output[0].items():
+                final_out[k] = torch.stack([z[k] for z in output])
+            final_out['label'] = final_out['label'].mean(0)
+            return final_out
+        for sample in tqdm(dataloader, position=0):
+            img = sample['image'].float()
+            if extra_context:
+                output = model_foward(img, model)
+            else:
+                output = model(img)
+            pred = output['label'].argmax(-1)
+            acc = pred == sample['label']
+            correct_c += acc.sum()
+            correct_c += sample['label'].shape[0]
+        return {"acc": correct_c}
+
+    def get_improved_metrics(
+        self, prev_metrics: Dict, current_metrics: Dict
+    ) -> Dict:
+        improved = {}
+        for k in ("acc"):
+            if current_metrics[k] > prev_metrics.get(k, 0.0):
+                print(
+                    k,
+                    " improved from {:.4f} to {:.4f}".format(
+                        prev_metrics["xview"], current_metrics["xview"]
+                    ),
+                )
+                improved[k] = current_metrics[k]
+        return improved
+
+
+def build_evaluator(cfg):
+    if cfg.data.dataset == 'xview3':
+        cls = XviewEvaluator
+    elif cfg.data.dataset == 'inaturalist':
+        cls = ClsEvaluator
+    return cls(cfg)
