@@ -153,3 +153,4 @@ out.json
 .vscode/
 *.tar
 zoo/
+*.ckpt
