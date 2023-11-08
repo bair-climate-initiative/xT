@@ -316,7 +316,6 @@ class PytorchTrainer:
         train_loader = iter(train_loader)
         # Broken, temporaily disable time logging
         for i in range(iter_scale * len_train_loader):
-            train_loader_tqdm.update()
             start_time = time.time()
             sample = next(train_loader)
             data_time.update(time.time() - start_time)
@@ -420,6 +419,7 @@ class PytorchTrainer:
                         "data": data_time
                     }
                 )
+                train_loader_tqdm.update()
 
     @property
     def train_batch_size(self):

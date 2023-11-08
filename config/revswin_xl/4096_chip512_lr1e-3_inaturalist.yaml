@@ -4,7 +4,6 @@ base_configs:
 name: revswinv2_xl_4096_chip512_swinpt_lr1e-3_inaturalist
 data:
   dataset: inaturalist
-  dir: /shared/ritwik/data/inaturalist2018
   crop_size: 2048
   val_crop_size: 2048
   num_workers: 1
