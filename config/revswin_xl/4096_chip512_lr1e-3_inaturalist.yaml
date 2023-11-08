@@ -56,7 +56,7 @@ val: False
 losses:
   losses:
     - name: cls
-      type: CrossEntrophy
+      type: CrossEntropy
       params: 
         field: label 
       weight: 1.0
