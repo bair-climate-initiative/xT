@@ -19,7 +19,7 @@ import submitit
 from omegaconf import OmegaConf
 
 import train_val_segmentor as segmentor
-from gigaformer.config import create_config
+from gigaformer.config import XviewConfig, create_config
 
 
 def parse_args():
@@ -180,7 +180,8 @@ def main():
 
     args.dist_url = get_init_file().as_uri()
     args.output_dir = args.job_dir
-    config = create_config(args)
+    config = create_config(schema=OmegaConf.structured(XviewConfig), cfg_path=args.config)
+    print(OmegaConf.to_yaml(config))
 
     trainer = Trainer(config)
     job = executor.submit(trainer)

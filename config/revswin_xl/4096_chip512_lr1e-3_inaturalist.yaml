@@ -1,6 +1,6 @@
 base_configs: 
   - config/base.yaml
-  - config/cluster_paths.yaml
+  - config/cluster_paths_inat.yaml
 name: revswinv2_xl_4096_chip512_swinpt_lr1e-3_inaturalist
 data:
   dataset: inaturalist
@@ -30,7 +30,7 @@ data:
     width: 2048
 model: 
   name: EncoderDecoderV2
-  num_classes: 9999 # Monkey 
+  num_classes: 8142
   mlp_ratio: 4
   backbone:
     img_size: 512
@@ -48,7 +48,7 @@ optimizer:
   warmup_epochs: 0
 train:
   epochs: 20
-  batch_size: 16
+  batch_size: 56
   val_batch_size: 1
   freeze_epochs: 0
   test_every: 1
