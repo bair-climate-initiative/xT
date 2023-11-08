@@ -2,6 +2,7 @@ import logging
 import math
 import os
 import re
+import time
 from numbers import Number
 from pathlib import Path
 from typing import Dict
@@ -28,8 +29,8 @@ from .losses import build_losses
 from .models import build_model
 from .optimizer import create_optimizer
 from .tiling import build_tiling
-from .utils import (get_rank, get_world_size, is_dist_avail_and_initialized,
-                    is_main_process)
+from .utils import (SmoothedValue, get_rank, get_world_size,
+                    is_dist_avail_and_initialized, is_main_process)
 
 logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO").upper())
 os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
@@ -283,6 +284,7 @@ class PytorchTrainer:
         for loss_def in self.losses:
             if loss_def.display:
                 avg_meters[loss_def.name] = AverageMeter()
+        data_time = SmoothedValue(fmt="{avg:.4f}")
 
         if self.config.optimizer.mode == "epoch":
             self.scheduler.step(self.current_epoch)
@@ -308,11 +310,16 @@ class PytorchTrainer:
         # Sliced Images with context_id
         # todo: make configurable
         if is_main_process():
-            train_loader = tqdm(
+            train_loader_tqdm = tqdm(
                 train_loader, total=iter_scale * len_train_loader
             )
+        train_loader = iter(train_loader)
         # Broken, temporaily disable time logging
-        for i, sample in enumerate(train_loader):
+        for i in range(iter_scale * len_train_loader):
+            train_loader_tqdm.update()
+            start_time = time.time()
+            sample = next(train_loader)
+            data_time.update(time.time() - start_time)
             imgs = sample["image"].cuda().float()
             if extra_context:
                 if sample["context_id"] == 0:
@@ -404,12 +411,13 @@ class PytorchTrainer:
                     int(i / iter_scale) + self.current_epoch * len_train_loader
                 )
             if is_main_process():
-                train_loader.set_postfix(
+                train_loader_tqdm.set_postfix(
                     {
                         "lr": float(self.scheduler.get_lr()[-1]),
                         "epoch": self.current_epoch,
                         "mem": f"{torch.cuda.max_memory_reserved() / 1024 ** 3:.2f}G",
                         **avg_metrics,
+                        "data": data_time
                     }
                 )
 

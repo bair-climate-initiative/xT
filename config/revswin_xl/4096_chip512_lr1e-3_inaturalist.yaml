@@ -1,5 +1,6 @@
 base_configs: 
   - config/base.yaml
+  - config/cluster_paths.yaml
 name: revswinv2_xl_4096_chip512_swinpt_lr1e-3_inaturalist
 data:
   dataset: inaturalist
