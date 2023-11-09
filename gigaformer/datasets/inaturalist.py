@@ -73,16 +73,16 @@ class INatDataset(Dataset):
             if len(supercategories) > 0 and label not in valid_category_ids:
                 continue
 
-            ret_labels.append({
-                "id": id,
-                "file_name": labels.imgs[id]["file_name"],
-                "label": counter,
-                "id": labels.imgs[id]["id"],
-            })
-
             if label not in category_label_map:
                 category_label_map[label] = counter
                 counter += 1
+
+            ret_labels.append({
+                "id": id,
+                "file_name": labels.imgs[id]["file_name"],
+                "label": category_label_map[label],
+                "id": labels.imgs[id]["id"],
+            })
 
         return ret_labels, category_label_map
     
