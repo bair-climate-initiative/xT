@@ -23,6 +23,7 @@ data:
     max_size: 2048
     height: 2048
     width: 2048
+  supercategories:
 model: 
   name: TimmUnet
   patch_size: 16
