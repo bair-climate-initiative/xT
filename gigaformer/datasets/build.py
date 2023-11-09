@@ -61,14 +61,13 @@ class DataConfig:
     """Shoreline validation path."""
     multiplier: int = 64
     """Number of times to increase dataset by."""
-    supercategories: List[str] = field(default_factory=list())
+    supercategories: Optional[List[str]] = field(default_factory=list)
     """iNaturalist only, the list of supercategories to filter by"""
 
     transforms: TransformConfig = field(default_factory=TransformConfig)
     """Transforms for training."""
     transforms_val: TransformConfig = field(default_factory=TransformConfig)
     """Transforms for validation."""
-
 
 def create_data_datasets(config: DataConfig, test: bool = False):
     if (
@@ -121,6 +120,7 @@ def create_data_datasets(config: DataConfig, test: bool = False):
             annotation_json="train2018.json",
             categories_json="categories.json",
             supercategories=config.supercategories,
+            channels_first=True,
             transforms=train_transforms,
         )
         val_dataset = INatDataset(
@@ -129,6 +129,7 @@ def create_data_datasets(config: DataConfig, test: bool = False):
             annotation_json="val2018.json",
             categories_json="categories.json",
             supercategories=config.supercategories,
+            channels_first=True,
             transforms=create_transforms(config.transforms_val, config.dataset),
         )
 
