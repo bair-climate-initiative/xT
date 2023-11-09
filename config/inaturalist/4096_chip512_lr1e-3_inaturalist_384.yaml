@@ -4,35 +4,36 @@ base_configs:
 name: revswinv2_xl_384_lr1e-3_inaturalist
 data:
   dataset: inaturalist
-  crop_size: 384
-  val_crop_size: 384
+  crop_size: 512
+  val_crop_size: 512
   num_workers: 4
   transforms:
     names:
-      - SmallestMaxSize
-      - RandomCrop
+      - Resize
       - Normalize
     mean: [0.,0.,0.]
     std: [1.,1.,1.]
-    max_size: 384
-    height: 384
-    width: 384
+    max_size: 512
+    height: 512
+    width: 512
+  supercategories:
+    - Reptilia
+  category_label_path: meta/category_label_reptilia_map.json
   transforms_val: 
     names:
-      - SmallestMaxSize
-      - RandomCrop
+      - Resize
       - Normalize
     mean: [0.,0.,0.]
     std: [1.,1.,1.]
     max_size: 384
-    height: 384
-    width: 384
+    height: 512
+    width: 512
 model: 
   name: EncoderDecoderV2
-  num_classes: 8142
+  num_classes: 284
   mlp_ratio: 4
   backbone:
-    img_size: 384
+    img_size: 512
     input_dim: 3
     use_vanilla_backward: False
     pretrained: ${oc.env:PRETRAINED_CKPT_PATH, "./ckpts"}/swinv2_tiny_window16_256.pth
@@ -47,7 +48,7 @@ optimizer:
   warmup_epochs: 0
 train:
   epochs: 20
-  batch_size: 56
+  batch_size: 60
   val_batch_size: 1
   freeze_epochs: 0
   test_every: 1

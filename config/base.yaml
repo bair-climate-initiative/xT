@@ -24,6 +24,7 @@ data:
     height: 2048
     width: 2048
   supercategories:
+  category_label_path: ''
 model: 
   name: TimmUnet
   patch_size: 16
