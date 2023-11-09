@@ -17,6 +17,8 @@ data:
     max_size: 2048
     height: 2048
     width: 2048
+  supercategories:
+    - Reptilia
   transforms_val: 
     names:
       - SmallestMaxSize
