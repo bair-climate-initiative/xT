@@ -18,6 +18,7 @@ class INatDataset(Dataset):
         channels_first: bool = False,
         categories_json: str = "categories.json",
         supercategories: List[str] = None,
+        category_label_path: str = None,
         transforms: A.Compose = None,
     ):
         """
@@ -30,7 +31,14 @@ class INatDataset(Dataset):
         self.labels = COCO(annotation_file=str(dataset_dir / annotation_json))
         self.categories = json.load(open(self.dataset_dir / categories_json))
         self.supercategories = set(supercategories)
-        self.labels, self.category_label_map = self._process_labels(self.labels, self.supercategories)
+        if category_label_path:
+            category_label_map = json.load(open(category_label_path))
+            self.category_label_map = {int(k): v for k, v in category_label_map.items()}
+        else:
+            self.category_label_map = None
+        self.labels = self._process_labels(self.labels, self.supercategories)
+        # with open("category_label_reptilia_map.json", "w+") as f:
+        #     json.dump(self.category_label_map, f, indent=4)
         self.label_category_map = {v: k for k, v in self.category_label_map.items()}
         self.channels_first = channels_first
 
@@ -58,13 +66,17 @@ class INatDataset(Dataset):
 
         return {"image": img, **label}
 
-    def _process_labels(self, labels: COCO, supercategories: Set[str]):
+    def _process_labels(self, labels: COCO, supercategories: Set[str], ):
         """
         Load keys, images, and annotations
         """
         ids = sorted(list(labels.anns.keys()))
         valid_category_ids = set([x["id"] for x in self.categories if x["supercategory"] in supercategories])
-        category_label_map = {}
+        if self.category_label_map is None:
+            category_label_map = {}
+            print("Generating category label map...")
+        else:
+            category_label_map = self.category_label_map
 
         ret_labels = []
         counter = 0
@@ -83,8 +95,10 @@ class INatDataset(Dataset):
                 "label": category_label_map[label],
                 "id": labels.imgs[id]["id"],
             })
+        
+        self.category_label_map = category_label_map
 
-        return ret_labels, category_label_map
+        return ret_labels
     
     def output_to_category(self, model_output):
         return self.label_category_map[model_output]

@@ -63,6 +63,8 @@ class DataConfig:
     """Number of times to increase dataset by."""
     supercategories: Optional[List[str]] = field(default_factory=list)
     """iNaturalist only, the list of supercategories to filter by"""
+    category_label_path: str = "meta/category_label_reptilia_map.json"
+    """iNaturalist only, path to category label map if provided."""
 
     transforms: TransformConfig = field(default_factory=TransformConfig)
     """Transforms for training."""
@@ -120,6 +122,7 @@ def create_data_datasets(config: DataConfig, test: bool = False):
             annotation_json="train2018.json",
             categories_json="categories.json",
             supercategories=config.supercategories,
+            category_label_path=config.category_label_path,
             channels_first=True,
             transforms=train_transforms,
         )
@@ -129,6 +132,7 @@ def create_data_datasets(config: DataConfig, test: bool = False):
             annotation_json="val2018.json",
             categories_json="categories.json",
             supercategories=config.supercategories,
+            category_label_path=config.category_label_path,
             channels_first=True,
             transforms=create_transforms(config.transforms_val, config.dataset),
         )
