@@ -1,12 +1,12 @@
 base_configs: 
   - config/base.yaml
   - config/cluster_paths_inat.yaml
-name: revswinv2_xl_4096_chip512_swinpt_lr1e-3_inaturalist
+name: revswinv2_xl_384_lr1e-3_inaturalist
 data:
   dataset: inaturalist
-  crop_size: 2048
-  val_crop_size: 2048
-  num_workers: 1
+  crop_size: 384
+  val_crop_size: 384
+  num_workers: 4
   transforms:
     names:
       - SmallestMaxSize
@@ -14,9 +14,9 @@ data:
       - Normalize
     mean: [0.,0.,0.]
     std: [1.,1.,1.]
-    max_size: 2048
-    height: 2048
-    width: 2048
+    max_size: 384
+    height: 384
+    width: 384
   transforms_val: 
     names:
       - SmallestMaxSize
@@ -24,15 +24,15 @@ data:
       - Normalize
     mean: [0.,0.,0.]
     std: [1.,1.,1.]
-    max_size: 2048
-    height: 2048
-    width: 2048
+    max_size: 384
+    height: 384
+    width: 384
 model: 
   name: EncoderDecoderV2
   num_classes: 8142
   mlp_ratio: 4
   backbone:
-    img_size: 512
+    img_size: 384
     input_dim: 3
     use_vanilla_backward: False
     pretrained: ${oc.env:PRETRAINED_CKPT_PATH, "./ckpts"}/swinv2_tiny_window16_256.pth
