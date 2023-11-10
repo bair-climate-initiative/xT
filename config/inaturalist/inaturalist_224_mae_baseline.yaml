@@ -34,13 +34,13 @@ data:
 model: 
   name: EncoderDecoderV2
   num_classes: 8142
-  backbone_class: get_hiera_model
+  backbone_class: vit_base_patch16
   mlp_ratio: 4
   backbone:
     img_size: 512
     input_dim: 3
     use_vanilla_backward: False
-    pretrained: ${oc.env:PRETRAINED_CKPT_PATH, "./ckpts"}/swinv2_tiny_window16_256.pth
+    pretrained: /shared/jacklishufan/mae/mae_pretrain_vit_base.pth
     upsample: False
   xl_context:
     enabled: off
@@ -52,7 +52,7 @@ optimizer:
   warmup_epochs: 0
 train:
   epochs: 20
-  batch_size: 1
+  batch_size: 2
   val_batch_size: 1
   freeze_epochs: 0
   test_every: 1
