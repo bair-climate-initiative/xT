@@ -1,12 +1,28 @@
 base_configs: 
   - config/base.yaml
-  - config/cluster_paths_inat.yaml
+  # - config/cluster_paths_inat.yaml
 name: revswinv2_xl_4096_chip512_swinpt_lr1e-3_inaturalist
 data:
+  dir: ${oc.env:INATURALIST_ROOT, "/shared/ritwik/data/inaturalist"} 
   dataset: inaturalist
   crop_size: 2048
-  val_crop_size: 2048
+  batch_size: ${train.batch_size}
+  val_batch_size: ${train.val_batch_size}
   num_workers: 1
+  num_classes: 8142
+  label_smoothing: 0.1
+  category_label_path: meta/category_label_reptilia_map.json
+  aug:
+    auto_augment: 0.1
+    color_jitter: 0.4
+    reprob: 0.0
+    remode: 0.0
+    recount: 0.0
+    random_resized_crop: False
+    mean: [0.,0.,0.]
+    std: [1.,1.,1.]
+  interpolation: bilinear
+  test_crop: False
   transforms:
     names:
       - SmallestMaxSize
@@ -31,7 +47,7 @@ data:
     width: 2048
 model: 
   name: EncoderDecoderV2
-  num_classes: 8142
+  num_classes: ${data.num_classes}
   mlp_ratio: 4
   backbone:
     img_size: 512

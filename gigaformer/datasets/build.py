@@ -1,7 +1,11 @@
 import os
+import torch
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional, Tuple
+from torchvision import transforms
+from timm.data import Mixup
+from timm.data import create_transform
 
 import albumentations as A
 import cv2
@@ -9,9 +13,26 @@ from torch.utils.data import Dataset
 
 from .inaturalist import INatDataset
 from .xview3 import XviewDataset
+from ..utils import get_rank, get_world_size
 
 cv2.ocl.setUseOpenCL(False)
 cv2.setNumThreads(0)
+
+
+try:
+    from torchvision.transforms import InterpolationMode
+
+    def _pil_interp(method):
+        if method == 'bicubic':
+            return InterpolationMode.BICUBIC
+        elif method == 'lanczos':
+            return InterpolationMode.LANCZOS
+        elif method == 'hamming':
+            return InterpolationMode.HAMMING
+        else:
+            return InterpolationMode.BILINEAR
+except:
+    from timm.data.transforms import _pil_interp
 
 
 @dataclass
@@ -45,6 +66,10 @@ class DataConfig:
     """Number of workers for the data loader."""
     test: bool = False
     """Whether to use the test dataset."""
+    batch_size: int = 4 
+    """Batch size for training."""
+    val_batch_size: int = 1
+    """Batch size for validation."""
     crop_size: int = 512
     """Size of the crop for training."""
     val_crop_size: int = 512
@@ -71,7 +96,7 @@ class DataConfig:
     transforms_val: TransformConfig = field(default_factory=TransformConfig)
     """Transforms for validation."""
 
-def create_data_datasets(config: DataConfig, test: bool = False):
+def build_loader(config: DataConfig, test: bool = False):
     if (
         os.environ.get("RANK", "0") == "0"
     ):  # needed since distrbuted not initialized
@@ -115,7 +140,7 @@ def create_data_datasets(config: DataConfig, test: bool = False):
                 crop_size=config.val_crop_size,
             )
     elif config.dataset == "inaturalist":
-        train_transforms = create_transforms(config.transforms, config.dataset)
+        train_transforms = create_imagenet_transforms(config, is_train=True)
         train_dataset = INatDataset(
             mode="train",
             dataset_dir=Path(config.dir),
@@ -126,6 +151,7 @@ def create_data_datasets(config: DataConfig, test: bool = False):
             channels_first=True,
             transforms=train_transforms,
         )
+        val_transforms = create_imagenet_transforms(config, is_train=False)
         val_dataset = INatDataset(
             mode="val",
             dataset_dir=Path(config.dir),
@@ -134,49 +160,139 @@ def create_data_datasets(config: DataConfig, test: bool = False):
             supercategories=config.supercategories,
             category_label_path=config.category_label_path,
             channels_first=True,
-            transforms=create_transforms(config.transforms_val, config.dataset),
+            transforms=val_transforms
         )
+    
+    train_sampler = torch.utils.data.distributed.DistributedSampler(
+        train_dataset,
+        shuffle=True,
+        num_replicas=get_world_size(),
+        rank=get_rank(),
+    )
+    val_sampler = torch.utils.data.distributed.DistributedSampler(
+        val_dataset,
+        shuffle=False,
+        num_replicas=get_world_size(),
+        rank=get_rank(),
+    )
+    train_loader = torch.utils.data.DataLoader(
+        train_dataset,
+        batch_size=config.batch_size,
+        num_workers=config.num_workers,
+        pin_memory=True,
+        sampler=train_sampler,
+        drop_last=True,
+    )
+    val_loader = torch.utils.data.DataLoader(
+        val_dataset,
+        batch_size=config.val_batch_size,
+        num_workers=config.num_workers,
+        shuffle=False,
+        pin_memory=True,
+        sampler=val_sampler,
+        drop_last=False,
+    )
 
-    return train_dataset, val_dataset
+    ## Setup mixup / cutmix 
+    mixup_fn = None
+    mixup_active = config.aug.mixup > 0 or config.aug.cutmix > 0. \
+        or config.aug.cutmix_minmax is not None
+    if mixup_active:
+        mixup_fn = Mixup(mixup_alpha=config.aug.mixup, 
+                         cutmix_alpha=config.aug.cutmix,
+                         cutmix_minmax=config.aug.cutmix_minmax,
+                         prob=config.aug.mixup_prob,
+                         switch_prob=config.aug.mixup_switch_prob,
+                         mode=config.aug.mixup_mode,
+                         label_smoothing=config.label_smoothing,
+                         num_classes=config.num_classes)
+    return train_dataset, val_dataset, train_loader, val_loader, mixup_fn
 
 
-def create_transforms(config: TransformConfig, dataset: str = "xview3"):
+def create_xview_transforms(config: TransformConfig):
     transforms = []
-    if dataset == "inaturalist":
-        for transform in config.names:
-            if transform == "RandomCrop":
-                transforms.append(
-                    A.RandomCrop(height=config.height, width=config.width)
-                )
-            elif transform == "Resize":
-                transforms.append(
-                    A.Resize(height=config.height, width=config.height)
-                )
-            elif transform == "SmallestMaxSize":
-                transforms.append(A.SmallestMaxSize(max_size=config.max_size))
-            elif transform == "CenterCrop":
-                transforms.append(A.CenterCrop(height=config.height,width=config.width))
-            elif transform == "Normalize":
-                transforms.append(A.Normalize(mean=config.mean,std=config.std))
-            else:
-                raise NotImplementedError
-    elif dataset == "xview3":
-        return A.Compose(
-            [
-                # A.Rotate(limit=30, border_mode=cv2.BORDER_CONSTANT, p=0.3),
-                #    A.HorizontalFlip(),
-                #    A.VerticalFlip()
-            ],
-            additional_targets={
-                "conf_mask": "mask",
-                "length_mask": "mask",
-                "vessel_mask": "mask",
-                "fishing_mask": "mask",
-                "center_mask": "mask",
-            },
-        )
+    # if dataset == "inaturalist":
+    #     for transform in config.names:
+    #         if transform == "RandomCrop":
+    #             transforms.append(
+    #                 A.RandomCrop(height=config.height, width=config.width)
+    #             )
+    #         elif transform == "Resize":
+    #             transforms.append(
+    #                 A.Resize(height=config.height, width=config.height)
+    #             )
+    #         elif transform == "SmallestMaxSize":
+    #             transforms.append(A.SmallestMaxSize(max_size=config.max_size))
+    #         elif transform == "CenterCrop":
+    #             transforms.append(A.CenterCrop(height=config.height,width=config.width))
+    #         elif transform == "Normalize":
+    #             transforms.append(A.Normalize(mean=config.mean,std=config.std))
+    #         else:
+    #             raise NotImplementedError
+    return A.Compose(
+        [
+            # A.Rotate(limit=30, border_mode=cv2.BORDER_CONSTANT, p=0.3),
+            #    A.HorizontalFlip(),
+            #    A.VerticalFlip()
+        ],
+        additional_targets={
+            "conf_mask": "mask",
+            "length_mask": "mask",
+            "vessel_mask": "mask",
+            "fishing_mask": "mask",
+            "center_mask": "mask",
+        },
+    )
 
-    return A.Compose(transforms)
+def create_imagenet_transforms(config: DataConfig, is_train: bool = True):
+    resize_im = config.crop_size > 32
+    if is_train:
+        # this should always dispatch to transforms_imagenet_train
+        transform = create_transform(
+            input_size=config.crop_size,
+            is_training=True,
+            color_jitter=config.aug.color_jitter
+            if config.aug.color_jitter > 0 else None,
+            auto_augment=config.aug.auto_augment
+            if not config.aug.autoaugment is None else None,
+            re_prob=config.aug.reprob,
+            re_mode=config.aug.remode,
+            re_count=config.aug.recount,
+            interpolation=config.interpolation,
+        )
+        if not resize_im:
+            # replace RandomResizedCropAndInterpolation with
+            # RandomCrop
+            transform.transforms[0] = transforms.RandomCrop(
+                config.crop_size, padding=4)
+
+        return transform
+
+    t = []
+    if resize_im:
+        if config.test_crop:
+            size = int(1.0 * config.crop_size)
+            t.append(
+                transforms.Resize(size,
+                                  interpolation=_pil_interp(
+                                      config.interpolation)),
+                # to maintain same ratio w.r.t. 224 images
+            )
+            t.append(transforms.CenterCrop(config.crop_size))
+        elif config.aug.random_resized_crop:
+            t.append(
+                transforms.RandomResizedCrop(
+                    (config.crop_size, config.crop_size),
+                    interpolation=_pil_interp(config.interpolation)))
+        else:
+            t.append(
+                transforms.Resize(
+                    (config.crop_size, config.crop_size),
+                    interpolation=_pil_interp(config.interpolation)))
+    t.append(transforms.ToTensor())
+    t.append(transforms.Normalize(config.aug.mean, config.aug.std))
+
+    return transforms.Compose(t)
 
 
 class TestDataset(Dataset):

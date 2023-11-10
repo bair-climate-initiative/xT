@@ -8,6 +8,7 @@ import torch.nn.functional as F
 # from hydra.utils import instantiate
 from torch import nn, topk
 from torch.nn import BCEWithLogitsLoss, MSELoss, NLLLoss2d
+from timm.loss import LabelSmoothingCrossEntropy, SoftTargetCrossEntropy
 
 
 class LossCalculator(ABC):
@@ -51,9 +52,10 @@ class LossConfig:
     """List of losses to be used in the training"""
 
 
-def build_losses(config: LossConfig) -> List[LossFunction]:
+def build_losses(config) -> List[LossFunction]:
+    # * config: XviewConfig
     losses = []
-    for single_loss in config.losses:
+    for single_loss in config.losses.losses:
         loss_type = str.lower(single_loss.type)
         if loss_type == "combo":
             loss_func = ComboLossCalculator(**single_loss.params)
@@ -62,7 +64,12 @@ def build_losses(config: LossConfig) -> List[LossFunction]:
         elif loss_type == "length":
             loss_func = LengthLoss()
         elif loss_type == 'crossentropy':
-            loss_func = CrossEntrophy(**single_loss.params)
+            if config.data.aug.mixup > 0.:
+                loss_func = SoftTargetCrossEntropyLoss(**single_loss.params)
+            elif config.data.aug.label_smoothing > 0.:
+                loss_func = LabelSmoothingCrossEntropyLoss(smoothing=config.data.label_smoothing, **single_loss.params)
+            else:
+                loss_func = CrossEntropy(**single_loss.params)
         else:
             raise ValueError(f"Unknown loss type {loss_type}")
 
@@ -574,11 +581,33 @@ class CropCenterLossCalculator(LossCalculator):
         return mse_loss
 
 
-class CrossEntrophy(LossCalculator):
+class CrossEntropy(LossCalculator):
     def __init__(self, field):
         super().__init__()
         self.field = field
         self.ce = nn.CrossEntropyLoss()
+
+    def calculate_loss(self, outputs, sample):
+        targets = sample[self.field].cuda().long()  # Label map
+        pred = outputs[self.field]
+        return self.ce(pred, targets)
+
+class SoftTargetCrossEntropyLoss(LossCalculator):
+    def __init__(self, field):
+        super().__init__()
+        self.field = field
+        self.ce = SoftTargetCrossEntropy() 
+
+    def calculate_loss(self, outputs, sample):
+        targets = sample[self.field].cuda().long()  # Label map
+        pred = outputs[self.field]
+        return self.ce(pred, targets)
+
+class LabelSmoothingCrossEntropyLoss(LossCalculator):
+    def __init__(self, field, smoothing):
+        super().__init__()
+        self.field = field
+        self.ce = LabelSmoothingCrossEntropy(smoothing=smoothing)
 
     def calculate_loss(self, outputs, sample):
         targets = sample[self.field].cuda().long()  # Label map
