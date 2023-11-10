@@ -345,12 +345,12 @@ class ClsEvaluator(Evaluator):
         self, prev_metrics: Dict, current_metrics: Dict
     ) -> Dict:
         improved = {}
-        for k in ("acc"):
+        for k in ["acc"]:
             if current_metrics[k] > prev_metrics.get(k, 0.0):
                 print(
                     k,
                     " improved from {:.4f} to {:.4f}".format(
-                        prev_metrics["xview"], current_metrics["xview"]
+                        prev_metrics[k], current_metrics[k]
                     ),
                 )
                 improved[k] = current_metrics[k]
