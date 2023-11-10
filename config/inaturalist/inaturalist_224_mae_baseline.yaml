@@ -1,0 +1,68 @@
+base_configs: 
+  - config/cluster_paths_inat.yaml
+  - config/base.yaml
+  - config/cluster_paths_inat.yaml
+
+name: revswinv2_xl_4096_chip512_swinpt_lr1e-3_inaturalist
+data:
+  dataset: inaturalist
+  crop_size: 224
+  val_crop_size: 224
+  num_workers: 1
+  transforms:
+    names:
+      - SmallestMaxSize
+      - RandomCrop
+      - Normalize
+    mean: [0.,0.,0.]
+    std: [1.,1.,1.]
+    max_size: 224
+    height: 224
+    width: 224
+  supercategories:
+    - Reptilia
+  transforms_val: 
+    names:
+      - SmallestMaxSize
+      - RandomCrop
+      - Normalize
+    mean: [0.,0.,0.]
+    std: [1.,1.,1.]
+    max_size: 224
+    height: 224
+    width: 224
+model: 
+  name: EncoderDecoderV2
+  num_classes: 8142
+  backbone_class: vit_base_patch16
+  mlp_ratio: 4
+  backbone:
+    img_size: 512
+    input_dim: 3
+    use_vanilla_backward: False
+    pretrained: /shared/jacklishufan/mae/mae_pretrain_vit_base.pth
+    upsample: False
+  xl_context:
+    enabled: off
+    n_layer: 12
+  resume: ''
+optimizer:
+  base_lr: 1e-3
+  classifier_ratio: 1.0
+  warmup_epochs: 0
+train:
+  epochs: 20
+  batch_size: 2
+  val_batch_size: 1
+  freeze_epochs: 0
+  test_every: 1
+  test_reset: True
+val: False
+losses:
+  losses:
+    - name: cls
+      type: CrossEntropy
+      params: 
+        field: label 
+      weight: 1.0
+      display: on
