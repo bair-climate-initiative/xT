@@ -63,6 +63,8 @@ class AugmentationConfig:
     """Probability of switching to cutmix when both mixup and cutmix enabled"""
     mixup_mode: str = 'batch'
     """How to apply mixup/cutmix params. Per batch, pair, or elem."""
+    label_smoothing: float = 0.0
+    """Label smoothing factor."""
 
     random_resized_crop: bool = False
     """Whether to use random resized crop for testing. config.data.test_crop takes priority."""
@@ -96,8 +98,6 @@ class DataConfig:
     """Whether to use a center crop for testing."""
     interpolation: str = "bilinear"
     """Interpolation method for resizing."""
-    label_smoothing: float = 0.0
-    """Label smoothing factor."""
 
     """Xview3 pertinent settings."""
     val_crop_size: int = 512
@@ -232,7 +232,7 @@ def build_loader(config: DataConfig, test: bool = False):
                          prob=config.aug.mixup_prob,
                          switch_prob=config.aug.mixup_switch_prob,
                          mode=config.aug.mixup_mode,
-                         label_smoothing=config.label_smoothing,
+                         label_smoothing=config.aug.label_smoothing,
                          num_classes=config.num_classes)
     return train_dataset, val_dataset, train_loader, val_loader, mixup_fn
 

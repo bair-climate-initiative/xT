@@ -4,11 +4,10 @@ from typing import Any, Dict, List, Optional
 
 import torch
 import torch.nn.functional as F
-
+from timm.loss import LabelSmoothingCrossEntropy, SoftTargetCrossEntropy
 # from hydra.utils import instantiate
 from torch import nn, topk
 from torch.nn import BCEWithLogitsLoss, MSELoss, NLLLoss2d
-from timm.loss import LabelSmoothingCrossEntropy, SoftTargetCrossEntropy
 
 
 class LossCalculator(ABC):
@@ -67,7 +66,7 @@ def build_losses(config) -> List[LossFunction]:
             if config.data.aug.mixup > 0.:
                 loss_func = SoftTargetCrossEntropyLoss(**single_loss.params)
             elif config.data.aug.label_smoothing > 0.:
-                loss_func = LabelSmoothingCrossEntropyLoss(smoothing=config.data.label_smoothing, **single_loss.params)
+                loss_func = LabelSmoothingCrossEntropyLoss(smoothing=config.data.aug.label_smoothing, **single_loss.params)
             else:
                 loss_func = CrossEntropy(**single_loss.params)
         else:

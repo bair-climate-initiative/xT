@@ -11,7 +11,7 @@ import torch
 import torch.distributed as dist
 from torch.cuda import empty_cache
 from torch.utils.data import DataLoader
-from torchmetrics import Accuracy, Precision, Recall
+from torchmetrics import Accuracy, MetricCollection, Precision, Recall
 from tqdm import tqdm
 
 from gigaformer.utils import (get_rank, is_dist_avail_and_initialized,
@@ -280,8 +280,25 @@ class ClsEvaluator(Evaluator):
         self.overlap = config.data.overlap
         self.num_classes = config.model.num_classes
 
+        metrics = MetricCollection({
+            "top1_acc": Accuracy(task="multiclass",
+                                 num_classes=self.num_classes,
+                                 top_k=1),
+            "top5_acc": Accuracy(task="multiclass",
+                                 num_classes=self.num_classes,
+                                 top_k=5)
+        })
+        if torch.cuda.is_available():
+            metrics = metrics.to('cuda')
+
+        self.val_metrics = metrics.clone(prefix="val_")
+
+
     def init_metrics(self) -> Dict:
-        return {"accuracy": 0, "precision": 0, "recall": 0}
+        return {
+            "accuracy_top1": 0,
+            "accuracy_top5": 0
+        }
 
     def build_iterator(self, batch):
         old_dim = self.crop_size
@@ -314,11 +331,6 @@ class ClsEvaluator(Evaluator):
             print("DEBUG: MAIN")
         extra_context = model.module.context_mode
 
-        accuracy_top_1 = Accuracy(task="multiclass", num_classes=self.num_classes, top_k=1).to('cpu')
-        accuracy_top_5 = Accuracy(task="multiclass", num_classes=self.num_classes, top_k=5).to('cpu')
-        precision = Precision(task="multiclass", average="macro", num_classes=self.num_classes).to('cpu')
-        recall = Recall(task="multiclass", average="macro", num_classes=self.num_classes).to('cpu')
-
         def model_foward(x, model):
             mem = set()
             output = []
@@ -336,31 +348,37 @@ class ClsEvaluator(Evaluator):
             final_out['label'] = final_out['label'].mean(0)
             return final_out
 
-        for sample in tqdm(dataloader, position=0):
+        dataloader_tqdm = tqdm(dataloader, position=0)
+        dataloader = iter(dataloader)
+        for i in range(len(dataloader)):
+            sample = next(dataloader)
             img = sample['image'].float()
             if extra_context:
                 output = model_foward(img, model)
             else:
                 output = model(img)
-            pred = output['label'].argmax(-1).cpu()
+            pred = output['label']
+            gt = sample['label'].to(pred.device)
             # print(f"Sample label device: {gt.device}")
-            accuracy_top_1.update(pred, sample['label'])
-            accuracy_top_5.update(pred, sample['label'])
-            precision.update(pred, sample['label'])
-            recall.update(pred, sample['label'])
+            self.val_metrics.update(pred, gt)
+            dataloader_tqdm.update()
 
-        return {
-            "accuracy_top1": accuracy_top_1.compute(),
-            "accuracy_top5": accuracy_top_5.compute(),
-            "precision": precision.compute(),
-            "recall": recall.compute()
+        outputs = self.val_metrics.compute()
+        self.val_metrics.reset()
+
+        metrics = {
+            "accuracy_top1": outputs["val_top1_acc"].item(),
+            "accuracy_top5": outputs["val_top5_acc"].item()
         }
+        dataloader_tqdm.set_postfix({**metrics})
+
+        return metrics
 
     def get_improved_metrics(
         self, prev_metrics: Dict, current_metrics: Dict
     ) -> Dict:
         improved = {}
-        for k in ["accuracy", "precision", "recall"]:
+        for k in ["accuracy_top1", "accuracy_top5"]:
             if current_metrics[k] > prev_metrics.get(k, 0.0):
                 print(
                     k,

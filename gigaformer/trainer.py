@@ -115,7 +115,7 @@ class PytorchTrainer:
             dist.barrier()
         self.model.eval()
         metrics = self.evaluator.validate(
-            test_loader if test_loader is not None else self.get_val_loader(),
+            test_loader if test_loader is not None else self.val_loader,
             self.model,
             distributed=is_dist_avail_and_initialized(),
             local_rank=get_rank(),
@@ -148,7 +148,7 @@ class PytorchTrainer:
             if (self.current_epoch + 1) % self.config.train.test_every == 0:
                 logging.debug(f"{rank} eval launched")
                 metrics = self.evaluator.validate(
-                    self.get_val_loader(),
+                    self.val_loader,
                     self.model,
                 )
                 logging.debug(f"{rank} eval done")
@@ -381,6 +381,7 @@ class PytorchTrainer:
                     k: float(f"{v.avg:.4f}") for k, v in avg_meters.items()
                 }
                 payload.update(dict(lr=float(self.scheduler.get_lr()[-1])))
+                payload.update({"epoch": self.current_epoch})
                 wandb.log(payload)
                 if WANDB_OFFLINE:
                     self.trigger_sync()
