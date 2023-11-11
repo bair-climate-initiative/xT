@@ -1,7 +1,7 @@
 base_configs: 
   - config/base.yaml
-  # - config/cluster_paths_inat.yaml
-name: revswinv2_xl_4096_chip512_swinpt_lr1e-3_inaturalist
+  - config/cluster_paths_inat.yaml
+name: revswinv2_xl_4096_chip512_swinpt_lr1e-3_inaturalist-reptilia_sms2048
 data:
   dir: ${oc.env:INATURALIST_ROOT, "/shared/ritwik/data/inaturalist"} 
   dataset: inaturalist
@@ -46,7 +46,7 @@ optimizer:
   warmup_epochs: 0
 train:
   epochs: 20
-  batch_size: 8
+  batch_size: 54
   val_batch_size: 1
   freeze_epochs: 0
   test_every: 1

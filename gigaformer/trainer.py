@@ -160,7 +160,7 @@ class PytorchTrainer:
                 improved_metrics = None
                 if is_main_process():
                     improved_metrics = self.evaluator.get_improved_metrics(
-                        self.current_metrics, metrics
+                        prev_metrics=self.current_metrics, current_metrics=metrics
                     )
                     self.current_metrics.update(improved_metrics)
                 self._save_best(improved_metrics)

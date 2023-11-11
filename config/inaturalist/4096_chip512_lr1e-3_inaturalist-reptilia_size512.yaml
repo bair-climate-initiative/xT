@@ -1,0 +1,64 @@
+base_configs: 
+  - config/base.yaml
+  - config/cluster_paths_inat.yaml
+name: revswinv2_xl_512_lr1e-3_inaturalist-reptilia_size512
+data:
+  dataset: inaturalist
+  crop_size: 512
+  val_crop_size: 512
+  num_workers: 4
+  transforms:
+    names:
+      - Resize
+      - Normalize
+    mean: [0.,0.,0.]
+    std: [1.,1.,1.]
+    max_size: 512
+    height: 512
+    width: 512
+  supercategories:
+    - Reptilia
+  category_label_path: meta/category_label_reptilia_map.json
+  transforms_val: 
+    names:
+      - Resize
+      - Normalize
+    mean: [0.,0.,0.]
+    std: [1.,1.,1.]
+    max_size: 384
+    height: 512
+    width: 512
+model: 
+  name: EncoderDecoderV2
+  num_classes: 284
+  mlp_ratio: 4
+  backbone:
+    img_size: 512
+    input_dim: 3
+    use_vanilla_backward: False
+    pretrained: ${oc.env:PRETRAINED_CKPT_PATH, "./ckpts"}/swinv2_tiny_window16_256.pth
+    upsample: False
+  xl_context:
+    enabled: true
+    n_layer: 12
+  resume: ''
+optimizer:
+  base_lr: 1e-3
+  classifier_ratio: 1.0
+  warmup_epochs: 0
+train:
+  epochs: 20
+  batch_size: 60
+  val_batch_size: 1
+  freeze_epochs: 0
+  test_every: 1
+  test_reset: True
+val: False
+losses:
+  losses:
+    - name: cls
+      type: CrossEntropy
+      params: 
+        field: label 
+      weight: 1.0
+      display: on

@@ -1,36 +1,40 @@
 base_configs: 
+  - config/cluster_paths_inat.yaml
   - config/base.yaml
   - config/cluster_paths_inat.yaml
-name: revswinv2_xl_384_lr1e-3_inaturalist
+
+name: revswinv2_xl_4096_chip512_swinpt_lr1e-3_inaturalist
 data:
   dataset: inaturalist
-  crop_size: 512
-  val_crop_size: 512
-  num_workers: 4
+  crop_size: 224
+  val_crop_size: 224
+  num_workers: 1
   transforms:
     names:
-      - Resize
+      - SmallestMaxSize
+      - RandomCrop
       - Normalize
     mean: [0.,0.,0.]
     std: [1.,1.,1.]
-    max_size: 512
-    height: 512
-    width: 512
+    max_size: 224
+    height: 224
+    width: 224
   supercategories:
     - Reptilia
-  category_label_path: meta/category_label_reptilia_map.json
   transforms_val: 
     names:
-      - Resize
+      - SmallestMaxSize
+      - RandomCrop
       - Normalize
     mean: [0.,0.,0.]
     std: [1.,1.,1.]
-    max_size: 384
-    height: 512
-    width: 512
+    max_size: 224
+    height: 224
+    width: 224
 model: 
   name: EncoderDecoderV2
-  num_classes: 284
+  num_classes: 8142
+  backbone_class: get_hiera_model
   mlp_ratio: 4
   backbone:
     img_size: 512
@@ -39,7 +43,7 @@ model:
     pretrained: ${oc.env:PRETRAINED_CKPT_PATH, "./ckpts"}/swinv2_tiny_window16_256.pth
     upsample: False
   xl_context:
-    enabled: true
+    enabled: off
     n_layer: 12
   resume: ''
 optimizer:
@@ -48,7 +52,7 @@ optimizer:
   warmup_epochs: 0
 train:
   epochs: 20
-  batch_size: 60
+  batch_size: 1
   val_batch_size: 1
   freeze_epochs: 0
   test_every: 1

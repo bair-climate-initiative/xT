@@ -11,6 +11,7 @@ import torch
 import torch.distributed as dist
 from torch.cuda import empty_cache
 from torch.utils.data import DataLoader
+from torchmetrics import Accuracy, Precision, Recall
 from tqdm import tqdm
 
 from gigaformer.utils import (get_rank, is_dist_avail_and_initialized,
@@ -277,9 +278,10 @@ class ClsEvaluator(Evaluator):
         # self.patch_size = config.model.backbone.patch_size
         # self.context_patch_len = config.context_patch_len
         self.overlap = config.data.overlap
+        self.num_classes = config.model.num_classes
 
     def init_metrics(self) -> Dict:
-        return {"acc": 0}
+        return {"accuracy": 0, "precision": 0, "recall": 0}
 
     def build_iterator(self, batch):
         old_dim = self.crop_size
@@ -311,8 +313,11 @@ class ClsEvaluator(Evaluator):
         if is_main_process():
             print("DEBUG: MAIN")
         extra_context = model.module.context_mode
-        correct_c = 0
-        tol_c = 0
+
+        accuracy = Accuracy(task="multiclass", num_classes=self.num_classes)
+        precision = Precision(task="multiclass", average="macro", num_classes=self.num_classes)
+        recall = Recall(task="multiclass", average="macro", num_classes=self.num_classes)
+
         def model_foward(x, model):
             mem = set()
             output = []
@@ -329,6 +334,7 @@ class ClsEvaluator(Evaluator):
                 final_out[k] = torch.stack([z[k] for z in output])
             final_out['label'] = final_out['label'].mean(0)
             return final_out
+
         for sample in tqdm(dataloader, position=0):
             img = sample['image'].float()
             if extra_context:
@@ -336,21 +342,26 @@ class ClsEvaluator(Evaluator):
             else:
                 output = model(img)
             pred = output['label'].argmax(-1)
-            acc = pred == sample['label']
-            correct_c += acc.sum()
-            correct_c += sample['label'].shape[0]
-        return {"acc": correct_c}
+            accuracy.update(pred, sample['label'])
+            precision.update(pred, sample['label'])
+            recall.update(pred, sample['label'])
+
+        return {
+            "accuracy": accuracy.compute(),
+            "precision": precision.compute(),
+            "recall": recall.compute()
+        }
 
     def get_improved_metrics(
         self, prev_metrics: Dict, current_metrics: Dict
     ) -> Dict:
         improved = {}
-        for k in ("acc"):
+        for k in ["accuracy", "precision", "recall"]:
             if current_metrics[k] > prev_metrics.get(k, 0.0):
                 print(
                     k,
                     " improved from {:.4f} to {:.4f}".format(
-                        prev_metrics["xview"], current_metrics["xview"]
+                        prev_metrics[k], current_metrics[k]
                     ),
                 )
                 improved[k] = current_metrics[k]
