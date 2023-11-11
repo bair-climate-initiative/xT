@@ -1,6 +1,0 @@
-base_configs: 
-  - config/revswin_xl/4096_chip512_lr1e-3_inaturalist.yaml
-  - config/base.yaml
-  # - config/cluster_paths.yaml
-
-val: on

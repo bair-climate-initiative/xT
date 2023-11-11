@@ -314,7 +314,8 @@ class ClsEvaluator(Evaluator):
             print("DEBUG: MAIN")
         extra_context = model.module.context_mode
 
-        accuracy = Accuracy(task="multiclass", num_classes=self.num_classes).to('cpu')
+        accuracy_top_1 = Accuracy(task="multiclass", num_classes=self.num_classes, top_k=1).to('cpu')
+        accuracy_top_5 = Accuracy(task="multiclass", num_classes=self.num_classes, top_k=5).to('cpu')
         precision = Precision(task="multiclass", average="macro", num_classes=self.num_classes).to('cpu')
         recall = Recall(task="multiclass", average="macro", num_classes=self.num_classes).to('cpu')
 
@@ -343,12 +344,14 @@ class ClsEvaluator(Evaluator):
                 output = model(img)
             pred = output['label'].argmax(-1).cpu()
             # print(f"Sample label device: {gt.device}")
-            accuracy.update(pred, sample['label'])
+            accuracy_top_1.update(pred, sample['label'])
+            accuracy_top_5.update(pred, sample['label'])
             precision.update(pred, sample['label'])
             recall.update(pred, sample['label'])
 
         return {
-            "accuracy": accuracy.compute(),
+            "accuracy_top1": accuracy_top_1.compute(),
+            "accuracy_top5": accuracy_top_5.compute(),
             "precision": precision.compute(),
             "recall": recall.compute()
         }
