@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 
 from gigaformer.config import create_config, XviewConfig
 from typing import Any
-from gigaformer.datasets import create_data_datasets
+from gigaformer.datasets import build_loader
 from gigaformer.evaluator import build_evaluator 
 from gigaformer.trainer import PytorchTrainer
 from gigaformer.utils import get_rank, get_world_size, is_main_process
@@ -31,13 +31,14 @@ def main(cfg: XviewConfig) -> None:
         _make_output_directory_structure(cfg)
         print(OmegaConf.to_yaml(cfg))
 
-    data_train, data_val = create_data_datasets(cfg.data, cfg.test)
+    train_data, val_data, train_loader, val_loader, mixup_fn = build_loader(cfg.data, cfg.test)
     seg_evaluator = build_evaluator(cfg)
     trainer = PytorchTrainer(
         config=cfg,
         evaluator=seg_evaluator,
-        train_data=data_train,
-        val_data=data_val,
+        train_loader=train_loader,
+        val_loader=val_loader,
+        mixup_fn=mixup_fn,
     )
 
     if is_main_process():
@@ -47,13 +48,13 @@ def main(cfg: XviewConfig) -> None:
 
     if cfg.test:
         sampler = torch.utils.data.distributed.DistributedSampler(
-            data_val,
+            val_data,
             shuffle=False,
             num_replicas=get_world_size(),
             rank=get_rank(),
         )
         test_loader = DataLoader(
-            data_val,
+            val_data,
             batch_size=1,
             sampler=sampler,
             shuffle=False,
