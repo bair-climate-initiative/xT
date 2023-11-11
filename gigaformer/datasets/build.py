@@ -1,8 +1,11 @@
+#### Lot of code taken from InternImage/Swin
+#### https://github.com/OpenGVLab/InternImage/blob/3e083be9c807793ec1d6a9ffe091978ee01de02b/classification
+
 import os
 import torch
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Any
 from torchvision import transforms
 from timm.data import Mixup
 from timm.data import create_transform
@@ -36,22 +39,38 @@ except:
 
 
 @dataclass
-class TransformConfig:
-    """General transform configuration"""
+class AugmentationConfig:
+    """Configuration for augmentation related parameters."""
 
-    names: Optional[List[str]] = field(default_factory=list)  
-    """List of names of Albumentations transforms."""
+    auto_augment: str = "rand-m9-mstd0.5-inc1"
+    """AutoAugment shorthand (default: 'rand-m9-mstd0.5-inc1')"""
+    color_jitter: float = 0.4
+    """Color jitter factor (default: 0.4)"""
+    reprob: float = 0.0
+    """Random erase prob (default: 0.)"""
+    remode: str = "pixel"
+    """Random erase mode (default: 'const')"""
+    recount: int = 1
+    """Random erase count (default: 1)"""
+    mixup: float = 0.8
+    """Mixup alpha, mixup enabled if > 0"""
+    cutmix: float = 1.0
+    """Cutmix alpha, cutmix enabled if > 0"""
+    cutmix_minmax: Any = None
+    """Cutmix min/max ratio, overrides alpha and enables cutmix if set"""
+    mixup_prob: float = 1.0
+    """Probability of performing mixup or cutmix when either/both is enabled"""
+    mixup_switch_prob: float = 0.5
+    """Probability of switching to cutmix when both mixup and cutmix enabled"""
+    mixup_mode: str = 'batch'
+    """How to apply mixup/cutmix params. Per batch, pair, or elem."""
 
-    mean: List[float] = field(default_factory=lambda: [0., 0., 0.])
-    std: List[float] = field(default_factory=lambda: [1., 1., 1.])
-    max_size: int = 2048  
-    """For SmallestMaxSize"""
-    height: int = 2048 
-    width: int = 2048  
-    """For RandomCrop"""
-    probability: float = 0.5  
-    """For all transforms.""" 
-    # TODO: This should be changed per transform
+    random_resized_crop: bool = False
+    """Whether to use random resized crop for testing."""
+    mean: List[float] = field(default_factory=lambda: [0.485, 0.456, 0.406])
+    """Mean of the dataset."""
+    std: List[float] = field(default_factory=lambda: [0.229, 0.224, 0.225])
+    """Standard deviation of the dataset."""
 
 
 @dataclass
@@ -72,6 +91,16 @@ class DataConfig:
     """Batch size for validation."""
     crop_size: int = 512
     """Size of the crop for training."""
+    num_classes: int = 8142 
+    """Number of classes in the dataset."""
+    test_crop: bool = True
+    """Whether to use a center crop for testing."""
+    interpolation: str = "bilinear"
+    """Interpolation method for resizing."""
+    label_smoothing: float = 0.0
+    """Label smoothing factor."""
+
+    """Xview3 pertinent settings."""
     val_crop_size: int = 512
     """Size of the crop for validation."""
     overlap: int = 10
@@ -86,15 +115,15 @@ class DataConfig:
     """Shoreline validation path."""
     multiplier: int = 64
     """Number of times to increase dataset by."""
+
+    """iNaturalist pertinent settings."""
     supercategories: Optional[List[str]] = field(default_factory=list)
     """iNaturalist only, the list of supercategories to filter by"""
     category_label_path: str = "meta/category_label_reptilia_map.json"
     """iNaturalist only, path to category label map if provided."""
 
-    transforms: TransformConfig = field(default_factory=TransformConfig)
-    """Transforms for training."""
-    transforms_val: TransformConfig = field(default_factory=TransformConfig)
-    """Transforms for validation."""
+    aug: AugmentationConfig = field(default_factory=AugmentationConfig)
+
 
 def build_loader(config: DataConfig, test: bool = False):
     if (
@@ -209,7 +238,7 @@ def build_loader(config: DataConfig, test: bool = False):
     return train_dataset, val_dataset, train_loader, val_loader, mixup_fn
 
 
-def create_xview_transforms(config: TransformConfig):
+def create_xview_transforms():
     transforms = []
     # if dataset == "inaturalist":
     #     for transform in config.names:
@@ -254,7 +283,7 @@ def create_imagenet_transforms(config: DataConfig, is_train: bool = True):
             color_jitter=config.aug.color_jitter
             if config.aug.color_jitter > 0 else None,
             auto_augment=config.aug.auto_augment
-            if not config.aug.autoaugment is None else None,
+            if not config.aug.auto_augment is None else None,
             re_prob=config.aug.reprob,
             re_mode=config.aug.remode,
             re_count=config.aug.recount,

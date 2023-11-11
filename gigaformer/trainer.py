@@ -45,8 +45,9 @@ class PytorchTrainer:
         self,
         config,
         evaluator: Evaluator,
-        train_data: Dataset,
-        val_data: Dataset,
+        train_loader: DataLoader,
+        val_loader: DataLoader,
+        mixup_fn=None,
     ) -> None:
         super().__init__()
         self.config = config
@@ -55,32 +56,23 @@ class PytorchTrainer:
         self.evaluator = evaluator
         self.current_metrics = evaluator.init_metrics()
         self.current_epoch = 0
-        self.train_data = train_data
-        self.val_data = val_data
+        self.train_loader = train_loader
+        self.val_loader = val_loader
+        self.mixup_fn = mixup_fn
         self.wandb_id = None
-        self.patch_size = (
-            config.model.patch_size
-        )  # self.conf.get("patch_size", 16)
-        self.context_patch_len = (
-            config.model.xl_context.context_patch_len
-        )  # self.conf.get("context_patch_len", 100)
+        self.patch_size = config.model.patch_size
+        self.context_patch_len = config.model.xl_context.context_patch_len
 
         self.model = self._init_model()
-        # self.create_train_loader()
-        # self.create_val_loader()
-        # TODO: how tf to pass in T-XL? tell shufan to do maybe
-        # self.patch_size = self.config.patch_size
-        # self.context_patch_len = self.config.context_patch_len
 
-        self.losses = build_losses(self.config.losses)
+        self.losses = build_losses(self.config)
         self.scale_learning_rate()
 
         self._init_amp()
         self.optimizer, self.scheduler = create_optimizer(
             self.config.optimizer,
             self.model,
-            len(train_data),
-            self.config.train.batch_size,
+            len(train_loader),
             self.config.train.epochs,
         )
         if is_main_process():
@@ -89,8 +81,12 @@ class PytorchTrainer:
 
                 self.trigger_sync = TriggerWandbSyncHook()
 
+            if config.data.dataset == "xview3":
+                project_name = "xview3 detection unet"
+            else:
+                project_name = "inaturalist"
             wandb_args = dict(
-                project="xview3 detection unet",
+                project=project_name,
                 entity="bair-climate-initiative",
                 resume="allow",
                 name=config.name,
@@ -276,8 +272,8 @@ class PytorchTrainer:
 
     def _run_one_epoch_train(self):
         torch.autograd.set_detect_anomaly(True)
-        train_loader = self.get_train_loader()
-        len_train_loader = len(train_loader)
+        train_loader = self.train_loader
+        len_train_loader = len(self.train_loader)
 
         loss_meter = AverageMeter()
         avg_meters = {"loss": loss_meter}
@@ -320,6 +316,11 @@ class PytorchTrainer:
             sample = next(train_loader)
             data_time.update(time.time() - start_time)
             imgs = sample["image"].cuda().float()
+            labels = sample["label"].cuda()
+
+            if self.mixup_fn is not None:
+                imgs, sample["label"] = self.mixup_fn(imgs, labels) 
+
             if extra_context:
                 if sample["context_id"] == 0:
                     mem = tuple()
@@ -398,7 +399,7 @@ class PytorchTrainer:
                 # self.gscaler.update()
             else:
                 total_loss.backward()
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), 5)
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.config.train.clip_grad)
                 self.optimizer.step()
             # backward_time.update(time.time() - end)
 

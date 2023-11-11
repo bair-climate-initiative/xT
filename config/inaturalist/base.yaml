@@ -12,27 +12,6 @@ data:
   test: False
   crop_size: 2048
   val_crop_size: 2048
-  transforms:
-    names:
-      - Normalize
-      - HorizontalFlip
-      - RandomCrop
-      - AutoAugment
-      - ColorJitter
-    mean: [0.,0.,0.]
-    std: [1.,1.,1.]
-    max_size: 2048
-    height: 2048
-    width: 2048
-  transforms_val: 
-    names:
-      - SmallestMaxSize
-      - Normalize
-    mean: [0.,0.,0.]
-    std: [1.,1.,1.]
-    max_size: 2048
-    height: 2048
-    width: 2048
 model: 
   name: EncoderDecoderV2
   patch_size: 16

@@ -29,6 +29,8 @@ class TrainConfig:
     """Run test every n epochs."""
     test_reset: bool = True
     """Removes existing test csv before testing."""
+    clip_grad: float = 5.0
+    """Clip gradient norm."""
 
 
 @dataclass
