@@ -2,21 +2,20 @@
 #### https://github.com/OpenGVLab/InternImage/blob/3e083be9c807793ec1d6a9ffe091978ee01de02b/classification
 
 import os
-import torch
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional, Tuple, Any
-from torchvision import transforms
-from timm.data import Mixup
-from timm.data import create_transform
+from typing import Any, List, Optional, Tuple
 
 import albumentations as A
 import cv2
+import torch
+from timm.data import Mixup, create_transform
 from torch.utils.data import Dataset
+from torchvision import transforms
 
+from ..utils import get_rank, get_world_size
 from .inaturalist import INatDataset
 from .xview3 import XviewDataset
-from ..utils import get_rank, get_world_size
 
 cv2.ocl.setUseOpenCL(False)
 cv2.setNumThreads(0)
@@ -240,30 +239,8 @@ def build_loader(config: DataConfig, test: bool = False):
 
 def create_xview_transforms():
     transforms = []
-    # if dataset == "inaturalist":
-    #     for transform in config.names:
-    #         if transform == "RandomCrop":
-    #             transforms.append(
-    #                 A.RandomCrop(height=config.height, width=config.width)
-    #             )
-    #         elif transform == "Resize":
-    #             transforms.append(
-    #                 A.Resize(height=config.height, width=config.height)
-    #             )
-    #         elif transform == "SmallestMaxSize":
-    #             transforms.append(A.SmallestMaxSize(max_size=config.max_size))
-    #         elif transform == "CenterCrop":
-    #             transforms.append(A.CenterCrop(height=config.height,width=config.width))
-    #         elif transform == "Normalize":
-    #             transforms.append(A.Normalize(mean=config.mean,std=config.std))
-    #         else:
-    #             raise NotImplementedError
     return A.Compose(
-        [
-            # A.Rotate(limit=30, border_mode=cv2.BORDER_CONSTANT, p=0.3),
-            #    A.HorizontalFlip(),
-            #    A.VerticalFlip()
-        ],
+        [],
         additional_targets={
             "conf_mask": "mask",
             "length_mask": "mask",
