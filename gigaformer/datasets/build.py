@@ -66,7 +66,7 @@ class AugmentationConfig:
     """How to apply mixup/cutmix params. Per batch, pair, or elem."""
 
     random_resized_crop: bool = False
-    """Whether to use random resized crop for testing."""
+    """Whether to use random resized crop for testing. config.data.test_crop takes priority."""
     mean: List[float] = field(default_factory=lambda: [0.485, 0.456, 0.406])
     """Mean of the dataset."""
     std: List[float] = field(default_factory=lambda: [0.229, 0.224, 0.225])

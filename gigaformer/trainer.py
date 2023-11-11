@@ -84,7 +84,7 @@ class PytorchTrainer:
             if config.data.dataset == "xview3":
                 project_name = "xview3 detection unet"
             else:
-                project_name = "inaturalist"
+                project_name = "gigaformer inaturalist"
             wandb_args = dict(
                 project=project_name,
                 entity="bair-climate-initiative",
