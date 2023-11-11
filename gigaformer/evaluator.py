@@ -283,13 +283,15 @@ class ClsEvaluator(Evaluator):
         metrics = MetricCollection({
             "top1_acc": Accuracy(task="multiclass",
                                  num_classes=self.num_classes,
-                                 top_k=1),
+                                 top_k=1,
+                                 sync_on_compute=False),
             "top5_acc": Accuracy(task="multiclass",
                                  num_classes=self.num_classes,
-                                 top_k=5)
+                                 top_k=5,
+                                 sync_on_compute=False)
         })
         if torch.cuda.is_available():
-            metrics = metrics.to('cuda')
+            metrics = metrics.to(torch.device("cuda", 0))
 
         self.val_metrics = metrics.clone(prefix="val_")
 
@@ -348,29 +350,41 @@ class ClsEvaluator(Evaluator):
             final_out['label'] = final_out['label'].mean(0)
             return final_out
 
-        dataloader_tqdm = tqdm(dataloader, position=0)
-        dataloader = iter(dataloader)
-        for i in range(len(dataloader)):
-            sample = next(dataloader)
-            img = sample['image'].float()
-            if extra_context:
-                output = model_foward(img, model)
-            else:
-                output = model(img)
-            pred = output['label']
-            gt = sample['label'].to(pred.device)
-            # print(f"Sample label device: {gt.device}")
-            self.val_metrics.update(pred, gt)
-            dataloader_tqdm.update()
+        metrics = {}
+
+        if is_dist_avail_and_initialized():
+            dist.barrier()
+        
+        if is_main_process():
+            dataloader_tqdm = tqdm(dataloader, position=0)
+            dataloader = iter(dataloader)
+            
+            for _ in range(len(dataloader)):
+                sample = next(dataloader)
+                img = sample['image'].float()
+                if extra_context:
+                    output = model_foward(img, model)
+                else:
+                    output = model(img)
+                pred = output['label']
+                gt = sample['label'].to(pred.device)
+                # print(f"Sample label device: {gt.device}")
+                self.val_metrics.update(pred, gt)
+                dataloader_tqdm.update()
 
         outputs = self.val_metrics.compute()
         self.val_metrics.reset()
 
-        metrics = {
-            "accuracy_top1": outputs["val_top1_acc"].item(),
-            "accuracy_top5": outputs["val_top5_acc"].item()
-        }
-        dataloader_tqdm.set_postfix({**metrics})
+        if is_main_process():
+            metrics = {
+                "accuracy_top1": outputs["val_top1_acc"].item(),
+                "accuracy_top5": outputs["val_top5_acc"].item()
+            }
+            dataloader_tqdm.set_postfix({**metrics})
+        
+        if is_dist_avail_and_initialized():
+            dist.barrier()
+        empty_cache()
 
         return metrics
 
