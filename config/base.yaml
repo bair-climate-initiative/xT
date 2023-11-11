@@ -18,11 +18,6 @@ data:
   val_crop_size: 512
   overlap: 10 
   positive_ratio: 0.85
-  transforms:
-    names:
-    max_size: 2048
-    height: 2048
-    width: 2048
   supercategories:
   category_label_path: ''
 model: 

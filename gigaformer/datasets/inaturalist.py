@@ -58,11 +58,12 @@ class INatDataset(Dataset):
     def __getitem__(self, idx):
         label = self.labels[idx]
         img_path = self.dataset_dir / label["file_name"]
-        img = np.asarray(Image.open(img_path).convert('RGB'))
+        img = Image.open(img_path).convert('RGB')
         if self.transforms:
-            img = self.transforms(image=img)["image"]
-        if self.channels_first:
-            img = img.transpose((2, 0, 1))
+            img = self.transforms(img)
+        img = np.asarray(img)
+        if not self.channels_first:
+            img = img.transpose((1, 2, 0))
 
         return {"image": img, **label}
 

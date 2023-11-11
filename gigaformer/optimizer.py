@@ -79,8 +79,7 @@ class OptimizerConfig:
 def create_optimizer(
     config: OptimizerConfig,
     model: nn.Module,
-    num_samples: int,
-    batch_size: int,
+    loader_len: int,
     epochs: int,
 ):
     """Creates optimizer and schedule from configuration
@@ -184,7 +183,7 @@ def create_optimizer(
     if scheduler_name == "step":
         scheduler = LRStepScheduler(optimizer, eta_min=eta_min)
     elif scheduler_name == "cosine":
-        tmax = int(epochs * num_samples / (num_gpus * batch_size))
+        tmax = int(epochs * loader_len / (num_gpus))
         if is_main_process():
             print(f"Cosine decay with T_max:{tmax} eta_min:{eta_min}")
         scheduler = CosineAnnealingLR(optimizer, T_max=tmax, eta_min=eta_min)
@@ -219,7 +218,7 @@ def create_optimizer(
             optimizer,
             multiplier=1,
             total_epoch=int(
-                config.warmup_epochs * num_samples / (num_gpus * batch_size)
+                config.warmup_epochs * loader_len / num_gpus
             ),
             after_scheduler=scheduler,
         )
