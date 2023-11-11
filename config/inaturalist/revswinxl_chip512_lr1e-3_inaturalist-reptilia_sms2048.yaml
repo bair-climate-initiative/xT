@@ -9,7 +9,7 @@ data:
   val_batch_size: ${train.val_batch_size}
   num_workers: 1
   num_classes: 284
-  label_smoothing: 0.1
+  label_smoothing: 0.3
   interpolation: bilinear
   test_crop: False
   aug:
@@ -18,7 +18,8 @@ data:
     reprob: 0.0
     remode: pixel
     recount: 1
-    mixup: 0.4
+    mixup: 0.0
+    cutmix: 0.0
     random_resized_crop: False
     mean: [0.485, 0.456, 0.406]
     std: [0.229, 0.224, 0.225]
