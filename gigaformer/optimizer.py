@@ -183,7 +183,7 @@ def create_optimizer(
     if scheduler_name == "step":
         scheduler = LRStepScheduler(optimizer, eta_min=eta_min)
     elif scheduler_name == "cosine":
-        tmax = int(epochs * loader_len / (num_gpus))
+        tmax = int(epochs * loader_len)
         if is_main_process():
             print(f"Cosine decay with T_max:{tmax} eta_min:{eta_min}")
         scheduler = CosineAnnealingLR(optimizer, T_max=tmax, eta_min=eta_min)
@@ -217,9 +217,7 @@ def create_optimizer(
         scheduler = GradualWarmupScheduler(
             optimizer,
             multiplier=1,
-            total_epoch=int(
-                config.warmup_epochs * loader_len / num_gpus
-            ),
+            total_epoch=int(config.warmup_epochs * loader_len),
             after_scheduler=scheduler,
         )
 
