@@ -314,9 +314,9 @@ class ClsEvaluator(Evaluator):
             print("DEBUG: MAIN")
         extra_context = model.module.context_mode
 
-        accuracy = Accuracy(task="multiclass", num_classes=self.num_classes)
-        precision = Precision(task="multiclass", average="macro", num_classes=self.num_classes)
-        recall = Recall(task="multiclass", average="macro", num_classes=self.num_classes)
+        accuracy = Accuracy(task="multiclass", num_classes=self.num_classes).to('cpu')
+        precision = Precision(task="multiclass", average="macro", num_classes=self.num_classes).to('cpu')
+        recall = Recall(task="multiclass", average="macro", num_classes=self.num_classes).to('cpu')
 
         def model_foward(x, model):
             mem = set()
@@ -341,7 +341,8 @@ class ClsEvaluator(Evaluator):
                 output = model_foward(img, model)
             else:
                 output = model(img)
-            pred = output['label'].argmax(-1)
+            pred = output['label'].argmax(-1).cpu()
+            # print(f"Sample label device: {gt.device}")
             accuracy.update(pred, sample['label'])
             precision.update(pred, sample['label'])
             recall.update(pred, sample['label'])
