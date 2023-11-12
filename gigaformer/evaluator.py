@@ -336,6 +336,7 @@ class ClsEvaluator(Evaluator):
         if is_main_process():
             print("DEBUG: MAIN")
         extra_context = model.module.context_mode
+        self.val_metrics.reset()
 
         def model_foward(x, model):
             mem = set()
@@ -377,7 +378,6 @@ class ClsEvaluator(Evaluator):
                 dataloader_tqdm.update()
 
         outputs = self.val_metrics.compute()
-        self.val_metrics.reset()
 
         if is_main_process():
             metrics = {

@@ -1,4 +1,5 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import List
 
 # from hydra.core.config_store import ConfigStore
 from timm.optim import AdamW
@@ -37,6 +38,10 @@ class OptimizerConfig:
     """SGD Momentum"""
     nesterov: bool = True
     """SGD Nesterov momentum"""
+    betas: list = field(default_factory=list)
+    """Adam betas"""
+    eps: float = 1e-8
+    """Adam eps"""
 
 
 # @dataclass
