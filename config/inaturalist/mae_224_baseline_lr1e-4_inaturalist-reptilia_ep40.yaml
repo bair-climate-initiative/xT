@@ -1,5 +1,4 @@
 base_configs: 
-  - config/cluster_paths_inat.yaml
   - config/base.yaml
   - config/cluster_paths_inat.yaml
 
@@ -36,7 +35,7 @@ model:
     img_size: 512
     input_dim: 3
     use_vanilla_backward: False
-    pretrained: /shared/jacklishufan/mae/mae_pretrain_vit_base.pth
+    pretrained: ${oc.env:PRETRAINED_CKPT_PATH, "./ckpts"}/mae_pretrain_vit_base.pth
     upsample: False
   xl_context:
     enabled: off

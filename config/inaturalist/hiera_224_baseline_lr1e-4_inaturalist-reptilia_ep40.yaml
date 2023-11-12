@@ -2,7 +2,7 @@ base_configs:
   - config/base.yaml
   - config/cluster_paths_inat.yaml
 
-name: hiera_224_baseline-reptilia_lr1e-4_inaturalist-reptilia
+name: hiera_224_baseline-reptilia_lr1e-4_inaturalist-reptilia_ep40
 data:
   dataset: inaturalist
   crop_size: 224
