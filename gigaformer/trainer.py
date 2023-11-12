@@ -47,12 +47,14 @@ class PytorchTrainer:
         evaluator: Evaluator,
         train_loader: DataLoader,
         val_loader: DataLoader,
+        process_group=None,
         mixup_fn=None,
     ) -> None:
         super().__init__()
         self.config = config
 
-        self._init_distributed()
+        self.pg = process_group
+        
         self.evaluator = evaluator
         self.current_metrics = evaluator.init_metrics()
         self.current_epoch = 0
@@ -541,24 +543,6 @@ class PytorchTrainer:
             )
         else:
             self.model = DataParallel(self.model).cuda()
-
-    def _init_distributed(self):
-        # TODO!: Make sure this is initialized correctly.
-        if self.config.distributed:
-            self.pg = dist.init_process_group(
-                backend="nccl",
-                # rank=self.config.local_rank, set to torchrun
-                # world_size=self.config.world_size,
-            )
-
-            print(f"Setting rank. Rank is {get_rank()}")
-            print(
-                f"There are {torch.cuda.device_count()} GPUs: {[torch.cuda.get_device_properties(i) for i in range(torch.cuda.device_count())]}"
-            )
-            torch.cuda.set_device(get_rank())
-        else:
-            os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-            # os.environ["CUDA_VISIBLE_DEVICES"] = self.config.gpu
 
     def _load_checkpoint(self, model: torch.nn.Module):
         checkpoint_path = self.config.model.resume

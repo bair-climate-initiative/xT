@@ -41,9 +41,6 @@ class INatDataset(Dataset):
         #     json.dump(self.category_label_map, f, indent=4)
         self.label_category_map = {v: k for k, v in self.category_label_map.items()}
         self.channels_first = channels_first
-
-        print(self.label_category_map)
-
         self.mode = mode
         if self.mode not in ["train", "val"]:
             raise NotImplementedError(
@@ -75,7 +72,6 @@ class INatDataset(Dataset):
         valid_category_ids = set([x["id"] for x in self.categories if x["supercategory"] in supercategories])
         if self.category_label_map is None:
             category_label_map = {}
-            print("Generating category label map...")
         else:
             category_label_map = self.category_label_map
 

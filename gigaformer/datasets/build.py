@@ -172,7 +172,7 @@ def build_loader(config: DataConfig, test: bool = False):
         train_dataset = INatDataset(
             mode="train",
             dataset_dir=Path(config.dir),
-            annotation_json="train2018.json",
+            annotation_json="val2018.json",
             categories_json="categories.json",
             supercategories=config.supercategories,
             category_label_path=config.category_label_path,
@@ -191,6 +191,8 @@ def build_loader(config: DataConfig, test: bool = False):
             transforms=val_transforms
         )
     
+    print(f"Rank {get_rank()} saw world size {get_world_size()}")
+
     train_sampler = torch.utils.data.distributed.DistributedSampler(
         train_dataset,
         shuffle=True,

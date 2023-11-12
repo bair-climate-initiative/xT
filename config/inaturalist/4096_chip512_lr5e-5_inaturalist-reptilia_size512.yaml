@@ -39,7 +39,7 @@ model:
     n_layer: 12
   resume: ''
 optimizer:
-  base_lr: 1e-3
+  base_lr: 5e-5
   classifier_ratio: 1.0
   warmup_epochs: 0
 train:

@@ -2,16 +2,16 @@ import logging
 import os
 import warnings
 from pathlib import Path
+from typing import Any
 
 import torch
-import torch.distributed
+import torch.distributed as dist
 from omegaconf import OmegaConf
 from torch.utils.data import DataLoader
 
-from gigaformer.config import create_config, XviewConfig
-from typing import Any
+from gigaformer.config import XviewConfig, create_config
 from gigaformer.datasets import build_loader
-from gigaformer.evaluator import build_evaluator 
+from gigaformer.evaluator import build_evaluator
 from gigaformer.trainer import PytorchTrainer
 from gigaformer.utils import get_rank, get_world_size, is_main_process
 
@@ -31,6 +31,8 @@ def main(cfg: XviewConfig) -> None:
         _make_output_directory_structure(cfg)
         print(OmegaConf.to_yaml(cfg))
 
+    process_group = _init_distributed(config=cfg)
+
     train_data, val_data, train_loader, val_loader, mixup_fn = build_loader(cfg.data, cfg.test)
     seg_evaluator = build_evaluator(cfg)
     trainer = PytorchTrainer(
@@ -39,6 +41,7 @@ def main(cfg: XviewConfig) -> None:
         train_loader=train_loader,
         val_loader=val_loader,
         mixup_fn=mixup_fn,
+        process_group=process_group
     )
 
     if is_main_process():
@@ -68,6 +71,26 @@ def main(cfg: XviewConfig) -> None:
         return
     trainer.fit()
 
+
+def _init_distributed(config):
+    # TODO!: Make sure this is initialized correctly.
+    if config.distributed:
+        pg = dist.init_process_group(
+            backend="nccl",
+            # rank=self.config.local_rank, set to torchrun
+            # world_size=self.config.world_size,
+        )
+
+        print(f"Setting rank. Rank is {get_rank()}")
+        print(
+            f"There are {torch.cuda.device_count()} GPUs: {[torch.cuda.get_device_properties(i) for i in range(torch.cuda.device_count())]}"
+        )
+        torch.cuda.set_device(get_rank())
+    else:
+        os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+        # os.environ["CUDA_VISIBLE_DEVICES"] = self.config.gpu
+
+    return pg
 
 def _make_output_directory_structure(cfg):
     print("Making directories...")
