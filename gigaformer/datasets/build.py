@@ -190,6 +190,8 @@ def build_loader(config: DataConfig, test: bool = False):
             transforms=val_transforms
         )
     
+    print(f"Rank {get_rank()} saw world size {get_world_size()}")
+
     train_sampler = torch.utils.data.distributed.DistributedSampler(
         train_dataset,
         shuffle=True,

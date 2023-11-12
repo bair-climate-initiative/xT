@@ -155,8 +155,6 @@ class XviewEvaluator(Evaluator):
         *args,
         **kwargs,
     ) -> Dict:
-        if is_main_process():
-            print("DEBUG: MAIN")
         predictions_dir = Path(self.config.output_dir) / "predictions"
         dataset_dir = Path(self.config.data.dir) / self.dataset_dir
 
@@ -283,23 +281,27 @@ class ClsEvaluator(Evaluator):
         metrics = MetricCollection({
             "top1_acc": Accuracy(task="multiclass",
                                  num_classes=self.num_classes,
-                                 top_k=1,
-                                 sync_on_compute=False),
+                                 top_k=1),
             "top5_acc": Accuracy(task="multiclass",
                                  num_classes=self.num_classes,
-                                 top_k=5,
-                                 sync_on_compute=False)
+                                 top_k=5),
+            "precision": Precision(task="multiclass",
+                                   average="macro",
+                                   num_classes=self.num_classes),
+            "recall": Recall(task="multiclass",
+                             average="macro",
+                             num_classes=self.num_classes)
         })
-        if torch.cuda.is_available():
-            metrics = metrics.to(torch.device("cuda", 0))
 
-        self.val_metrics = metrics.clone(prefix="val_")
+        self.val_metrics = metrics.clone(prefix="val_").cuda()
 
 
     def init_metrics(self) -> Dict:
         return {
             "accuracy_top1": 0,
-            "accuracy_top5": 0
+            "accuracy_top5": 0,
+            "precision": 0,
+            "recall": 0
         }
 
     def build_iterator(self, batch):
@@ -341,7 +343,7 @@ class ClsEvaluator(Evaluator):
                 if mem_only:
                     continue
                 # context_id = k["context_id"]
-                output.append({k:v.cpu() for k,v in local_output.items()})
+                output.append(local_output)
             final_out = {}
             for k,v in output[0].items():
                 final_out[k] = torch.stack([z[k] for z in output])
@@ -363,12 +365,12 @@ class ClsEvaluator(Evaluator):
                 output = model_foward(img, model)
             else:
                 output = model(img)
-            pred = output['label']
-            gt = sample['label'].to(pred.device)
+            pred = output['label'].cuda()
+            gt = sample['label'].cuda()
             # print(f"Sample label device: {gt.device}")
-            self.val_metrics.to(pred.device)
             self.val_metrics.update(pred, gt)
-            dataloader_tqdm.update()
+            if is_main_process():
+                dataloader_tqdm.update()
 
         outputs = self.val_metrics.compute()
         self.val_metrics.reset()
@@ -376,10 +378,12 @@ class ClsEvaluator(Evaluator):
         if is_main_process():
             metrics = {
                 "accuracy_top1": outputs["val_top1_acc"].item(),
-                "accuracy_top5": outputs["val_top5_acc"].item()
+                "accuracy_top5": outputs["val_top5_acc"].item(),
+                "precision": outputs["val_precision"].item(),
+                "recall": outputs["val_recall"].item()
             }
             dataloader_tqdm.set_postfix({**metrics})
-        
+
         if is_dist_avail_and_initialized():
             dist.barrier()
         empty_cache()
@@ -390,7 +394,7 @@ class ClsEvaluator(Evaluator):
         self, prev_metrics: Dict, current_metrics: Dict
     ) -> Dict:
         improved = {}
-        for k in ["accuracy_top1", "accuracy_top5"]:
+        for k in ["accuracy_top1", "accuracy_top5", "precision", "recall"]:
             if current_metrics[k] > prev_metrics.get(k, 0.0):
                 print(
                     k,
