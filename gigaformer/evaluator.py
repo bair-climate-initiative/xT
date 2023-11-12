@@ -329,8 +329,6 @@ class ClsEvaluator(Evaluator):
         *args,
         **kwargs,
     ) -> Dict:
-        if is_main_process():
-            print("DEBUG: MAIN")
         extra_context = model.module.context_mode
 
         def model_foward(x, model):
@@ -355,22 +353,22 @@ class ClsEvaluator(Evaluator):
         if is_dist_avail_and_initialized():
             dist.barrier()
         
-        if is_main_process():
-            dataloader_tqdm = tqdm(dataloader, position=0)
-            dataloader = iter(dataloader)
-            
-            for _ in range(len(dataloader)):
-                sample = next(dataloader)
-                img = sample['image'].float()
-                if extra_context:
-                    output = model_foward(img, model)
-                else:
-                    output = model(img)
-                pred = output['label']
-                gt = sample['label'].to(pred.device)
-                # print(f"Sample label device: {gt.device}")
-                self.val_metrics.update(pred, gt)
-                dataloader_tqdm.update()
+        dataloader_tqdm = tqdm(dataloader, position=0)
+        dataloader = iter(dataloader)
+        
+        for _ in range(len(dataloader)):
+            sample = next(dataloader)
+            img = sample['image'].float()
+            if extra_context:
+                output = model_foward(img, model)
+            else:
+                output = model(img)
+            pred = output['label']
+            gt = sample['label'].to(pred.device)
+            # print(f"Sample label device: {gt.device}")
+            self.val_metrics.to(pred.device)
+            self.val_metrics.update(pred, gt)
+            dataloader_tqdm.update()
 
         outputs = self.val_metrics.compute()
         self.val_metrics.reset()

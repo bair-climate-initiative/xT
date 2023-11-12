@@ -125,9 +125,8 @@ class DataConfig:
 
 
 def build_loader(config: DataConfig, test: bool = False):
-    if (
-        os.environ.get("RANK", "0") == "0"
-    ):  # needed since distrbuted not initialized
+    if os.environ.get("RANK", "0") == "0":
+        # needed since distrbuted not initialized
         print("dataset config crop size", config.crop_size)
         if config.dataset == "xview3" and config.shoreline_dir:
             print("Legacy Warning:shoreline_dir is no longer used")
