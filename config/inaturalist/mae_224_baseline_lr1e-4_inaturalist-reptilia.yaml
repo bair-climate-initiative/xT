@@ -1,8 +1,9 @@
 base_configs: 
+  - config/cluster_paths_inat.yaml
   - config/base.yaml
   - config/cluster_paths_inat.yaml
 
-name: hiera_224_baseline-reptilia_lr1e-4
+name: mae_224_baseline-reptilia_lr1e-4_inaturalist-reptilia
 data:
   dataset: inaturalist
   crop_size: 224
@@ -29,13 +30,13 @@ data:
 model: 
   name: EncoderDecoderV2
   num_classes: ${data.num_classes}
-  backbone_class: get_hiera_model
+  backbone_class: vit_base_patch16
   mlp_ratio: 4
   backbone:
     img_size: 512
     input_dim: 3
     use_vanilla_backward: False
-    pretrained: ${oc.env:PRETRAINED_CKPT_PATH, "./ckpts"}/swinv2_tiny_window16_256.pth
+    pretrained: /shared/jacklishufan/mae/mae_pretrain_vit_base.pth
     upsample: False
   xl_context:
     enabled: off
@@ -47,12 +48,11 @@ optimizer:
   warmup_epochs: 0
 train:
   epochs: 20
-  batch_size: 192
+  batch_size: 2
   val_batch_size: 1
   freeze_epochs: 0
   test_every: 1
   test_reset: True
-  clip_grad: 5.0
 val: False
 losses:
   losses:

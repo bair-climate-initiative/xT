@@ -3,7 +3,7 @@ base_configs:
   - config/base.yaml
   - config/cluster_paths_inat.yaml
 
-name: mae_224_baseline-reptilia_lr1e-4
+name: mae_224_baseline-reptilia_lr1e-4_inaturalist-reptilia
 data:
   dataset: inaturalist
   crop_size: 224
@@ -47,7 +47,7 @@ optimizer:
   classifier_ratio: 1.0
   warmup_epochs: 0
 train:
-  epochs: 20
+  epochs: 40
   batch_size: 2
   val_batch_size: 1
   freeze_epochs: 0
