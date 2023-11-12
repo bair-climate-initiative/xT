@@ -1,13 +1,14 @@
 base_configs: 
   - config/base.yaml
   - config/cluster_paths_inat.yaml
-name: revswinv2_xl_tiny_chip512_lr1e-3_inaturalist-reptilia_sms2048
+
+name: hiera_224_baseline-reptilia_lr1e-4
 data:
   dataset: inaturalist
-  crop_size: 512
+  crop_size: 224
   batch_size: ${train.batch_size}
   val_batch_size: ${train.val_batch_size}
-  num_workers: 1
+  num_workers: 16
   num_classes: 284
   interpolation: bilinear
   test_crop: False
@@ -28,6 +29,7 @@ data:
 model: 
   name: EncoderDecoderV2
   num_classes: ${data.num_classes}
+  backbone_class: get_hiera_model
   mlp_ratio: 4
   backbone:
     img_size: 512
@@ -36,16 +38,16 @@ model:
     pretrained: ${oc.env:PRETRAINED_CKPT_PATH, "./ckpts"}/swinv2_tiny_window16_256.pth
     upsample: False
   xl_context:
-    enabled: true
+    enabled: off
     n_layer: 12
   resume: ''
 optimizer:
-  base_lr: 1e-3
+  base_lr: 1e-4
   classifier_ratio: 1.0
   warmup_epochs: 0
 train:
   epochs: 20
-  batch_size: 54
+  batch_size: 192
   val_batch_size: 1
   freeze_epochs: 0
   test_every: 1

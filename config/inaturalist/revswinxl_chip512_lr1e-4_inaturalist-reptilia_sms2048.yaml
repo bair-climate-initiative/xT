@@ -1,13 +1,13 @@
 base_configs: 
   - config/base.yaml
   - config/cluster_paths_inat.yaml
-name: revswinv2_xl_512_swinpt_lr5e-5_inaturalist-reptilia_size512
+name: revswinv2_xl_tiny_chip512_lr1e-4_inaturalist-reptilia_sms2048
 data:
   dataset: inaturalist
   crop_size: 512
   batch_size: ${train.batch_size}
   val_batch_size: ${train.val_batch_size}
-  num_workers: 4
+  num_workers: 1
   num_classes: 284
   interpolation: bilinear
   test_crop: False
@@ -17,8 +17,9 @@ data:
     reprob: 0.0
     remode: pixel
     recount: 1
-    mixup: 0.4
-    label_smoothing: 0.1
+    mixup: 0.0
+    cutmix: 0.0
+    label_smoothing: 0.3
     random_resized_crop: False
     mean: [0.485, 0.456, 0.406]
     std: [0.229, 0.224, 0.225]
@@ -39,7 +40,7 @@ model:
     n_layer: 12
   resume: ''
 optimizer:
-  base_lr: 5e-5
+  base_lr: 1e-4
   classifier_ratio: 1.0
   warmup_epochs: 0
 train:

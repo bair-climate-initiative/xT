@@ -1,7 +1,7 @@
 base_configs: 
   - config/base.yaml
   - config/cluster_paths_inat.yaml
-name: revswinv2_xl_512_swinpt_lr5e-5_inaturalist-reptilia_size512
+name: revswinv2_xl_512_swinpt_lr1e-4_inaturalist-reptilia_size512
 data:
   dataset: inaturalist
   crop_size: 512
@@ -39,7 +39,7 @@ model:
     n_layer: 12
   resume: ''
 optimizer:
-  base_lr: 5e-5
+  base_lr: 1e-4
   classifier_ratio: 1.0
   warmup_epochs: 0
 train:
