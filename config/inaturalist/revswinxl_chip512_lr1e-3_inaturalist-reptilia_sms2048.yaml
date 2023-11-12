@@ -1,10 +1,12 @@
 base_configs: 
   - config/base.yaml
-  - config/cluster_paths_inat.yaml
-name: revswinv2_xl_tiny_chip512_lr1e-3_inaturalist-reptilia_sms2048
+  - config/cluster_paths_em.yaml
+  # - config/cluster_paths_inat.yaml
+# name: revswinv2_xl_tiny_chip512_lr1e-3_inaturalist-reptilia_sms2048
+name: revswinxl_tiny_512
 data:
   dataset: inaturalist
-  crop_size: 512
+  crop_size: 512 
   batch_size: ${train.batch_size}
   val_batch_size: ${train.val_batch_size}
   num_workers: 1
@@ -45,8 +47,8 @@ optimizer:
   warmup_epochs: 0
 train:
   epochs: 20
-  batch_size: 54
-  val_batch_size: 1
+  batch_size: 8
+  val_batch_size: ${train.batch_size}
   freeze_epochs: 0
   test_every: 1
   test_reset: True
