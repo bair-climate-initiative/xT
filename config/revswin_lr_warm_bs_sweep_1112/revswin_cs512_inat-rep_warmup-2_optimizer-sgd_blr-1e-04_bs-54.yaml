@@ -1,0 +1,69 @@
+base_configs:
+- config/base.yaml
+- config/cluster_paths_inat.yaml
+name: revswin_cs512_inat-rep_warmup-2_optimizer-sgd_blr-1e-04_bs-54
+data:
+  dataset: inaturalist
+  crop_size: 512
+  batch_size: ${train.batch_size}
+  val_batch_size: ${train.val_batch_size}
+  num_workers: 4
+  num_classes: 284
+  interpolation: bilinear
+  test_crop: false
+  aug:
+    auto_augment: rand-m9-mstd0.5-inc1
+    color_jitter: 0.4
+    reprob: 0.0
+    remode: pixel
+    recount: 1
+    mixup: 0.0
+    cutmix: 0.0
+    label_smoothing: 0.1
+    random_resized_crop: false
+    mean:
+    - 0.485
+    - 0.456
+    - 0.406
+    std:
+    - 0.229
+    - 0.224
+    - 0.225
+  supercategories:
+  - Reptilia
+model:
+  name: EncoderDecoderV2
+  num_classes: ${data.num_classes}
+  mlp_ratio: 4
+  backbone:
+    img_size: 512
+    input_dim: 3
+    use_vanilla_backward: false
+    pretrained: ${oc.env:PRETRAINED_CKPT_PATH, "./ckpts"}/swinv2_tiny_window16_256.pth
+    upsample: false
+  xl_context:
+    enabled: true
+    n_layer: 12
+  resume: ''
+optimizer:
+  base_lr: 0.0001
+  classifier_ratio: 1.0
+  warmup_epochs: 2
+  name: sgd
+train:
+  epochs: 20
+  batch_size: 54
+  val_batch_size: 1
+  freeze_epochs: 0
+  test_every: 1
+  test_reset: true
+  clip_grad: 5.0
+val: false
+losses:
+  losses:
+  - name: cls
+    type: CrossEntropy
+    params:
+      field: label
+    weight: 1.0
+    display: true
