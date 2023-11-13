@@ -20,9 +20,9 @@ from inference.postprocessing import process_confidence
 from inference.run_inference import predict_scene_and_return_mm
 from metrics import xview_metric
 from metrics.xview_metric import create_metric_arg_parser
-
+from .utils import all_gather
 from .tiling import build_tiling
-
+import numpy as np
 
 class Evaluator(ABC):
     @abstractmethod
@@ -302,6 +302,8 @@ class ClsEvaluator(Evaluator):
         return {
             "accuracy_top1": 0,
             "accuracy_top5": 0,
+            "accuracy_top1_torchmetric":0,
+            "accuracy_top5_torchmetric":0,
             "precision": 0,
             "recall": 0
         }
@@ -361,7 +363,9 @@ class ClsEvaluator(Evaluator):
         
         dataloader_tqdm = tqdm(dataloader, position=0)
         dataloader = iter(dataloader)
-        
+        ACC_1 = 0
+        ACC_5 = 0
+        TOL = 0
         for _ in range(len(dataloader)):
             sample = next(dataloader)
             img = sample['image'].float()
@@ -369,20 +373,35 @@ class ClsEvaluator(Evaluator):
                 output = model_foward(img, model)
             else:
                 output = model(img)
-            pred = output['label'].cuda()
-            gt = sample['label'].cuda()
+            pred = output['label']
+            gt = sample['label']
+            self.val_metrics.update(pred.cuda(), gt.cuda())
+            pred = pred.argsort(-1,descending=True).cpu()
+            gt = gt.cpu()
+            top_5 = pred[:,:5]
+            top_1 = pred[:,:1]
+            ACC_5 += ((top_5 == gt.view(1,-1)).sum(-1) > 0).sum().item()
+            ACC_1 += ((top_1 == gt.view(1,-1)).sum(-1) > 0).sum().item()
+            TOL += pred.shape[0]
             # print(f"Sample label device: {gt.device}")
-            self.val_metrics.update(pred, gt)
+            
             if is_main_process():
                 dataloader_tqdm.update()
-
+        ACC_1 = all_gather(ACC_1)
+        ACC_5 = all_gather(ACC_5)
+        TOL = all_gather(TOL)
+        ACC_1 = np.sum(ACC_1)
+        ACC_5 =np.sum(ACC_5)
+        TOL = np.sum(TOL)
         outputs = self.val_metrics.compute()
         self.val_metrics.reset()
 
         if is_main_process():
             metrics = {
-                "accuracy_top1": outputs["val_top1_acc"].item(),
-                "accuracy_top5": outputs["val_top5_acc"].item(),
+                "accuracy_top1": ACC_1 / TOL,
+                "accuracy_top5": ACC_5 / TOL,
+                "accuracy_top1_torchmetric": outputs["val_top1_acc"].item(),
+                "accuracy_top5_torchmetric": outputs["val_top5_acc"].item(),
                 "precision": outputs["val_precision"].item(),
                 "recall": outputs["val_recall"].item()
             }
