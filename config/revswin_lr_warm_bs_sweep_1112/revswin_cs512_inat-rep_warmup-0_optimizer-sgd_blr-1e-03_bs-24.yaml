@@ -1,16 +1,16 @@
-base_configs: 
-  - config/base.yaml
-  - config/cluster_paths_inat.yaml
-name: revswinv2_xl_tiny_chip512_lr1e-4_inaturalist-reptilia_sms2048
+base_configs:
+- config/base.yaml
+- config/cluster_paths_inat.yaml
+name: revswin_cs512_inat-rep_warmup-0_optimizer-sgd_blr-1e-03_bs-24
 data:
   dataset: inaturalist
-  crop_size: 512 
+  crop_size: 512
   batch_size: ${train.batch_size}
   val_batch_size: ${train.val_batch_size}
-  num_workers: 1
+  num_workers: 4
   num_classes: 284
   interpolation: bilinear
-  test_crop: False
+  test_crop: false
   aug:
     auto_augment: rand-m9-mstd0.5-inc1
     color_jitter: 0.4
@@ -19,44 +19,51 @@ data:
     recount: 1
     mixup: 0.0
     cutmix: 0.0
-    label_smoothing: 0.3
-    random_resized_crop: False
-    mean: [0.485, 0.456, 0.406]
-    std: [0.229, 0.224, 0.225]
+    label_smoothing: 0.1
+    random_resized_crop: false
+    mean:
+    - 0.485
+    - 0.456
+    - 0.406
+    std:
+    - 0.229
+    - 0.224
+    - 0.225
   supercategories:
-    - Reptilia
-model: 
+  - Reptilia
+model:
   name: EncoderDecoderV2
   num_classes: ${data.num_classes}
   mlp_ratio: 4
   backbone:
     img_size: 512
     input_dim: 3
-    use_vanilla_backward: False
+    use_vanilla_backward: false
     pretrained: ${oc.env:PRETRAINED_CKPT_PATH, "./ckpts"}/swinv2_tiny_window16_256.pth
-    upsample: False
+    upsample: false
   xl_context:
     enabled: true
     n_layer: 12
   resume: ''
 optimizer:
-  base_lr: 1e-4
+  base_lr: 0.001
   classifier_ratio: 1.0
   warmup_epochs: 0
+  name: sgd
 train:
   epochs: 20
-  batch_size: 32
+  batch_size: 24
   val_batch_size: 1
   freeze_epochs: 0
   test_every: 1
-  test_reset: True
+  test_reset: true
   clip_grad: 5.0
-val: False
+val: false
 losses:
   losses:
-    - name: cls
-      type: CrossEntropy
-      params: 
-        field: label 
-      weight: 1.0
-      display: on
+  - name: cls
+    type: CrossEntropy
+    params:
+      field: label
+    weight: 1.0
+    display: true

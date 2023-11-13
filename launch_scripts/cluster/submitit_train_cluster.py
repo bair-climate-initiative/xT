@@ -118,10 +118,14 @@ class Trainer(object):
             set_cuda_visible_devices=False
         )
         self.config.output_dir = Path(
-            str(self.config.output_dir).replace("%j", f"{job_env.job_id}_{self.config.name}")
+            str(self.config.output_dir).replace(
+                "%j", f"{job_env.job_id}_{self.config.name}"
+            )
         )
         self.config.model.resume = Path(
-            str(self.config.model.resume).replace("%j", f"{job_env.job_id}_{self.config.name}")
+            str(self.config.model.resume).replace(
+                "%j", f"{job_env.job_id}_{self.config.name}"
+            )
         )
 
         # These are needed because submitit errors out otherwise.
@@ -141,9 +145,7 @@ def main():
         args.job_dir = get_shared_folder() / "%j"
 
     # Note that the folder will depend on the job_id, to easily track experiments
-    executor = submitit.AutoExecutor(
-        folder=args.job_dir, slurm_max_num_timeout=30
-    )
+    executor = submitit.AutoExecutor(folder=args.job_dir, slurm_max_num_timeout=30)
 
     if args.constraint == "mla":
         num_gpus_per_node = 4
@@ -180,7 +182,9 @@ def main():
 
     args.dist_url = get_init_file().as_uri()
     args.output_dir = args.job_dir
-    config = create_config(schema=OmegaConf.structured(XviewConfig), cfg_path=args.config)
+    config = create_config(
+        schema=OmegaConf.structured(XviewConfig), cfg_path=args.config
+    )
     print(OmegaConf.to_yaml(config))
 
     trainer = Trainer(config)
