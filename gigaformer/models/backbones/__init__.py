@@ -1,6 +1,7 @@
 from .revswinv2 import (
-    revswinv2_large_window16_256_xview,
     revswinv2_tiny_window16_256_xview,
+    revswinv2_base_window16_256_xview,
+    revswinv2_large_window16_256_xview,
 )
 from .swin import (
     swinv2_large_window12_192_xview,

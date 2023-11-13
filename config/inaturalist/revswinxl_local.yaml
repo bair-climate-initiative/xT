@@ -3,13 +3,13 @@ base_configs:
   - config/cluster_paths_em.yaml
   # - config/cluster_paths_inat.yaml
 # name: revswinv2_xl_tiny_chip512_lr1e-3_inaturalist-reptilia_sms2048
-name: revswinxl_tiny_512
+name: revswinxl_base_512
 data:
   dataset: inaturalist
   crop_size: 512
   batch_size: ${train.batch_size}
   val_batch_size: ${train.val_batch_size}
-  num_workers: 1
+  num_workers: 8
   num_classes: 284
   interpolation: bilinear
   test_crop: True
@@ -31,11 +31,12 @@ model:
   name: EncoderDecoderV2
   num_classes: ${data.num_classes}
   mlp_ratio: 4
+  backbone_class: revswinv2_base_window16_256_xview
   backbone:
     img_size: 512
     input_dim: 3
     use_vanilla_backward: False
-    pretrained: ${oc.env:PRETRAINED_CKPT_PATH, "./ckpts"}/swinv2_tiny_window16_256.pth
+    pretrained: True # doesn't matter for base, pulled from timm. 
     upsample: False
   xl_context:
     enabled: False
@@ -44,7 +45,7 @@ model:
 optimizer:
   name: AdamW
   base_lr: 1e-5
-  classifier_ratio: 1.0
+  classifier_ratio: 3.0
   warmup_epochs: 0
 train:
   epochs: 60
