@@ -23,7 +23,6 @@ from metrics import xview_metric
 from metrics.xview_metric import create_metric_arg_parser
 
 from .tiling import build_tiling
-from .utils import all_gather
 
 
 class Evaluator(ABC):
