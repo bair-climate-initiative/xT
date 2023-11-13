@@ -17,7 +17,8 @@ data:
     reprob: 0.0
     remode: pixel
     recount: 1
-    mixup: 0.4
+    mixup: 0.0
+    cutmix: 0.0
     label_smoothing: 0.1
     random_resized_crop: False
     mean: [0.485, 0.456, 0.406]
@@ -44,7 +45,7 @@ optimizer:
   warmup_epochs: 0
 train:
   epochs: 20
-  batch_size: 54
+  batch_size: 32
   val_batch_size: 1
   freeze_epochs: 0
   test_every: 1

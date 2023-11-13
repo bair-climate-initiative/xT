@@ -1,15 +1,13 @@
 base_configs: 
-  - config/cluster_paths_inat.yaml
   - config/base.yaml
   - config/cluster_paths_inat.yaml
-
-name: mae_224_baseline-reptilia_lr1e-4
+name: revswinv2_xl_512_swinpt_lr5e-5_inaturalist-reptilia_size512
 data:
   dataset: inaturalist
-  crop_size: 224
+  crop_size: 512
   batch_size: ${train.batch_size}
   val_batch_size: ${train.val_batch_size}
-  num_workers: 16
+  num_workers: 4
   num_classes: 284
   interpolation: bilinear
   test_crop: False
@@ -21,7 +19,7 @@ data:
     recount: 1
     mixup: 0.0
     cutmix: 0.0
-    label_smoothing: 0.3
+    label_smoothing: 0.1
     random_resized_crop: False
     mean: [0.485, 0.456, 0.406]
     std: [0.229, 0.224, 0.225]
@@ -30,29 +28,29 @@ data:
 model: 
   name: EncoderDecoderV2
   num_classes: ${data.num_classes}
-  backbone_class: vit_base_patch16
   mlp_ratio: 4
   backbone:
     img_size: 512
     input_dim: 3
     use_vanilla_backward: False
-    pretrained: /shared/jacklishufan/mae/mae_pretrain_vit_base.pth
+    pretrained: ${oc.env:PRETRAINED_CKPT_PATH, "./ckpts"}/swinv2_tiny_window16_256.pth
     upsample: False
   xl_context:
-    enabled: off
+    enabled: true
     n_layer: 12
   resume: ''
 optimizer:
-  base_lr: 1e-4
+  base_lr: 5e-5
   classifier_ratio: 1.0
   warmup_epochs: 0
 train:
-  epochs: 20
-  batch_size: 2
+  epochs: 40
+  batch_size: 32
   val_batch_size: 1
   freeze_epochs: 0
   test_every: 1
   test_reset: True
+  clip_grad: 5.0
 val: False
 losses:
   losses:

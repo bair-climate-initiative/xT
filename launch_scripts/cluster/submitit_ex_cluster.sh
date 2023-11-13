@@ -1,6 +1,6 @@
 #!/bin/bash
 HOME=/p/home/ritwik
-EXP_NAME=revswinv2_xl_4096_chip1024_lr1e-2_wu1
+EXP_NAME=mae_224_baseline-reptilia_lr1e-3_inaturalist-reptilia_adamw
 PROJECT_DIR=/p/home/ritwik/dev/xview3-detection
 PRETRAINED_CKPT_PATH=/p/home/ritwik/pretrained_weights
 
@@ -22,12 +22,12 @@ WANDB_MODE=offline \
 PRETRAINED_CKPT_PATH=$PRETRAINED_CKPT_PATH \
 EXP_NAME=$EXP_NAME \
 python $PROJECT_DIR/launch_scripts/cluster/submitit_train_cluster.py \
-    --job_dir $HOME/jobs/$EXP_NAME \
+    --job_dir /p/app/projects/nga-frontier/gigaformer-runs/jobs/$EXP_NAME \
     --constraint $CONSTRAINT \
     --qos frontier \
     --account ODEFN5169CYFZ \
     --nodes 1 \
-    --config $PROJECT_DIR/config/revswin_xl_1101/4096_chip1024_lr1e-2_wu1.yaml
+    --config $PROJECT_DIR/config/inaturalist/mae_224_baseline_lr1e-3_inaturalist-reptilia_adamw.yaml
 
 # use the below for non-slurm launches.
 # OMP_NUM_THREADS=1 CUDA_VISIBLE_DEVICES=6,7 \
