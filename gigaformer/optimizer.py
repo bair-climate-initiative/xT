@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Tuple
 
 # from hydra.core.config_store import ConfigStore
 from timm.optim import AdamW
@@ -37,6 +38,10 @@ class OptimizerConfig:
     """SGD Momentum"""
     nesterov: bool = True
     """SGD Nesterov momentum"""
+    eps: float = 1e-8
+    """Adam epsilon."""
+    betas: Tuple[float, float] = (0.9, 0.999)
+    """Adam betas"""
 
 
 # @dataclass

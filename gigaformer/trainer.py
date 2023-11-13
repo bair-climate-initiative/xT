@@ -3,6 +3,7 @@ import math
 import os
 import re
 import time
+import sys
 from numbers import Number
 from pathlib import Path
 from typing import Dict
@@ -360,6 +361,9 @@ class PytorchTrainer:
                     #         all_keys.append(k+'_GT')
 
                     #     wandb_dump_images(all_imgs,keys=all_keys)
+                    # if is_main_process():
+                    #     print(sample["label"].shape, output["label"].shape)
+                    #     print(sample["label"], output["label"])
                     total_loss = 0
                     for loss_def in self.losses:
                         loss = loss_def.loss.calculate_loss(output, sample)

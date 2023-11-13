@@ -51,15 +51,15 @@ class AugmentationConfig:
     """Random erase mode (default: 'const')"""
     recount: int = 1
     """Random erase count (default: 1)"""
-    mixup: float = 0.8
+    mixup: float = 0.0
     """Mixup alpha, mixup enabled if > 0"""
-    cutmix: float = 1.0
+    cutmix: float = 0.0
     """Cutmix alpha, cutmix enabled if > 0"""
     cutmix_minmax: Any = None
     """Cutmix min/max ratio, overrides alpha and enables cutmix if set"""
-    mixup_prob: float = 1.0
+    mixup_prob: float = 0.0
     """Probability of performing mixup or cutmix when either/both is enabled"""
-    mixup_switch_prob: float = 0.5
+    mixup_switch_prob: float = 0.0
     """Probability of switching to cutmix when both mixup and cutmix enabled"""
     mixup_mode: str = 'batch'
     """How to apply mixup/cutmix params. Per batch, pair, or elem."""

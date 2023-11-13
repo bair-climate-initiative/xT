@@ -1,0 +1,4 @@
+output_dir: outputs/
+data:
+  dir: /home/group/inaturalist2018
+  category_label_path: meta/category_label_reptilia_map.json

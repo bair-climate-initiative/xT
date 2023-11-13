@@ -589,6 +589,7 @@ class CrossEntropy(LossCalculator):
     def calculate_loss(self, outputs, sample):
         targets = sample[self.field].cuda().long()  # Label map
         pred = outputs[self.field]
+        # print("in loss: ", targets, pred)
         return self.ce(pred, targets)
 
 class SoftTargetCrossEntropyLoss(LossCalculator):
@@ -600,6 +601,7 @@ class SoftTargetCrossEntropyLoss(LossCalculator):
     def calculate_loss(self, outputs, sample):
         targets = sample[self.field].cuda().long()  # Label map
         pred = outputs[self.field]
+        # print("in loss: ", targets, pred)
         return self.ce(pred, targets)
 
 class LabelSmoothingCrossEntropyLoss(LossCalculator):
@@ -611,4 +613,6 @@ class LabelSmoothingCrossEntropyLoss(LossCalculator):
     def calculate_loss(self, outputs, sample):
         targets = sample[self.field].cuda().long()  # Label map
         pred = outputs[self.field]
+        # if is_main_process():
+        #     print("in loss: ", targets, pred)
         return self.ce(pred, targets)
