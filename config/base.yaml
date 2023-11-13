@@ -24,7 +24,6 @@ model:
   name: TimmUnet
   patch_size: 16
   backbone_class: revswinv2_tiny_window16_256_xview
-  skip: false
   backbone:
     in_chans: 3
     input_dim: 2
@@ -40,6 +39,7 @@ model:
     context_patch_len: 100
     no_memory: false
     tiling: ${model.tiling}
+    skip_connection: false
 optimizer:
   name: sgd 
   base_lr: 1e-3

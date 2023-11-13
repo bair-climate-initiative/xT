@@ -1,10 +1,16 @@
 from dataclasses import dataclass, field
 
 from .backbones import *
+from .backbones.vit import vit_base_patch16
+from .hiera import (
+    get_hiera_model,
+    get_hiera_model_base,
+    get_hiera_model_small,
+    get_hiera_model_tiny,
+)
 from .transformer_xl import TransformerXLConfig
 from .unet import EncoderDecoderV2, TimmUnet
-from .hiera import get_hiera_model,get_hiera_model_base,get_hiera_model_small,get_hiera_model_tiny
-from .backbones.vit import vit_base_patch16
+
 # from hydra.core.config_store import ConfigStore
 # from hydra.utils import instantiate
 
@@ -29,7 +35,7 @@ class BackboneConfig:
     """If channels are last in data format."""
     img_size: int = 256
     """Expected input size of data."""
-    use_vanilla_backward: bool = False 
+    use_vanilla_backward: bool = False
     """Use vanilla backward pass for Revswin (debug only)."""
     upsample: bool = True
     """Whether to add an upsample on top of feature maps for RevSwin (False for EncDecv2)"""
@@ -49,7 +55,7 @@ class ModelConfig:
     """Patch sized used for transformer XL."""  # TODO: properly derive this
     num_classes: int = 9999
     """Number of classes for head on dataset."""
-    mlp_ratio: int = 4 
+    mlp_ratio: int = 4
     """MLP ratio for Enc/Dec."""
 
     backbone: BackboneConfig = field(default_factory=BackboneConfig)
@@ -87,6 +93,6 @@ def build_model(config: ModelConfig, dataset: str = "xview3"):
             dataset=dataset,
             num_classes=config.num_classes,
             mlp_ratio=config.mlp_ratio,
-            skip_conntection=config.skip
+            skip_conntection=config.xl_context.skip_connection,
         )
     return model
