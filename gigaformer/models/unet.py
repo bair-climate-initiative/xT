@@ -647,14 +647,17 @@ class TransformerXLContextModel(nn.Module):
         xl_args.update(transformer_xl_config)
         self.model = MemTransformerLM(**xl_args)
 
-    def forward(self, enc_results, mem):
+    def forward(self, enc_results, mem,skip=False):
         xx = enc_results[-1]  # N C H W
         old_shape = xx.shape
         xx = xx.flatten(2).permute(2, 0, 1)  # L N C
         xx = self.model(xx, xx, *mem)
         pred_out, mem = xx[0], xx[1:]
         pred_out = pred_out.permute(1, 2, 0).view(*old_shape)
-        enc_results[-1] = pred_out  # overwrite
+        if skip:
+            enc_results[-1] = torch.cat([enc_results[-1],pred_out],dim=1)  # overwrite
+        else:
+            enc_results[-1] = pred_out  # overwrite
         mem = mem
         return enc_results, mem
 
@@ -689,6 +692,7 @@ class EncoderDecoderV2(AbstractModel):
         dataset: str = 'xview3',
         num_classes: int = 9999,
         mlp_ratio: int = 4,
+        skip_conntection: bool = False,
         **kwargs
     ):
         # if not hasattr(self, "first_layer_stride_two"):
@@ -701,6 +705,7 @@ class EncoderDecoderV2(AbstractModel):
         self.dataset = dataset
         self.num_classes = num_classes
         self.mlp_ratio = mlp_ratio
+        self.skip_conntection = skip_conntection
 
         super().__init__()
 
@@ -731,7 +736,7 @@ class EncoderDecoderV2(AbstractModel):
         x_skip = x
         enc_results = self.encoder(x)
         if self.context_mode:
-            enc_results, mem = self.context_model(enc_results, mem)
+            enc_results, mem = self.context_model(enc_results, mem,skip=self.skip_conntection)
         output = self.decoder(enc_results, x_skip)
         if self.context_mode:
             return output, mem
@@ -750,7 +755,7 @@ class EncoderDecoderV2(AbstractModel):
             )
         elif self.dataset == 'inaturalist':
             self.decoder = ClassificationDecoder(
-                in_dim=self.filters[-1],
+                in_dim=self.filters[-1] * (2 if self.skip_conntection else 1),
                 num_classes=self.num_classes,
                 mlp_ratio=self.mlp_ratio
             )

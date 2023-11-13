@@ -54,6 +54,7 @@ class ModelConfig:
 
     backbone: BackboneConfig = field(default_factory=BackboneConfig)
     xl_context: TransformerXLConfig = field(default_factory=TransformerXLConfig)
+    skip: bool = False
 
 
 # cs = ConfigStore.instance()
@@ -86,5 +87,6 @@ def build_model(config: ModelConfig, dataset: str = "xview3"):
             dataset=dataset,
             num_classes=config.num_classes,
             mlp_ratio=config.mlp_ratio,
+            skip_conntection=config.skip
         )
     return model
