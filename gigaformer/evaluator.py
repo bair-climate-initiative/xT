@@ -338,6 +338,7 @@ class ClsEvaluator(Evaluator):
         if is_main_process():
             print("DEBUG: MAIN")
         extra_context = model.module.context_mode
+        self.val_metrics.reset()
 
         def model_foward(x, model):
             mem = set()
@@ -394,7 +395,6 @@ class ClsEvaluator(Evaluator):
         ACC_5 =np.sum(ACC_5)
         TOL = np.sum(TOL)
         outputs = self.val_metrics.compute()
-        self.val_metrics.reset()
 
         if is_main_process():
             metrics = {

@@ -67,8 +67,8 @@ def parse_args():
 
 
 def get_shared_folder() -> Path:
-    if Path("/p/home/ritwik/jobs/").is_dir():
-        p = Path(f"/p/home/ritwik/jobs/xview3/")
+    if Path("/p/app/projects/nga-frontier/gigaformer-runs/jobs/").is_dir():
+        p = Path(f"/p/app/projects/nga-frontier/gigaformer-runs/jobs/")
         p.mkdir(exist_ok=True)
         return p
     raise RuntimeError("No shared folder available")

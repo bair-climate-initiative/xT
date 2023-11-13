@@ -23,7 +23,7 @@ do
     PRETRAINED_CKPT_PATH=$PRETRAINED_CKPT_PATH \
     EXP_NAME=$EXP_NAME \
     python $PROJECT_DIR/launch_scripts/cluster/submitit_train_cluster.py \
-        --job_dir $HOME/jobs/$EXP_NAME \
+        --job_dir /p/app/projects/nga-frontier/gigaformer-runs/jobs/$EXP_NAME \
         --constraint $CONSTRAINT \
         --qos frontier \
         --account ODEFN5169CYFZ \

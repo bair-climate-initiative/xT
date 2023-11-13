@@ -2,7 +2,7 @@ base_configs:
   - config/base.yaml
   - config/cluster_paths_inat.yaml
 
-name: mae_224_baseline-reptilia_lr1e-4_inaturalist-reptilia
+name: mae_224_baseline-reptilia_lr1e-4_inaturalist-reptilia_adamw
 data:
   dataset: inaturalist
   crop_size: 224
@@ -42,12 +42,16 @@ model:
     n_layer: 12
   resume: ''
 optimizer:
+  name: adamw
+  betas:
+    - 0.9
+    - 0.999
   base_lr: 1e-4
   classifier_ratio: 1.0
-  warmup_epochs: 0
+  warmup_epochs: 1
 train:
-  epochs: 40
-  batch_size: 2
+  epochs: 20
+  batch_size: 32
   val_batch_size: 1
   freeze_epochs: 0
   test_every: 1

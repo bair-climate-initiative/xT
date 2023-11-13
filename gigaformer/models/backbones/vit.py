@@ -17,16 +17,13 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.checkpoint as checkpoint
-
 # from mmdet.utils import get_root_logger
 # from ..builder import BACKBONES
 from einops import rearrange
 from timm.models.layers import drop_path, to_2tuple, trunc_normal_
 
-from ..pos_embed import (
-    get_1d_sincos_pos_embed_from_grid_torch,
-    get_2d_sincos_pos_embed,
-)
+from ..pos_embed import (get_1d_sincos_pos_embed_from_grid_torch,
+                         get_2d_sincos_pos_embed)
 
 
 class DropPath(nn.Module):
@@ -933,6 +930,7 @@ def vit_base_patch16(pretrained=False, **kwargs):
         **kwargs
     )
     if pretrained:
+        print(f"Loading pretrained weights from {pretrained}")
         model = load_checkpoint(model, pretrained)
     return model
 
@@ -949,6 +947,7 @@ def vit_small_patch16(pretrained=False, **kwargs):
         **kwargs
     )
     if pretrained:
+        print(f"Loading pretrained weights from {pretrained}")
         model = load_checkpoint(model, pretrained)
     return model
 
