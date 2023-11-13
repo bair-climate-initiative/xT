@@ -6,6 +6,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Dict
 
+import numpy as np
 import pandas as pd
 import torch
 import torch.distributed as dist
@@ -20,9 +21,10 @@ from inference.postprocessing import process_confidence
 from inference.run_inference import predict_scene_and_return_mm
 from metrics import xview_metric
 from metrics.xview_metric import create_metric_arg_parser
-from .utils import all_gather
+
 from .tiling import build_tiling
-import numpy as np
+from .utils import all_gather
+
 
 class Evaluator(ABC):
     @abstractmethod
@@ -280,30 +282,24 @@ class ClsEvaluator(Evaluator):
         self.overlap = config.data.overlap
         self.num_classes = config.model.num_classes
 
-        metrics = MetricCollection({
-            "top1_acc": Accuracy(task="multiclass",
+        self.top1_acc = Accuracy(task="multiclass",
                                  num_classes=self.num_classes,
-                                 top_k=1),
-            "top5_acc": Accuracy(task="multiclass",
+                                 top_k=1).cuda()
+        self.top5_acc = Accuracy(task="multiclass",
                                  num_classes=self.num_classes,
-                                 top_k=5),
-            "precision": Precision(task="multiclass",
+                                 top_k=5).cuda()
+        self.precision = Precision(task="multiclass",
                                    average="macro",
-                                   num_classes=self.num_classes),
-            "recall": Recall(task="multiclass",
+                                   num_classes=self.num_classes).cuda()
+        self.recall = Recall(task="multiclass",
                              average="macro",
-                             num_classes=self.num_classes)
-        })
-
-        self.val_metrics = metrics.clone(prefix="val_").cuda()
+                             num_classes=self.num_classes).cuda()
 
 
     def init_metrics(self) -> Dict:
         return {
             "accuracy_top1": 0,
             "accuracy_top5": 0,
-            "accuracy_top1_torchmetric":0,
-            "accuracy_top5_torchmetric":0,
             "precision": 0,
             "recall": 0
         }
@@ -338,7 +334,9 @@ class ClsEvaluator(Evaluator):
         if is_main_process():
             print("DEBUG: MAIN")
         extra_context = model.module.context_mode
-        self.val_metrics.reset()
+        # Torchmetrics reset
+        for metric in [self.top1_acc, self.top5_acc, self.precision, self.recall]:
+            metric.reset()
 
         def model_foward(x, model):
             mem = set()
@@ -364,9 +362,7 @@ class ClsEvaluator(Evaluator):
         
         dataloader_tqdm = tqdm(dataloader, position=0)
         dataloader = iter(dataloader)
-        ACC_1 = 0
-        ACC_5 = 0
-        TOL = 0
+
         for _ in range(len(dataloader)):
             sample = next(dataloader)
             img = sample['image'].float()
@@ -376,34 +372,25 @@ class ClsEvaluator(Evaluator):
                 output = model(img)
             pred = output['label']
             gt = sample['label']
-            self.val_metrics.update(pred.cuda(), gt.cuda())
-            pred = pred.argsort(-1,descending=True).cpu()
-            gt = gt.cpu()
-            top_5 = pred[:,:5]
-            top_1 = pred[:,:1]
-            ACC_5 += ((top_5 == gt.view(1,-1)).sum(-1) > 0).sum().item()
-            ACC_1 += ((top_1 == gt.view(1,-1)).sum(-1) > 0).sum().item()
-            TOL += pred.shape[0]
-            # print(f"Sample label device: {gt.device}")
-            
+
+            # Torchmetrics update
+            for metric in [self.top1_acc, self.top5_acc, self.precision, self.recall]:
+                metric.update(pred.cuda().softmax(dim=-1), gt.cuda())
+
             if is_main_process():
                 dataloader_tqdm.update()
-        ACC_1 = all_gather(ACC_1)
-        ACC_5 = all_gather(ACC_5)
-        TOL = all_gather(TOL)
-        ACC_1 = np.sum(ACC_1)
-        ACC_5 =np.sum(ACC_5)
-        TOL = np.sum(TOL)
-        outputs = self.val_metrics.compute()
+
+        top1_acc_tm = self.top1_acc.compute()
+        top5_acc_tm = self.top5_acc.compute()
+        precion_tm = self.precision.compute()
+        recall_tm = self.recall.compute()
 
         if is_main_process():
             metrics = {
-                "accuracy_top1": ACC_1 / TOL,
-                "accuracy_top5": ACC_5 / TOL,
-                "accuracy_top1_torchmetric": outputs["val_top1_acc"].item(),
-                "accuracy_top5_torchmetric": outputs["val_top5_acc"].item(),
-                "precision": outputs["val_precision"].item(),
-                "recall": outputs["val_recall"].item()
+                "accuracy_top1": top1_acc_tm.item(),
+                "accuracy_top5": top5_acc_tm.item(),
+                "precision": precion_tm.item(),
+                "recall": recall_tm.item()
             }
             dataloader_tqdm.set_postfix({**metrics})
 
