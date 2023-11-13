@@ -17,6 +17,15 @@ class HieraWrapper(nn.Module):
     
     
 
-def get_hiera_model(*args,**kwargs):
+def get_hiera_model_base(*args,**kwargs):
     model = hiera.hiera_base_224(pretrained=True, checkpoint="mae_in1k_ft_in1k")
     return HieraWrapper(model)
+
+def get_hiera_model_tiny(*args,**kwargs):
+    model = hiera.hiera_tiny_224(pretrained=True, checkpoint="mae_in1k_ft_in1k")
+    return HieraWrapper(model)
+
+def get_hiera_model_small(*args,**kwargs):
+    model = hiera.hiera_small_224(pretrained=True, checkpoint="mae_in1k_ft_in1k")
+    return HieraWrapper(model)
+get_hiera_model = get_hiera_model_base

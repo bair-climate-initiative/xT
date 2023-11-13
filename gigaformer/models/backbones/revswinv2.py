@@ -21,6 +21,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from timm.layers import DropPath  # manually add patchembed
 from timm.layers import Format, Mlp, nchw_to, to_2tuple, trunc_normal_
+import timm
 from torch.autograd import Function as Function
 
 from gigaformer.utils import is_main_process
@@ -1162,6 +1163,43 @@ def revswinv2_tiny_window16_256_xview(pretrained=True, **kwargs):
             print(
                 f"Loading pretrained backbone weights from path {pretrained}..."
             )
+        ckpt = torch.load(pretrained, map_location="cpu")
+        state_dict = model.state_dict()
+        filtered = {}
+        unexpected_keys = []
+        for k, v in ckpt.items():
+            if k in state_dict:
+                if state_dict[k].shape != v.shape:
+                    if is_main_process():
+                        print(f"Skipped {k} for size mismatch")
+                        print(state_dict[k].shape, v.shape)
+                    continue
+                filtered[k] = v
+            else:
+                unexpected_keys.append(k)
+        missing_keys = set(state_dict.keys()) - set(filtered.keys())
+        # print("Missing keys: ", missing_keys)
+        # print("Unexpected keys: ", unexpected_keys)
+        if is_main_process():
+            print(model.load_state_dict(filtered, strict=False))
+    return model
+
+
+def revswinv2_base_window16_256_xview(pretrained=True, **kwargs):
+    """ """
+    model_args = dict(
+        window_size=16,
+        embed_dim=128,
+        depths=(2, 2, 18, 2),
+        num_heads=(4, 8, 16, 32),
+    )
+    model = ReversibleSwinTransformerV2(**dict(model_args, **kwargs))
+    if pretrained:
+        if is_main_process():
+            print(
+                f"Loading pretrained backbone weights from {pretrained}..."
+            )
+        # ckpt = timm.create_model("swinv2_base_window16_256", pretrained=True).state_dict()
         ckpt = torch.load(pretrained, map_location="cpu")
         state_dict = model.state_dict()
         filtered = {}
