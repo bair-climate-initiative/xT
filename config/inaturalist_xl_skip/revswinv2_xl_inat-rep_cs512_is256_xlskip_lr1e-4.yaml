@@ -30,7 +30,6 @@ model:
   name: EncoderDecoderV2
   num_classes: ${data.num_classes}
   mlp_ratio: 4
-  skip: true
   backbone:
     img_size: 256
     input_dim: 3
