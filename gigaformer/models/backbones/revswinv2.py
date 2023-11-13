@@ -1197,9 +1197,10 @@ def revswinv2_base_window16_256_xview(pretrained=True, **kwargs):
     if pretrained:
         if is_main_process():
             print(
-                f"Loading pretrained backbone weights from timm..."
+                f"Loading pretrained backbone weights from {pretrained}..."
             )
-        ckpt = timm.create_model("swinv2_base_window16_256", pretrained=True).state_dict()
+        # ckpt = timm.create_model("swinv2_base_window16_256", pretrained=True).state_dict()
+        ckpt = torch.load(pretrained, map_location="cpu")
         state_dict = model.state_dict()
         filtered = {}
         unexpected_keys = []

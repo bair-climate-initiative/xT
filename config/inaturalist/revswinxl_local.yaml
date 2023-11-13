@@ -36,7 +36,7 @@ model:
     img_size: 512
     input_dim: 3
     use_vanilla_backward: False
-    pretrained: True # doesn't matter for base, pulled from timm. 
+    pretrained: ckpts/swinv2_base_window16_256.pth
     upsample: False
   xl_context:
     enabled: False
