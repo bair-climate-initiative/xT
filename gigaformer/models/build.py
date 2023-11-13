@@ -60,7 +60,6 @@ class ModelConfig:
 
     backbone: BackboneConfig = field(default_factory=BackboneConfig)
     xl_context: TransformerXLConfig = field(default_factory=TransformerXLConfig)
-    skip: bool = False
 
 
 # cs = ConfigStore.instance()
