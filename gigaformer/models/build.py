@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from .backbones import *
 from .transformer_xl import TransformerXLConfig
 from .unet import EncoderDecoderV2, TimmUnet
-from .hiera import get_hiera_model
+from .hiera import get_hiera_model,get_hiera_model_base,get_hiera_model_small,get_hiera_model_tiny
 from .backbones.vit import vit_base_patch16
 # from hydra.core.config_store import ConfigStore
 # from hydra.utils import instantiate
