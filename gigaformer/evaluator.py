@@ -156,8 +156,6 @@ class XviewEvaluator(Evaluator):
         *args,
         **kwargs,
     ) -> Dict:
-        if is_main_process():
-            print("DEBUG: MAIN")
         predictions_dir = Path(self.config.output_dir) / "predictions"
         dataset_dir = Path(self.config.data.dir) / self.dataset_dir
 
@@ -330,8 +328,6 @@ class ClsEvaluator(Evaluator):
         *args,
         **kwargs,
     ) -> Dict:
-        if is_main_process():
-            print("DEBUG: MAIN")
         extra_context = model.module.context_mode
         # Torchmetrics reset
         for metric in [self.top1_acc, self.top5_acc, self.precision, self.recall]:

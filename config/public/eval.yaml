@@ -1,7 +1,7 @@
 base_configs: 
   - config/base.yaml
   # - config/cluster_paths.yaml
-name: revswinv2_xl_4096_chip512_swinpt_lr3e-3_15e_eval
+name: revswinv2_xl_4096_chip512_swinpt_lr1e-4_11e_eval
 data:
   crop_size: 4096
   val_crop_size: 4096
@@ -14,7 +14,7 @@ model:
     enabled: True
     no_memory: False
     n_layer: 12
-  resume: ckpts/revswinv2_xl_4096_ckpt_lr3e-3_15.ckpt
+  resume: ckpts/revswinv2_xl_4096_chip512_lr1e-4_11e.ckpt
 optimizer:
   base_lr: 3e-3
   classifier_ratio: 1.0
@@ -26,4 +26,5 @@ train:
   freeze_epochs: 0
   test_every: 1
   test_reset: False
-test: True
+test: False
+val: True

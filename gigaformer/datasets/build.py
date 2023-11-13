@@ -57,9 +57,9 @@ class AugmentationConfig:
     """Cutmix alpha, cutmix enabled if > 0"""
     cutmix_minmax: Any = None
     """Cutmix min/max ratio, overrides alpha and enables cutmix if set"""
-    mixup_prob: float = 1.0
+    mixup_prob: float = 0.0
     """Probability of performing mixup or cutmix when either/both is enabled"""
-    mixup_switch_prob: float = 0.5
+    mixup_switch_prob: float = 0.0
     """Probability of switching to cutmix when both mixup and cutmix enabled"""
     mixup_mode: str = 'batch'
     """How to apply mixup/cutmix params. Per batch, pair, or elem."""
@@ -125,9 +125,8 @@ class DataConfig:
 
 
 def build_loader(config: DataConfig, test: bool = False):
-    if (
-        os.environ.get("RANK", "0") == "0"
-    ):  # needed since distrbuted not initialized
+    if os.environ.get("RANK", "0") == "0":
+        # needed since distrbuted not initialized
         print("dataset config crop size", config.crop_size)
         if config.dataset == "xview3" and config.shoreline_dir:
             print("Legacy Warning:shoreline_dir is no longer used")
