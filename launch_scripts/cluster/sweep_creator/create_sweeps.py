@@ -8,29 +8,17 @@ from pathlib import Path
 from omegaconf import OmegaConf
 
 
-def deep_get(dictionary, keys, default=None):
-    return reduce(
-        lambda d, key: d.get(key, default) if isinstance(d, dict) else default,
-        keys.split("."),
-        dictionary,
-    )
+def deep_get(nested_dict, key_path):
+    keys = key_path.split(".")
+    return reduce(lambda d, key: d.get(key, {}), keys, nested_dict)
 
 
-def deep_set(dictionary, keys, value):
-    dictionary_copy = deepcopy(dictionary)
-    keys_list = keys.split(".")
-    *nested_keys, last_key = keys_list
-
-    # Use defaultdict instead of setdefault
-    current_dict = reduce(
-        lambda d, key: d[key],
-        nested_keys,
-        defaultdict(dict, dictionary_copy),
-    )
-
-    current_dict[last_key] = value
-    dictionary_copy[nested_keys[0]] = deepcopy(current_dict)
-    return dictionary_copy
+def deep_set(dictionary, key, nested_keys, i, value):
+    if i == len(nested_keys) - 1:
+        dictionary[nested_keys[i]] = value
+        return
+    else:
+        deep_set(dictionary[nested_keys[i]], key, nested_keys, i + 1, value)
 
 
 def parse_args():
@@ -68,6 +56,10 @@ opt_key_map = {
     "optimizer.base_lr": "blr",
     "train.batch_size": "bs",
     "optimizer.warmup_epochs": "warmup",
+    "data.crop_size": "crop_size",
+    "model.backbone.img_size": "img_size",
+    "model.xl_context.enabled": "xl",
+    "model.backbone_class": "backbone",
 }
 
 
@@ -89,11 +81,11 @@ def main():
         modified_config = deepcopy(base_config)
         experiment_name = args.experiment_base_name
         for key, opt in combination:
-            modified_config = deep_set(modified_config, key, opt)
+            deep_set(modified_config, key, key.split("."), 0, opt)
             if key == "optimizer.name" and opt == "adamw":
                 # Set AdamW default betas
-                modified_config = deep_set(
-                    modified_config, "optimizer.betas", [0.9, 0.999]
+                deep_set(
+                    modified_config, "optimizer.betas", key.split("."), 0, [0.9, 0.999]
                 )
 
             key_name = opt_key_map.get(key, key.split(".")[-1])
@@ -104,6 +96,13 @@ def main():
                 experiment_name += f"_{key_name}-{opt}"
 
             modified_config["name"] = experiment_name
+
+        if (
+            deep_get(modified_config, "data.crop_size")
+            % deep_get(modified_config, "model.backbone.img_size")
+            != 0
+        ):
+            continue
 
         out_file = open(
             (args.output_folder / experiment_name).with_suffix(".yaml"), "w"
