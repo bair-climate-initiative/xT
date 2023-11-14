@@ -1,6 +1,6 @@
 base_configs: 
-  - config/inaturalist_revswin/base_256.yaml
-name: revswin_base_512
+  - config/inaturalist_revswin_ep100/revswin_ep100_base_256.yaml
+name: revswin_ep100_base_512
 data:
   crop_size: 512
 model:

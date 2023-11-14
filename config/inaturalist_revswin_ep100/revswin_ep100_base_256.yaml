@@ -2,7 +2,7 @@ base_configs:
   - config/base.yaml
   - config/cluster_paths_inat.yaml
   # - config/cluster_paths_em.yaml
-name: revswin_base_256
+name: revswin_ep100_base_256
 data:
   dataset: inaturalist
   crop_size: 256
