@@ -1,15 +1,12 @@
 from timm.models.swin_transformer_v2 import PatchMerging, SwinTransformerV2Block
-
-BasicLayer = SwinTransformerV2Block
+from timm.models.swin_transformer import SwinTransformerBlock
+BasicLayer = SwinTransformerBlock
 
 import numpy as np
 import torch
 import torch.nn as nn
 from timm.models.layers import PatchEmbed, trunc_normal_
 from timm.models.swin_transformer_v2 import PatchMerging, SwinTransformerV2Block
-
-BasicLayer = SwinTransformerV2Block
-
 
 class SwinTransformerV2Xview(nn.Module):
     r"""Swin Transformer V2
@@ -306,8 +303,34 @@ def swinv2_large_window16_256_xview(pretrained=False, **kwargs):
     return model
 
 
+def swinv2_base_window16_256_xview(pretrained=False, **kwargs):
+    """ """
+    model_kwargs = dict(
+        window_size=16,
+        embed_dim=128,
+        depths=(2, 2, 18, 2),
+        num_heads=(4, 8, 16, 32),
+        pretrained_window_sizes=(12, 12, 12, 6),
+        **kwargs,
+    )
+    model = SwinTransformerV2Xview(**model_kwargs)
+    if pretrained:
+        ckpt = torch.load(pretrained, map_location="cpu")
+        state_dict = model.state_dict()
+        filtered = {}
+        for k, v in ckpt.items():
+            if k in state_dict and state_dict[k].shape != v.shape:
+                print(f"SKipped {k} for size mismatch")
+                continue
+            filtered[k] = v
+        model.load_state_dict(filtered, strict=False)
+    return model
+
+
+
 SWIN_CFG = dict(
     swinv2_tiny_window16_256_xview=swinv2_tiny_window16_256_xview,
     swinv2_large_window12_192_xview=swinv2_large_window12_192_xview,
     swinv2_large_window16_256_xview=swinv2_large_window16_256_xview,
+    swinv2_base_window16_256_xview=swinv2_base_window16_256_xview,
 )
