@@ -2,7 +2,7 @@
 base_configs: 
   - config/base.yaml
   - config/cluster_paths_inat.yaml
-name: revswinv2_xl_base_chip512_256_lr1e-4_inaturalist-reptilia_sms2048
+name: swin_v1_base_1e-4_xl_512_256
 data:
   dataset: inaturalist
   crop_size: 512 
@@ -36,7 +36,7 @@ model:
     img_size: 256
     input_dim: 3
     use_vanilla_backward: False
-    pretrained: ./ckpts/swinv2_base_patch4_window16_256.pth
+    pretrained: ${oc.env:PRETRAINED_CKPT_PATH, "./ckpts"}/swinv2_base_patch4_window16_256.pth
     upsample: False
   xl_context:
     skip_connection: on
