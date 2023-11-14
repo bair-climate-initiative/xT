@@ -1,13 +1,14 @@
 base_configs: 
   - config/base.yaml
   - config/cluster_paths_inat.yaml
-name: revswinv2_xl_inat-rep_cs512_is512_xlskip_lr1e-4
+name: swin_v1_base_1e-4_nonxl_512
 data:
   dataset: inaturalist
-  crop_size: 512
+  crop_size: 512 
+  val_crop_size: 512
   batch_size: ${train.batch_size}
   val_batch_size: ${train.val_batch_size}
-  num_workers: 4
+  num_workers: 1
   num_classes: 284
   interpolation: bilinear
   test_crop: False
@@ -19,7 +20,7 @@ data:
     recount: 1
     mixup: 0.0
     cutmix: 0.0
-    label_smoothing: 0.1
+    label_smoothing: 0.3
     random_resized_crop: False
     mean: [0.485, 0.456, 0.406]
     std: [0.229, 0.224, 0.225]
@@ -29,17 +30,18 @@ model:
   name: EncoderDecoderV2
   num_classes: ${data.num_classes}
   mlp_ratio: 4
+  backbone_class: swinv2_base_window16_256_xview
   backbone:
     img_size: 512
     input_dim: 3
     use_vanilla_backward: False
-    pretrained: ${oc.env:PRETRAINED_CKPT_PATH, "./ckpts"}/swinv2_tiny_window16_256.pth
+    pretrained: ${oc.env:PRETRAINED_CKPT_PATH, "./ckpts"}/swinv2_base_patch4_window16_256.pth
     upsample: False
   xl_context:
-    enabled: true
+    skip_connection: off
+    enabled: off
     n_layer: 12
-    skip_connection: true
-  resume: ''
+  resume: '' # /shared/jacklishufan/inatualist/checkpoints/EncoderDecoderV2_revswinv2_tiny_window16_256_xview_77_hwcy21mb_accuracy_top1.ckpt
 optimizer:
   base_lr: 1e-4
   classifier_ratio: 1.0
