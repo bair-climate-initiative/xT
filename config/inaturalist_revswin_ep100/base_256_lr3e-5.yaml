@@ -1,5 +1,5 @@
 base_configs: 
-  - config/inaturalist_revswin/base_256.yaml
+  - config/inaturalist_revswin_ep100/base_256.yaml
 name: revswin_base_256_lr3e-5
 optimizer:
   name: AdamW

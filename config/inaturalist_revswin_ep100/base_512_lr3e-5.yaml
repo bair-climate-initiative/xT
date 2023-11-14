@@ -1,5 +1,5 @@
 base_configs: 
-  - config/inaturalist_revswin/base_512.yaml
+  - config/inaturalist_revswin_ep100/base_512.yaml
 name: revswin_base_512_lr3e-5
 data:
   crop_size: 512

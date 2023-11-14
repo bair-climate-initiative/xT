@@ -1,5 +1,5 @@
 base_configs: 
-  - config/inaturalist_revswin/xl_base_crop512_256.yaml
+  - config/inaturalist_revswin_ep100/xl_base_crop512_256.yaml
 name: revswinxl_base_crop512_256_lr3e-5
 optimizer:
   name: AdamW
