@@ -5,6 +5,7 @@ name: revswinv2_base_inat-rep_cs512_is512_lr1e-4
 data:
   dataset: inaturalist
   crop_size: 512
+  val_crop_size: ${data.crop_size}
   batch_size: ${train.batch_size}
   val_batch_size: ${train.val_batch_size}
   num_workers: 4
