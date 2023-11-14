@@ -1,6 +1,6 @@
-from timm.models.swin_transformer_v2 import PatchMerging, SwinTransformerV2Block
-from timm.models.swin_transformer import SwinTransformerBlock
-BasicLayer = SwinTransformerBlock
+from timm.models.swin_transformer_v2 import PatchMerging, SwinTransformerV2Stage
+from timm.models.swin_transformer import SwinTransformerStage
+BasicLayer = SwinTransformerV2Stage
 
 import numpy as np
 import torch
@@ -80,20 +80,21 @@ class SwinTransformerV2Xview(nn.Module):
             patch_size=patch_size,
             in_chans=in_chans,
             embed_dim=embed_dim,
-            norm_layer=norm_layer if self.patch_norm else None,
+            norm_layer=norm_layer,
+            output_fmt='NHWC',
         )
         num_patches = self.patch_embed.num_patches
 
         # absolute position embedding
-        if ape:
-            self.absolute_pos_embed = nn.Parameter(
-                torch.zeros(1, num_patches, embed_dim)
-            )
-            trunc_normal_(self.absolute_pos_embed, std=0.02)
-        else:
-            self.absolute_pos_embed = None
+        # if ape:
+        #     self.absolute_pos_embed = nn.Parameter(
+        #         torch.zeros(1, num_patches, embed_dim)
+        #     )
+        #     trunc_normal_(self.absolute_pos_embed, std=0.02)
+        # else:
+        #     self.absolute_pos_embed = None
 
-        self.pos_drop = nn.Dropout(p=drop_rate)
+        #self.pos_drop = nn.Dropout(p=drop_rate)
 
         # stochastic depth
         dpr = [
@@ -104,47 +105,55 @@ class SwinTransformerV2Xview(nn.Module):
         self.feature_info = []
         self.layers = nn.ModuleList()
         self.upsample = nn.ModuleList()
-        self.upsample.append(nn.ConvTranspose2d(embed_dim, embed_dim, 2, 2))
+        #self.upsample.append(nn.ConvTranspose2d(embed_dim, embed_dim, 2, 2))
+        self.upsample.append(nn.Identity())
         self.feature_info += [
             dict(num_chs=embed_dim, reduction=2, module="patch_embed")
         ]
+        scale = 1
+        
+        embed_dim = [int(embed_dim * 2 ** i) for i in range(self.num_layers)]
+        in_dim = embed_dim[0]
         for i_layer in range(self.num_layers):
+            i = i_layer
+            out_dim = embed_dim[i]
             layer = BasicLayer(
-                dim=int(embed_dim * 2**i_layer),
+                dim=in_dim,
+                out_dim=out_dim,
                 input_resolution=(
-                    self.patch_embed.grid_size[0] // (2**i_layer),
-                    self.patch_embed.grid_size[1] // (2**i_layer),
+                    self.patch_embed.grid_size[0] // scale,
+                    self.patch_embed.grid_size[1] // scale,
                 ),
                 depth=depths[i_layer],
                 num_heads=num_heads[i_layer],
                 window_size=window_size,
                 mlp_ratio=mlp_ratio,
                 qkv_bias=qkv_bias,
-                drop=drop_rate,
+                proj_drop=drop_rate,
                 attn_drop=attn_drop_rate,
                 drop_path=dpr[
                     sum(depths[:i_layer]) : sum(depths[: i_layer + 1])
                 ],
                 norm_layer=norm_layer,
-                downsample=PatchMerging
-                if (i_layer < self.num_layers - 1)
-                else None,
+                downsample=i > 0,
                 pretrained_window_size=pretrained_window_sizes[i_layer],
             )
-            self.layers.append(layer)
-            scaling = 1 if (i_layer < self.num_layers - 1) else 0
-            num_chs = int(embed_dim * 2 ** (i_layer + scaling))
-            if scaling:
-                self.upsample.append(nn.ConvTranspose2d(num_chs, num_chs, 2, 2))
-            else:
-                self.upsample.append(nn.Identity())
+            in_dim = out_dim
+            if i > 0:
+                scale *= 2
             self.feature_info += [
                 dict(
-                    num_chs=num_chs,
-                    reduction=4 * 2**i_layer,
+                    num_chs=out_dim,
+                    reduction=4 * scale,
                     module=f"layers.{i_layer}",
                 )
             ]
+            if i > 0:
+                #self.upsample.append(nn.ConvTranspose2d(out_dim, out_dim, 2, 2))
+                self.upsample.append(nn.Identity()) # temp hack
+            else:
+                self.upsample.append(nn.Identity())
+            self.layers.append(layer)
 
         # self.norm = norm_layer(self.num_features)
 
@@ -209,18 +218,20 @@ class SwinTransformerV2Xview(nn.Module):
         )
 
     def reshape(self, x):
+        return torch.einsum('nhwc->nchw',x) # no need for v2, already in nchw format
         _, hw, d = x.shape
         r = int(np.sqrt(hw))
         x_reshaped = x.view(-1, r, r, d).permute(0, 3, 1, 2)
         return x_reshaped
 
     def forward_features(self, x):
-        x = self.input_ada(x)
+        #x = self.input_ada(x)
         x = self.patch_embed(x)
+        #outs = [self.reshape(x)]
+        # if self.absolute_pos_embed is not None:
+        #     x = x + self.absolute_pos_embed
+        #x = self.pos_drop(x)
         outs = [self.reshape(x)]
-        if self.absolute_pos_embed is not None:
-            x = x + self.absolute_pos_embed
-        x = self.pos_drop(x)
         for layer in self.layers:
             x = layer(x)
             outs.append(self.reshape(x))

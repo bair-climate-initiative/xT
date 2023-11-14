@@ -31,7 +31,7 @@ model:
   name: EncoderDecoderV2
   num_classes: ${data.num_classes}
   mlp_ratio: 4
-  backbone_class: revswinv2_base_window16_256_xview
+  backbone_class: swinv2_base_window16_256_xview
   backbone:
     img_size: 256
     input_dim: 3
@@ -48,11 +48,11 @@ optimizer:
   classifier_ratio: 1.0
   warmup_epochs: 0
 train:
-  epochs: 20
+  epochs: 200
   batch_size: 1
   val_batch_size: 1
   freeze_epochs: 0
-  test_every: 1
+  test_every: 20
   test_reset: True
   clip_grad: 5.0
 val: False
