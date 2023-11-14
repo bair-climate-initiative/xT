@@ -10,4 +10,4 @@ optimizer:
   name: AdamW
   base_lr: 1e-5
 train:
-  batch_size: 12
+  batch_size: 48

@@ -2,10 +2,10 @@ base_configs:
   - config/base.yaml
   - config/cluster_paths_inat.yaml
   # - config/cluster_paths_em.yaml
-name: revswinxl_base_crop512_256
+name: revswinxl_base_crop1025_512
 data:
   dataset: inaturalist
-  crop_size: 512
+  crop_size: 1024
   batch_size: ${train.batch_size}
   val_batch_size: ${train.val_batch_size}
   num_workers: 8
@@ -32,7 +32,7 @@ model:
   mlp_ratio: 4
   backbone_class: revswinv2_base_window16_256_xview
   backbone:
-    img_size: 256
+    img_size: 512
     input_dim: 3
     use_vanilla_backward: False
     pretrained: ${oc.env:PRETRAINED_CKPT_PATH, "./ckpts"}/swinv2_base_window16_256.pth
@@ -48,7 +48,7 @@ optimizer:
   warmup_epochs: 2
 train:
   epochs: 100
-  batch_size: 160
+  batch_size: 40
   val_batch_size: ${train.batch_size}
   freeze_epochs: 0
   test_every: 1
