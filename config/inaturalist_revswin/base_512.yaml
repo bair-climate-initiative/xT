@@ -1,0 +1,13 @@
+base_configs: 
+  - config/inaturalist_revswin/base_256.yaml
+name: revswin_base_512
+data:
+  crop_size: 512
+model:
+  backbone:
+    img_size: 512
+optimizer:
+  name: AdamW
+  base_lr: 1e-5
+train:
+  batch_size: 12

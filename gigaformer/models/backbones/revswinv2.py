@@ -402,14 +402,23 @@ class TwoStreamFusion(nn.Module):
         else:
             raise NotImplementedError
 
+        # self.init_weights()
+
     def init_weights(self):
         "Purely for overriding the proj initialization"
-        if "proj" in self.mode:
-            proj = self.fuse_fn[1]
-            trunc_normal_(proj.weight, std=0.02)
-            with torch.no_grad():
-                torch.diagonal(proj.weight.data[:, : self.dim]).add_(0.5)
-                torch.diagonal(proj.weight.data[:, self.dim :]).add_(0.5)
+        for name, param in self.fuse_fn.named_parameters():
+            if 'fc2' in name and 'weight' in name:
+                with torch.no_grad():
+                    torch.diagonal(param.data[:, : self.dim]).add_(0.5)
+                    torch.diagonal(param.data[:, self.dim :]).add_(0.5)
+            elif 'weight' in name:
+                nn.init.eye_(param.data)
+            elif 'bias' in name:
+                nn.init.zeros_(param.data)
+        # if "concat_linear" in self.mode:
+        #     self.fuse_fn
+        #     proj = self.fuse_fn[1]
+        #     trunc_normal_(proj.weight, std=0.02)
 
     def forward(self, x):
         return self.fuse_fn(x)
