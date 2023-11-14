@@ -1,7 +1,7 @@
 base_configs: 
   - config/base.yaml
   - config/cluster_paths_inat.yaml
-name: revswinv2_xl_inat-rep_cs512_is512_xlskip_lr1e-4
+name: revswinv2_base_xl_inat-rep_cs512_is512_xlskip_lr1e-4
 data:
   dataset: inaturalist
   crop_size: 512
@@ -29,6 +29,7 @@ model:
   name: EncoderDecoderV2
   num_classes: ${data.num_classes}
   mlp_ratio: 4
+  backbone_class: revswinv2_base_window16_256_xview
   backbone:
     img_size: 512
     input_dim: 3

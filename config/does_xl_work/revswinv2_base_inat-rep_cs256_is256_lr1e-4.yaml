@@ -1,10 +1,10 @@
 base_configs: 
   - config/base.yaml
   - config/cluster_paths_inat.yaml
-name: revswinv2_xl_inat-rep_cs512_is512_xlskip_lr1e-4
+name: revswinv2_base_inat-rep_cs256_is256_lr1e-4
 data:
   dataset: inaturalist
-  crop_size: 512
+  crop_size: 256
   batch_size: ${train.batch_size}
   val_batch_size: ${train.val_batch_size}
   num_workers: 4
@@ -29,16 +29,17 @@ model:
   name: EncoderDecoderV2
   num_classes: ${data.num_classes}
   mlp_ratio: 4
+  backbone_class: revswinv2_base_window16_256_xview
   backbone:
-    img_size: 512
+    img_size: 256
     input_dim: 3
     use_vanilla_backward: False
     pretrained: ${oc.env:PRETRAINED_CKPT_PATH, "./ckpts"}/swinv2_tiny_window16_256.pth
     upsample: False
   xl_context:
-    enabled: true
+    enabled: false
     n_layer: 12
-    skip_connection: true
+    skip_connection: false
   resume: ''
 optimizer:
   base_lr: 1e-4
