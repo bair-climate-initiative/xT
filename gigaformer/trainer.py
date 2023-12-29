@@ -20,7 +20,7 @@ from torch.nn.modules.batchnorm import _BatchNorm
 from torch.nn.parallel.distributed import DistributedDataParallel
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
-
+from prettytable import PrettyTable
 import wandb
 
 from .datasets.sampler import (DistributedEvalSampler,
@@ -112,7 +112,21 @@ class PytorchTrainer:
             print(self.model)
 
         # self._profile_model((1, 2, self.conf["crop_size"], self.conf["crop_size"]))
-
+    def count_parameters(self,model=None):
+        if model is None:
+            model = self.model
+        table = PrettyTable(["Modules", "Parameters"])
+        total_params = 0
+        for name, parameter in model.named_parameters():
+            if not parameter.requires_grad:
+                continue
+            params = parameter.numel()
+            table.add_row([name, params])
+            total_params += params
+        print(table)
+        print(f"Total Trainable Params: {total_params}")
+        return total_params
+        
     def validate(self, test_loader=None):
         if is_dist_avail_and_initialized():
             dist.barrier()
@@ -171,6 +185,7 @@ class PytorchTrainer:
     def scale_learning_rate(self):
         # linear scale the learning rate according to total batch size, may not be optimal
         eff_batch_size = self.config.train.batch_size * dist.get_world_size()
+        eff_batch_size = 8.0
         # base batch size is 8 * 1 = 32
         lr = self.config.optimizer.base_lr * eff_batch_size / 8.0
         if is_main_process():
@@ -264,6 +279,7 @@ class PytorchTrainer:
                             self.input_size * i : self.input_size * (i + 1),
                             self.input_size * j : self.input_size * (j + 1),
                         ]
+                        # print(new_payload[key].shape)
                     else:
                         new_payload[key] = v
                 new_payload["context_patches"] = context_patches
@@ -271,6 +287,7 @@ class PytorchTrainer:
                 new_payload["raw_indices"] = raw_indices
                 new_payload["context_id"] = k["context_id"]
                 new_payload["mem_only"] = k.get("mem_only", False)
+                new_payload["cord"] = (i,j)
                 yield new_payload
 
     def _run_one_epoch_train(self):
@@ -320,15 +337,16 @@ class PytorchTrainer:
             data_time.update(time.time() - start_time)
             imgs = sample["image"].cuda().float()
             labels = sample["label"].cuda()
-
+            cord = (0,0)
             if self.mixup_fn is not None:
                 imgs, sample["label"] = self.mixup_fn(imgs, labels) 
-
+            
             if extra_context:
                 if sample["context_id"] == 0:
                     mem = tuple()
                 else:
                     pass
+                cord = sample.pop('cord')
                 context = dict(
                     context_patches=sample["context_patches"].cuda(),
                     patch_indices=sample["patch_indices"],
@@ -340,11 +358,11 @@ class PytorchTrainer:
                     if extra_context and sample["mem_only"]:
                         with torch.no_grad():
                             output, mem = self.model(
-                                imgs, context=context, mem=mem
+                                imgs, context=context, mem=mem,cord=cord
                             )
                         continue
                     elif extra_context:
-                        output, mem = self.model(imgs, context=context, mem=mem)
+                        output, mem = self.model(imgs, context=context, mem=mem,cord=cord)
                     else:
                         output = self.model(imgs)
                     # if i % 400 == 0:
@@ -524,8 +542,15 @@ class PytorchTrainer:
 
         if self.config.distributed and self.config.fsdp:
             from torch.distributed.fsdp import (CPUOffload,
-                                                FullyShardedDataParallel)
+                                                FullyShardedDataParallel,MixedPrecision)
             from torch.distributed.fsdp.wrap import size_based_auto_wrap_policy
+            fpSixteen = MixedPrecision(
+                param_dtype=torch.float32,
+                # Gradient communication precision.
+                reduce_dtype=torch.float16,
+                # Buffer precision.
+                buffer_dtype=torch.float16,
+            )
 
             self.model = FullyShardedDataParallel(
                 self.model,
@@ -533,6 +558,7 @@ class PytorchTrainer:
                 # sharding_strategy=size_based_auto_wrap_policy,
                 # fsdp_auto_wrap_policy=default_auto_wrap_policy,
                 cpu_offload=CPUOffload(offload_params=True),
+                mixed_precision=fpSixteen,
                 # mixed_precision=MixedPrecision(param_dtype=torch.float16)
                 # device_id=self.config.local_rank,
                 # output_device=self.config.local_rank,

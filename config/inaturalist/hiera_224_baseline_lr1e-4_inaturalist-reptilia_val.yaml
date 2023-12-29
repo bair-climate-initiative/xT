@@ -1,14 +1,14 @@
 base_configs: 
   - config/base.yaml
   - config/cluster_paths_inat.yaml
-name: revswinv2_xl_tiny_chip512_lr1e-4_inaturalist-reptilia_sms2048
+
+name: hiera_224_baseline-reptilia_lr1e-4_inaturalist-reptilia
 data:
   dataset: inaturalist
-  crop_size: 512 
-  val_crop_size: 512
+  crop_size: 224
   batch_size: ${train.batch_size}
   val_batch_size: ${train.val_batch_size}
-  num_workers: 1
+  num_workers: 16
   num_classes: 284
   interpolation: bilinear
   test_crop: False
@@ -29,18 +29,18 @@ data:
 model: 
   name: EncoderDecoderV2
   num_classes: ${data.num_classes}
+  backbone_class: get_hiera_model
   mlp_ratio: 4
-  skip: true
   backbone:
-    img_size: 256
+    img_size: 512
     input_dim: 3
     use_vanilla_backward: False
     pretrained: ${oc.env:PRETRAINED_CKPT_PATH, "./ckpts"}/swinv2_tiny_window16_256.pth
     upsample: False
   xl_context:
-    enabled: true
+    enabled: off
     n_layer: 12
-  resume: '' # /shared/jacklishufan/inatualist/checkpoints/EncoderDecoderV2_revswinv2_tiny_window16_256_xview_77_hwcy21mb_accuracy_top1.ckpt
+  resume: 
 optimizer:
   base_lr: 1e-4
   classifier_ratio: 1.0
@@ -53,7 +53,7 @@ train:
   test_every: 1
   test_reset: True
   clip_grad: 5.0
-val: False
+val: True
 losses:
   losses:
     - name: cls

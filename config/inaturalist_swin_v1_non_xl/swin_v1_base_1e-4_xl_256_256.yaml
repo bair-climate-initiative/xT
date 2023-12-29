@@ -2,12 +2,11 @@
 base_configs: 
   - config/base.yaml
   - config/cluster_paths_inat.yaml
-name: hiera_xl
-fsdp: on
+name: swin_v1_base_1e-4_xl_512_256
 data:
   dataset: inaturalist
-  crop_size: 448 
-  val_crop_size: 448
+  crop_size: 256 
+  val_crop_size: 256
   batch_size: ${train.batch_size}
   val_batch_size: ${train.val_batch_size}
   num_workers: 1
@@ -32,28 +31,25 @@ model:
   name: EncoderDecoderV2
   num_classes: ${data.num_classes}
   mlp_ratio: 4
-  backbone_class: get_hiera_model
+  backbone_class: swinv2_base_window16_256_xview
   backbone:
-    img_size: 224
+    img_size: 256
     input_dim: 3
     use_vanilla_backward: False
     pretrained: ${oc.env:PRETRAINED_CKPT_PATH, "./ckpts"}/swinv2_base_patch4_window16_256.pth
     upsample: False
   xl_context:
-    skip_connection: off
+    skip_connection: on
     enabled: on
-    classification_mode: on
-    tiling: naive_two_stream
-    n_layer: 4
+    n_layer: 12
   resume: '' # /shared/jacklishufan/inatualist/checkpoints/EncoderDecoderV2_revswinv2_tiny_window16_256_xview_77_hwcy21mb_accuracy_top1.ckpt
 optimizer:
-  name: adamw
-  base_lr: 1.0e-4
+  base_lr: 1e-4
   classifier_ratio: 1.0
-  warmup_epochs: 1
+  warmup_epochs: 0
 train:
-  epochs: 100
-  batch_size: 16
+  epochs: 20
+  batch_size: 1
   val_batch_size: 1
   freeze_epochs: 0
   test_every: 1

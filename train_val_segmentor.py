@@ -26,7 +26,7 @@ torch.utils.data._utils.MP_STATUS_CHECK_INTERVAL = 120
 warnings.filterwarnings("ignore")
 
 
-def main(cfg: XviewConfig) -> None:
+def main(cfg: XviewConfig,args) -> None:
     if os.environ.get("RANK", "0") == "0":  
         _make_output_directory_structure(cfg)
         print(OmegaConf.to_yaml(cfg))
@@ -48,7 +48,9 @@ def main(cfg: XviewConfig) -> None:
         # os.makedirs(cfg.output_dir, exist_ok=True)
         os.makedirs(os.path.join(cfg.output_dir, cfg.name), exist_ok=True)
         print(OmegaConf.to_yaml(cfg))
-
+    # if hasattr(args.summary) and args.summary:
+    #     trainer.count_parameters()
+    #     return
     if cfg.test:
         sampler = torch.utils.data.distributed.DistributedSampler(
             val_data,
@@ -104,4 +106,4 @@ if __name__ == "__main__":
     args = OmegaConf.from_cli()  # first grab from cli to determine config
     schema = OmegaConf.structured(XviewConfig)
     config = create_config(schema, args.config)
-    main(config)
+    main(config,args)

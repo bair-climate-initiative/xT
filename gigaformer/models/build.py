@@ -5,8 +5,13 @@ from .backbones.vit import vit_base_patch16
 from .hiera import (
     get_hiera_model,
     get_hiera_model_base,
+    get_hiera_model_base_plus,
+    get_hiera_model_base_plus_448,
     get_hiera_model_small,
     get_hiera_model_tiny,
+)
+from .backbones.swin_timm import (
+    swinv2_base_window16_256_timm
 )
 from .transformer_xl import TransformerXLConfig
 from .unet import EncoderDecoderV2, TimmUnet
@@ -54,6 +59,7 @@ class ModelConfig:
     patch_size: int = 16
     """Patch sized used for transformer XL."""  # TODO: properly derive this
     num_classes: int = 9999
+    cls_head: str = 'naive'
     """Number of classes for head on dataset."""
     mlp_ratio: int = 4
     """MLP ratio for Enc/Dec."""
@@ -93,5 +99,6 @@ def build_model(config: ModelConfig, dataset: str = "xview3"):
             num_classes=config.num_classes,
             mlp_ratio=config.mlp_ratio,
             skip_conntection=config.xl_context.skip_connection,
+            cls_head = config.cls_head
         )
     return model
