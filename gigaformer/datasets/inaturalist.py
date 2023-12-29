@@ -31,7 +31,10 @@ class INatDataset(Dataset):
         self.dataset_dir = dataset_dir
         self.labels = COCO(annotation_file=str(dataset_dir / annotation_json))
         self.categories = json.load(open(self.dataset_dir / categories_json))
-        self.supercategories = set(supercategories)
+        if supercategories:
+            self.supercategories = set(supercategories)
+        else:
+            self.supercategories = None
         if category_label_path:
             category_label_map = json.load(open(category_label_path))
             self.category_label_map = {int(k): v for k, v in category_label_map.items()}
@@ -72,9 +75,16 @@ class INatDataset(Dataset):
         Load keys, images, and annotations
         """
         ids = sorted(list(labels.anns.keys()))
-        valid_category_ids = set(
-            [x["id"] for x in self.categories if x["supercategory"] in supercategories]
-        )
+        if supercategories:
+            valid_category_ids = set(
+                [
+                    x["id"]
+                    for x in self.categories
+                    if x["supercategory"] in supercategories
+                ]
+            )
+        else:
+            supercategories = set()
         if self.category_label_map is None:
             category_label_map = {}
         else:
