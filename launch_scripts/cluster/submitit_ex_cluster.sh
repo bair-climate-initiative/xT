@@ -1,7 +1,7 @@
 #!/bin/bash
 HOME=/p/home/ritwik
-EXP_NAME=mae_224_baseline-reptilia_lr1e-3_inaturalist-reptilia_adamw
-PROJECT_DIR=/p/home/ritwik/dev/xview3-detection
+EXP_NAME=swin_fixed_512_lr1e-4_inaturalist-reptilia_adamw
+PROJECT_DIR=/p/home/ritwik/dev/revswin-xl
 PRETRAINED_CKPT_PATH=/p/home/ritwik/pretrained_weights
 
 CONSTRAINT=$1
@@ -27,7 +27,7 @@ python $PROJECT_DIR/launch_scripts/cluster/submitit_train_cluster.py \
     --qos frontier \
     --account ODEFN5169CYFZ \
     --nodes 1 \
-    --config $PROJECT_DIR/config/inaturalist/mae_224_baseline_lr1e-3_inaturalist-reptilia_adamw.yaml
+    --config $PROJECT_DIR/config/inaturalist_swin_v2_non_xl/swin.yaml
 
 # use the below for non-slurm launches.
 # OMP_NUM_THREADS=1 CUDA_VISIBLE_DEVICES=6,7 \

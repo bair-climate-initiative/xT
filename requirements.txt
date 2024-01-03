@@ -26,3 +26,5 @@ submitit
 tifffile
 omegaconf
 pycocotools
+transformers
+prettytable

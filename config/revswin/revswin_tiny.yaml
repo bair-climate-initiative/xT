@@ -11,7 +11,7 @@ data:
   dir: /p/app/projects/nga-frontier/xview3 
   shoreline_dir: /p/app/projects/nga-frontier/xview3/shoreline/validation
   fold: 77 
-  folds_csv: /p/home/ritwik/dev/xview3-detection/meta/folds.csv
+  folds_csv: /p/home/ritwik/dev/revswin-xl/meta/folds.csv
   multiplier: 64
   num_workers: 8
   test: False
