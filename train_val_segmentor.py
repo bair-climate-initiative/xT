@@ -48,9 +48,9 @@ def main(cfg: XviewConfig,args) -> None:
         # os.makedirs(cfg.output_dir, exist_ok=True)
         os.makedirs(os.path.join(cfg.output_dir, cfg.name), exist_ok=True)
         print(OmegaConf.to_yaml(cfg))
-    # if hasattr(args.summary) and args.summary:
-    #     trainer.count_parameters()
-    #     return
+    if hasattr(args,'summary') and args.summary:
+        trainer.count_parameters()
+        return
     if cfg.test:
         sampler = torch.utils.data.distributed.DistributedSampler(
             val_data,

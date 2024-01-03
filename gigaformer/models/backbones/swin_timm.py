@@ -18,3 +18,8 @@ class SwinWrapper(nn.Module):
 def swinv2_base_window16_256_timm(*args,**kwargs):
     model = timm.create_model('swinv2_base_window16_256.ms_in1k',features_only=True,pretrained=True)
     return SwinWrapper(model)
+
+
+def swinv2_large_window16_256_timm(*args,**kwargs):
+    model = timm.create_model('swinv2_large_window12to16_192to256.ms_in22k_ft_in1k',features_only=True,pretrained=True)
+    return SwinWrapper(model)
