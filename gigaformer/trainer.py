@@ -543,7 +543,8 @@ class PytorchTrainer:
         if self.config.distributed and self.config.fsdp:
             from torch.distributed.fsdp import (CPUOffload,
                                                 FullyShardedDataParallel,MixedPrecision)
-            from torch.distributed.fsdp.wrap import size_based_auto_wrap_policy
+            from torch.distributed.fsdp.wrap import size_based_auto_wrap_policy,ModuleWrapPolicy
+            from timm.models.swin_transformer_v2 import SwinTransformerV2Block
             fpSixteen = MixedPrecision(
                 param_dtype=torch.float32,
                 # Gradient communication precision.
@@ -554,7 +555,10 @@ class PytorchTrainer:
 
             self.model = FullyShardedDataParallel(
                 self.model,
-                auto_wrap_policy=size_based_auto_wrap_policy,
+                #auto_wrap_policy=size_based_auto_wrap_policy,
+                auto_wrap_policy=ModuleWrapPolicy(
+                    module_classes=[SwinTransformerV2Block]
+                ),
                 # sharding_strategy=size_based_auto_wrap_policy,
                 # fsdp_auto_wrap_policy=default_auto_wrap_policy,
                 cpu_offload=CPUOffload(offload_params=True),

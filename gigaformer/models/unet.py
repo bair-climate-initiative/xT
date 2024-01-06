@@ -1055,6 +1055,15 @@ class EncoderDecoderV2(AbstractModel):
         if n_chip > 1: # on gradient chipping
             x = rearrange(x,'N C (HP HC) (WP WC)-> (N HP WP) C HC WC ',HP=n_chip,WP=n_chip)
         enc_results = self.encoder(x)
+        # if (n_chip * n_chip) > 4:
+        #     base = np.arange(x.shape[0])
+        #     base = base.reshape(-1,n_chip * n_chip)
+        #     choice = np.random.choice(np.arange(n_chip * n_chip),4,replace=False)
+        #     idx = base[:,choice].reshape(-1)
+        #     indices = torch.zeros(x.shape[0]).to(bool)
+        #     indices[idx] = True
+        #     for i,_ in enumerate(enc_results):
+        #         enc_results[i][~indices] = enc_results[i][~indices].detach()
         if n_chip > 1:
             enc_results = list([rearrange(i,'(N HP WP) C HC WC -> N C (HP HC) (WP WC)',HP=n_chip,WP=n_chip) for i in enc_results])
         if self.context_mode:
@@ -1077,6 +1086,7 @@ class EncoderDecoderV2(AbstractModel):
             )
         elif self.dataset == 'inaturalist':
             assert self.cls_head in ['naive','xl']
+            
             clasifier = ClassificationDecoder if self.cls_head == 'naive' else LLMClassificationDecoder
             self.decoder = clasifier(
                 in_dim=self.filters[-1] * (2 if self.skip_conntection else 1),

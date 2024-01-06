@@ -11,7 +11,8 @@ from .hiera import (
     get_hiera_model_tiny,
 )
 from .backbones.swin_timm import (
-    swinv2_base_window16_256_timm
+    swinv2_base_window16_256_timm,
+    swinv2_large_window16_256_timm
 )
 from .transformer_xl import TransformerXLConfig
 from .unet import EncoderDecoderV2, TimmUnet
