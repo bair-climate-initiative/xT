@@ -78,6 +78,7 @@ class PytorchTrainer:
             len(train_loader),
             self.config.train.epochs,
         )
+        self.parms = self.count_parameters()
         if is_main_process():
             if WANDB_OFFLINE:
                 from wandb_osh.hooks import TriggerWandbSyncHook
@@ -104,10 +105,10 @@ class PytorchTrainer:
             with open(config_dump_path, "w") as outfile:
                 outfile.write(OmegaConf.to_yaml(self.config))
             artifact.add_file(config_dump_path)
-
             wandb.init(**wandb_args)
             wandb.log_artifact(artifact)
             self.wandb_id = wandb.run.id
+            wandb.run.summary["total_parms"] = self.count_parameters()
 
             print(self.model)
 
@@ -123,6 +124,7 @@ class PytorchTrainer:
             params = parameter.numel()
             table.add_row([name, params])
             total_params += params
+        self.total_parms = total_params
         print(table)
         print(f"Total Trainable Params: {total_params}")
         return total_params

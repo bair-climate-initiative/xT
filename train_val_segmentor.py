@@ -32,6 +32,8 @@ def main(cfg: XviewConfig,args) -> None:
         print(OmegaConf.to_yaml(cfg))
 
     process_group = _init_distributed(config=cfg)
+    if hasattr(args,'name'):
+        cfg.name = args.name
 
     train_data, val_data, train_loader, val_loader, mixup_fn = build_loader(cfg.data, cfg.test)
     seg_evaluator = build_evaluator(cfg)
@@ -48,8 +50,8 @@ def main(cfg: XviewConfig,args) -> None:
         # os.makedirs(cfg.output_dir, exist_ok=True)
         os.makedirs(os.path.join(cfg.output_dir, cfg.name), exist_ok=True)
         print(OmegaConf.to_yaml(cfg))
+    #trainer.count_parameters()
     if hasattr(args,'summary') and args.summary:
-        trainer.count_parameters()
         return
     if cfg.test:
         sampler = torch.utils.data.distributed.DistributedSampler(
