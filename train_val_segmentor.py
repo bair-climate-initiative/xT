@@ -26,7 +26,7 @@ torch.utils.data._utils.MP_STATUS_CHECK_INTERVAL = 120
 warnings.filterwarnings("ignore")
 
 
-def main(cfg: XviewConfig,args) -> None:
+def main(cfg: XviewConfig = None, args = None) -> None:
     if os.environ.get("RANK", "0") == "0":  
         _make_output_directory_structure(cfg)
         print(OmegaConf.to_yaml(cfg))
