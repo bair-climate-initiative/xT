@@ -1,7 +1,7 @@
 
 base_configs: 
   - config/base.yaml
-  - config/cluster_paths_inat.yaml
+  - config/cluster_paths_bair.yaml
 name: swin_fixed
 fsdp: off
 data:
@@ -39,7 +39,7 @@ model:
     use_vanilla_backward: False
     pretrained: ${oc.env:PRETRAINED_CKPT_PATH, "./ckpts"}/swinv2_base_patch4_window16_256.pth
     upsample: False
-  cls_head: naive
+  cls_head: xl
   xl_context:
     skip_connection: off
     enabled: off

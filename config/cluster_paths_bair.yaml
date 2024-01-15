@@ -1,0 +1,8 @@
+output_dir: /shared/jacklishufan/inatualist/
+data:
+  dir: /shared/ritwik/data/inaturalist2018
+  shoreline_dir: /p/app/projects/nga-frontier/xview3/shoreline/validation
+  folds_csv: /p/home/ritwik/dev/xview3-detection/meta/folds.csv
+  category_label_path: /home/jacklishufan/xView3_second_place/meta/category_label_reptilia_map.json
+model:
+  resume: /shared/jacklishufan/inatualist/revswinv2_xl_4096_chip512_swinpt_lr1e-3_inaturalist

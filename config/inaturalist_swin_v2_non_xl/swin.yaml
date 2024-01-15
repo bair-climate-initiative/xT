@@ -1,8 +1,9 @@
 
 base_configs: 
   - config/base.yaml
-  - config/cluster_paths_inat.yaml
-name: swin_fixed
+  - config/cluster_paths_bair.yaml
+  # - config/cluster_paths_inat.yaml
+name: swin_fixed_xl_512_257_1e-5
 fsdp: on
 data:
   dataset: inaturalist
@@ -39,7 +40,7 @@ model:
     use_vanilla_backward: False
     pretrained: ${oc.env:PRETRAINED_CKPT_PATH, "./ckpts"}/swinv2_base_patch4_window16_256.pth
     upsample: False
-  cls_head: xl
+  cls_head: naive
   xl_context:
     skip_connection: off
     enabled: off
@@ -49,7 +50,7 @@ model:
   resume: '' # /shared/jacklishufan/inatualist/checkpoints/EncoderDecoderV2_revswinv2_tiny_window16_256_xview_77_hwcy21mb_accuracy_top1.ckpt
 optimizer:
   name: adamw
-  base_lr: 1e-4
+  base_lr: 1e-5
   classifier_ratio: 1.0
   warmup_epochs: 0
 train:
