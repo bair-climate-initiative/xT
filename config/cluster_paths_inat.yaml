@@ -1,8 +1,8 @@
-output_dir: /home/ritwik/logs/%j
+output_dir: /p/app/projects/nga-frontier/gigaformer-runs/logs/%j
 data:
-  dir: /shared/ritwik/data/inaturalist2018
+  dir: /p/app/projects/nga-frontier/inaturalist2018
   shoreline_dir: /p/app/projects/nga-frontier/xview3/shoreline/validation
-  folds_csv: /p/home/ritwik/dev/xview3-detection/meta/folds.csv
-  category_label_path: /shared/ritwik/dev/xview3-detection/meta/category_label_reptilia_map.json
+  folds_csv: /p/home/ritwik/dev/revswin-xl/meta/folds.csv
+  category_label_path: /p/app/projects/nga-frontier/inaturalist2018/category-maps/category_label_reptilia_map.json
 model:
-  resume: /home/ritwik/logs/%j/resume/
+  resume: /p/app/projects/nga-frontier/gigaformer-runs/logs/%j/resume/

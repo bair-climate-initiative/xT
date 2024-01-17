@@ -6,8 +6,8 @@ name: hiera_xl
 fsdp: on
 data:
   dataset: inaturalist
-  crop_size: 448 
-  val_crop_size: 448
+  crop_size: 224 
+  val_crop_size: 224
   batch_size: ${train.batch_size}
   val_batch_size: ${train.val_batch_size}
   num_workers: 1
@@ -32,16 +32,17 @@ model:
   name: EncoderDecoderV2
   num_classes: ${data.num_classes}
   mlp_ratio: 4
-  backbone_class: get_hiera_model
+  backbone_class: get_hiera_model_base_plus
   backbone:
     img_size: 224
     input_dim: 3
     use_vanilla_backward: False
     pretrained: ${oc.env:PRETRAINED_CKPT_PATH, "./ckpts"}/swinv2_base_patch4_window16_256.pth
     upsample: False
+  cls_head: naive
   xl_context:
     skip_connection: off
-    enabled: on
+    enabled: off
     classification_mode: on
     tiling: naive_two_stream
     n_layer: 4
@@ -50,10 +51,10 @@ optimizer:
   name: adamw
   base_lr: 1.0e-4
   classifier_ratio: 1.0
-  warmup_epochs: 1
+  warmup_epochs: 0
 train:
   epochs: 100
-  batch_size: 16
+  batch_size: 8
   val_batch_size: 1
   freeze_epochs: 0
   test_every: 1

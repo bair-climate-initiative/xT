@@ -87,7 +87,7 @@ class XviewEvaluator(Evaluator):
                 self.input_size * (j + 1),
                 batch.shape[-2],
                 batch.shape[-1],
-            ), {}
+            ), {},(i,j)
 
     # def build_iterator(self, batch):
     #     old_dim = self.crop_size
@@ -318,7 +318,7 @@ class ClsEvaluator(Evaluator):
                 self.input_size * (j + 1),
                 batch.shape[-2],
                 batch.shape[-1],
-            ), {}
+            ), {},(i,j)
 
     @torch.no_grad()
     def validate(
@@ -337,9 +337,9 @@ class ClsEvaluator(Evaluator):
             mem = set()
             output = []
             iterator = self.build_iterator(x)
-            for batch_new, k, (x0, x1, y0, y1, hh, ww), context in iterator:
+            for batch_new, k, (x0, x1, y0, y1, hh, ww), context,cord in iterator:
                 mem_only = k.get("mem_only", False)
-                local_output, mem = model(batch_new, context=context, mem=mem)
+                local_output, mem = model(batch_new, context=context,cord=cord, mem=mem)
                 if mem_only:
                     continue
                 # context_id = k["context_id"]
@@ -347,7 +347,7 @@ class ClsEvaluator(Evaluator):
             final_out = {}
             for k,v in output[0].items():
                 final_out[k] = torch.stack([z[k] for z in output])
-            final_out['label'] = final_out['label'].mean(0)
+            final_out['label'] = final_out['label'][-1]
             return final_out
 
         metrics = {}

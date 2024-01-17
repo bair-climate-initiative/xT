@@ -89,9 +89,9 @@ def predict_scene_and_return_mm(
         mem = set()
         output = None
         iterator = iter_function(x)
-        for batch_new, k, (x0, x1, y0, y1, hh, ww), context in iterator:
+        for batch_new, k, (x0, x1, y0, y1, hh, ww), context,cord in iterator:
             mem_only = k.get("mem_only", False)
-            local_output, mem = model(batch_new, context=context, mem=mem)
+            local_output, mem = model(batch_new, context=context,cord=cord, mem=mem)
             if mem_only:
                 continue
             # context_id = k["context_id"]

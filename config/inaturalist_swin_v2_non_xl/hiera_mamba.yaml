@@ -39,9 +39,10 @@ model:
     use_vanilla_backward: False
     pretrained: ${oc.env:PRETRAINED_CKPT_PATH, "./ckpts"}/swinv2_base_patch4_window16_256.pth
     upsample: False
+  cls_head: xl
   xl_context:
     skip_connection: off
-    enabled: on
+    enabled: off
     classification_mode: on
     tiling: naive_two_stream
     n_layer: 4
@@ -50,7 +51,7 @@ optimizer:
   name: adamw
   base_lr: 1.0e-4
   classifier_ratio: 1.0
-  warmup_epochs: 1
+  warmup_epochs: 0
 train:
   epochs: 100
   batch_size: 16

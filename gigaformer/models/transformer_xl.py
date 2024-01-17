@@ -12,6 +12,10 @@ class TransformerXLConfig:
     no_memory: bool = False
     """If True, use Transformer-XL without memory."""
     n_layer: int = 12
+    hidden_size: int = 768
+    mem_chip: int = 4
+    num_heads: int = 8
+    mlp_ratio: int = 4
     """Number of layers."""
     tiling: str = "naive"
     """Tiling strategy for XL."""
@@ -19,6 +23,9 @@ class TransformerXLConfig:
     """Context Patch Length."""
     skip_connection: bool = False
     """Whether to add a skip connection passing XL layers"""
+    classification_mode: bool = False
+    """Ratio of chips have gradient traacked, must be between 0 and 1"""
+    grad_ratio: float = 1.0
 
 
 class PositionalEmbedding(nn.Module):
@@ -688,12 +695,11 @@ class MemTransformerLM(nn.Module):
         self.mem_len = mem_len
         self.ext_len = ext_len
 
-    def init_mems(self):
+    def init_mems(self,x):
         if self.mem_len > 0:
             mems = []
-            param = next(self.parameters())
             for i in range(self.n_layer + 1):
-                empty = torch.empty(0, dtype=param.dtype, device=param.device)
+                empty = torch.empty(0, dtype=x.dtype, device=x.device)
                 mems.append(empty)
 
             return mems
@@ -840,7 +846,7 @@ class MemTransformerLM(nn.Module):
         # Moreover, have to return new_mems to allow nn.DataParallel to piece
         # them together.
         if not mems:
-            mems = self.init_mems()
+            mems = self.init_mems(data)
 
         tgt_len = target.size(0)
         hidden, new_mems = self._forward(data, mems=mems)

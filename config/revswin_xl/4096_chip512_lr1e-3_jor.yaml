@@ -26,4 +26,4 @@ train:
   freeze_epochs: 0
   test_every: 1
   test_reset: True
-val: False
+val: True

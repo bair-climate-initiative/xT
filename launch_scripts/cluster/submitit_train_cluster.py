@@ -13,7 +13,7 @@ import sys
 import uuid
 from pathlib import Path
 
-sys.path.append("/p/home/ritwik/dev/xview3-detection")
+sys.path.append("/p/home/ritwik/dev/revswin-xl")
 
 import submitit
 from omegaconf import OmegaConf
@@ -91,7 +91,7 @@ class Trainer(object):
     def __call__(self):
         import sys
 
-        sys.path.append("/p/home/ritwik/dev/xview3-detection")
+        sys.path.append("/p/home/ritwik/dev/revswin-xl")
         import train_val_segmentor as segmentor
 
         self._setup_gpu_args()
