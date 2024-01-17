@@ -1,21 +1,21 @@
 base_configs: 
   - config/base.yaml
   # - config/cluster_paths.yaml
-name: revswinv2_xl_4096_chip512_swinpt_lr1e-4_11e_eval
+name: revswinv2_chip1024_swinpt_lr3e-3_head10x_eval
 output_dir: outputs/${name}/
 data:
-  crop_size: 4096
-  val_crop_size: 4096
-  num_workers: 1
+  crop_size: 1024
+  val_crop_size: 1024
+  num_workers: 8
 model: 
   backbone:
-    img_size: 512
-    pretrained: ${oc.env:PRETRAINED_CKPT_PATH, "./ckpts"}/swinv2_tiny_window16_256.pth
+    img_size: 1024
+    pretrained: False
   xl_context:
-    enabled: True
+    enabled: False
     no_memory: False
     n_layer: 12
-  resume: ckpts/revswinv2_xl_4096_chip512_lr1e-4_11e.ckpt
+  resume: /home/tyler/scale-mae-detection-xview/output/revswinv2/val_only_TimmUnet_revswinv2_tiny_window16_256_xview_77_3ghwtfbj_xview
 optimizer:
   base_lr: 3e-3
   classifier_ratio: 1.0
