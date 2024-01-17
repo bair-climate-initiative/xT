@@ -752,7 +752,7 @@ class LLMTransformerXLContextModel(nn.Module):
         #self.model = MemTransformerLM(**xl_args)
         self.input_proj = nn.Linear(d_model,hidden_size)
         self.layers =  nn.Sequential(
-            *[LLMLayer(hidden_size,hidden_size*mlp_ratio,num_heads,causal=True) for _ in range(xl_config.n_layer)]
+            *[LLMLayer(hidden_size,hidden_size*mlp_ratio,num_heads,causal=False) for _ in range(xl_config.n_layer)]
         )
         self.hidden_size = hidden_size
         self.classification_mode = xl_config.get('classification_mode')
