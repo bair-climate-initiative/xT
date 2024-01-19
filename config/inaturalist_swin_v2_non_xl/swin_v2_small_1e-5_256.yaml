@@ -2,7 +2,7 @@
 base_configs: 
   - config/base.yaml
   - config/cluster_paths_inat.yaml
-name: swin_v2_small_1e-4_256
+name: swin_v2_small_1e-5_256
 fsdp: off
 data:
   dataset: inaturalist
@@ -49,7 +49,7 @@ model:
   resume: '' # /shared/jacklishufan/inatualist/checkpoints/EncoderDecoderV2_revswinv2_tiny_window16_256_xview_77_hwcy21mb_accuracy_top1.ckpt
 optimizer:
   name: adamw
-  base_lr: 1e-4
+  base_lr: 1e-5
   classifier_ratio: 1.0
   warmup_epochs: 0
 train:

@@ -2,7 +2,7 @@
 base_configs: 
   - config/base.yaml
   - config/cluster_paths_inat.yaml
-name: swin_v2_small_1e-4_256
+name: swin_v2_tiny_1e-4_256
 fsdp: off
 data:
   dataset: inaturalist
@@ -32,12 +32,12 @@ model:
   name: EncoderDecoderV2
   num_classes: ${data.num_classes}
   mlp_ratio: 4
-  backbone_class: swinv2_small_window16_256_timm
+  backbone_class: swinv2_tiny_window16_256_timm
   backbone:
     img_size: 256
     input_dim: 3
     use_vanilla_backward: False
-    pretrained: ${oc.env:PRETRAINED_CKPT_PATH, "./ckpts"}/swinv2_small_patch4_window16_256.pth
+    pretrained: ${oc.env:PRETRAINED_CKPT_PATH, "./ckpts"}/swinv2_tiny_patch4_window16_256.pth
     upsample: False
   cls_head: naive
   xl_context:
