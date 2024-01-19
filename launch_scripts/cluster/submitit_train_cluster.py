@@ -178,7 +178,7 @@ def main():
         **kwargs,
     )
 
-    executor.update_parameters(name="xview3")
+    executor.update_parameters(name=os.environ["EXP_NAME"])
 
     args.dist_url = get_init_file().as_uri()
     args.output_dir = args.job_dir
