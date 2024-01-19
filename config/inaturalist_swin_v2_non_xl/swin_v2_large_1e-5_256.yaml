@@ -1,4 +1,3 @@
-
 base_configs: 
   - config/base.yaml
   - config/cluster_paths_inat.yaml

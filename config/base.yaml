@@ -34,6 +34,7 @@ model:
     img_size: 512
   resume: ''
   tiling: 'naive'
+  cls_head: 'naive' # If this is 'xl', then we use the extra XL heads
   xl_context:
     enabled: False
     context_patch_len: 100
