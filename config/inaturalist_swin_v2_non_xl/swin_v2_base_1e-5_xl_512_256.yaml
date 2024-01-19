@@ -39,7 +39,7 @@ model:
     use_vanilla_backward: False
     pretrained: ${oc.env:PRETRAINED_CKPT_PATH, "./ckpts"}/swinv2_base_patch4_window16_256.pth
     upsample: False
-  cls_head: xl
+  cls_head: naive
   xl_context:
     skip_connection: off
     enabled: off

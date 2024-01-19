@@ -752,7 +752,7 @@ class LLMTransformerXLContextModel(nn.Module):
         #self.model = MemTransformerLM(**xl_args)
         self.input_proj = nn.Linear(d_model,hidden_size)
         self.layers =  nn.Sequential(
-            *[LLMLayer(hidden_size,hidden_size*mlp_ratio,num_heads,causal=True) for _ in range(xl_config.n_layer)]
+            *[LLMLayer(hidden_size,hidden_size*mlp_ratio,num_heads,causal=False) for _ in range(xl_config.n_layer)]
         )
         self.hidden_size = hidden_size
         self.classification_mode = xl_config.get('classification_mode')
@@ -1022,6 +1022,7 @@ class EncoderDecoderV2(AbstractModel):
         self.mlp_ratio = mlp_ratio
         self.skip_conntection = skip_conntection
         self.cls_head = cls_head
+        self.grad_ratio = xl_config.grad_ratio
 
         super().__init__()
 
@@ -1052,20 +1053,26 @@ class EncoderDecoderV2(AbstractModel):
         x_skip = x
         n_chip = x.shape[2] // self.crop_size
         # print(n_chip)
-        if n_chip > 1: # on gradient chipping
-            x = rearrange(x,'N C (HP HC) (WP WC)-> (N HP WP) C HC WC ',HP=n_chip,WP=n_chip)
-        enc_results = self.encoder(x)
-        # if (n_chip * n_chip) > 4:
-        #     base = np.arange(x.shape[0])
-        #     base = base.reshape(-1,n_chip * n_chip)
-        #     choice = np.random.choice(np.arange(n_chip * n_chip),4,replace=False)
-        #     idx = base[:,choice].reshape(-1)
-        #     indices = torch.zeros(x.shape[0]).to(bool)
-        #     indices[idx] = True
-        #     for i,_ in enumerate(enc_results):
-        #         enc_results[i][~indices] = enc_results[i][~indices].detach()
-        if n_chip > 1:
+        if do_chip:=n_chip > 1: # on gradient chipping
+            x = rearrange(x,'N C (HP HC) (WP WC)-> (N HP WP) C HC WC ',HP=n_chip,WP=n_chip,HC=self.crop_size,WC=self.crop_size)
+            if self.grad_ratio >= 1.0:
+                enc_results = self.encoder(x)
+            else:
+                n = x.shape[0]
+                n_grad = math.ceil(n* self.grad_ratio )
+                idx = torch.randperm(n)
+                idx_inv = torch.argsort(idx)
+                out_grad = self.encoder(x[:n_grad])
+                with torch.no_grad():
+                    out_stopgrad = self.encoder(x[n_grad:])
+                enc_results = list(
+                    [torch.cat([a,b],dim=0)[idx_inv] for a,b in zip (out_grad,out_stopgrad)]
+                )
+                del out_grad
+                del out_stopgrad
             enc_results = list([rearrange(i,'(N HP WP) C HC WC -> N C (HP HC) (WP WC)',HP=n_chip,WP=n_chip) for i in enc_results])
+        else:
+            enc_results = self.encoder(x)
         if self.context_mode:
              enc_results, mem = self.context_model(enc_results, mem,cord=cord,skip=self.skip_conntection)
         output = self.decoder(enc_results, x_skip)

@@ -24,6 +24,8 @@ class TransformerXLConfig:
     skip_connection: bool = False
     """Whether to add a skip connection passing XL layers"""
     classification_mode: bool = False
+    """Ratio of chips have gradient traacked, must be between 0 and 1"""
+    grad_ratio: float = 1.0
 
 
 class PositionalEmbedding(nn.Module):

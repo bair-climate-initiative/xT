@@ -3,10 +3,10 @@ base_configs:
   - config/cluster_paths_em.yaml
   # - config/cluster_paths_inat.yaml
 # name: revswinv2_xl_tiny_chip512_lr1e-3_inaturalist-reptilia_sms2048
-name: revswinxl_base_512
+name: revswinxl_base_256
 data:
   dataset: inaturalist
-  crop_size: 512
+  crop_size: 256
   batch_size: ${train.batch_size}
   val_batch_size: ${train.val_batch_size}
   num_workers: 8
@@ -33,7 +33,7 @@ model:
   mlp_ratio: 4
   backbone_class: revswinv2_base_window16_256_xview
   backbone:
-    img_size: 512
+    img_size: 256
     input_dim: 3
     use_vanilla_backward: False
     pretrained: ckpts/swinv2_base_window16_256.pth
@@ -45,11 +45,11 @@ model:
 optimizer:
   name: AdamW
   base_lr: 1e-5
-  classifier_ratio: 3.0
+  classifier_ratio: 1.0
   warmup_epochs: 0
 train:
   epochs: 60
-  batch_size: 16
+  batch_size: 48
   val_batch_size: ${train.batch_size}
   freeze_epochs: 0
   test_every: 1

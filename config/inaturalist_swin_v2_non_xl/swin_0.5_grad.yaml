@@ -1,13 +1,14 @@
 
 base_configs: 
   - config/base.yaml
-  - config/cluster_paths_inat.yaml
-name: swin_v2_large_1e-4_256
-fsdp: off
+  - config/cluster_paths_bair.yaml
+  # - config/cluster_paths_inat.yaml
+name: swin_fixed_xl_512_257_1e-5
+fsdp: on
 data:
   dataset: inaturalist
-  crop_size: 256 
-  val_crop_size: 256
+  crop_size: 1024 
+  val_crop_size: 1024
   batch_size: ${train.batch_size}
   val_batch_size: ${train.val_batch_size}
   num_workers: 1
@@ -32,29 +33,30 @@ model:
   name: EncoderDecoderV2
   num_classes: ${data.num_classes}
   mlp_ratio: 4
-  backbone_class: swinv2_large_window16_256_timm
+  backbone_class: swinv2_base_window16_256_timm
   backbone:
     img_size: 256
     input_dim: 3
     use_vanilla_backward: False
     pretrained: ${oc.env:PRETRAINED_CKPT_PATH, "./ckpts"}/swinv2_base_patch4_window16_256.pth
     upsample: False
-  cls_head: xl
+  cls_head: naive
   xl_context:
     skip_connection: off
     enabled: off
     classification_mode: on
+    grad_ratio: 0.25
     tiling: naive_two_stream
     n_layer: 4
   resume: '' # /shared/jacklishufan/inatualist/checkpoints/EncoderDecoderV2_revswinv2_tiny_window16_256_xview_77_hwcy21mb_accuracy_top1.ckpt
 optimizer:
   name: adamw
-  base_lr: 1e-4
+  base_lr: 1e-5
   classifier_ratio: 1.0
   warmup_epochs: 0
 train:
   epochs: 100
-  batch_size: 2
+  batch_size: 4
   val_batch_size: 1
   freeze_epochs: 0
   test_every: 1
