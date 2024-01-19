@@ -25,9 +25,19 @@ from .lib.hier.utils.patch_embed import (
 import math
 from .pos_embed import get_2d_sincos_pos_embed as get_2d_sincos_pos_embed_base
 from functools import lru_cache
+
+
 @lru_cache(maxsize=32)
-def get_2d_sincos_pos_embed(embed_dim, grid_size, cls_token=False,i=0,j=0,):
-    return get_2d_sincos_pos_embed_base(embed_dim, grid_size, cls_token,i,j)
+def get_2d_sincos_pos_embed(
+    embed_dim,
+    grid_size,
+    cls_token=False,
+    i=0,
+    j=0,
+):
+    return get_2d_sincos_pos_embed_base(embed_dim, grid_size, cls_token, i, j)
+
+
 def get_abs_pos(abs_pos, has_cls_token, hw):
     h, w = hw
     if has_cls_token:
@@ -40,14 +50,15 @@ def get_abs_pos(abs_pos, has_cls_token, hw):
         new_abs_pos = F.interpolate(
             abs_pos.reshape(1, size, size, -1).permute(0, 3, 1, 2),
             size=(h, w),
-            mode='bicubic',
+            mode="bicubic",
             align_corners=False,
         )
 
         return new_abs_pos.permute(0, 2, 3, 1)
     else:
         return abs_pos.reshape(1, h, w, -1)
-    
+
+
 class AbstractModel(nn.Module):
     def _initialize_weights(self):
         for m in self.modules():
@@ -73,7 +84,7 @@ class TimmUnet(AbstractModel):
         crop_size: int = 256,
         skip_decoder: bool = False,
         backbone_name: str = "revswinv2_tiny",
-        **kwargs
+        **kwargs,
     ):
         # if not hasattr(self, "first_layer_stride_two"):
         self.first_layer_stride_two = True
@@ -103,9 +114,7 @@ class TimmUnet(AbstractModel):
             }
 
             d_model = self.filters[-1]
-            n_length = (
-                self.crop_size // backbone.feature_info[-1]["reduction"]
-            ) ** 2
+            n_length = (self.crop_size // backbone.feature_info[-1]["reduction"]) ** 2
             n_crops = 9
             n_token = d_model
             cutoffs = [n_token // 2]
@@ -135,10 +144,7 @@ class TimmUnet(AbstractModel):
             self.transformer_xl_layers = MemTransformerLM(**xl_args)
 
         self.decoder_stages = nn.ModuleList(
-            [
-                self.get_decoder(idx)
-                for idx in range(0, len(self.decoder_filters))
-            ]
+            [self.get_decoder(idx) for idx in range(0, len(self.decoder_filters))]
         )
         decoder_cls = UnetDecoderLastConv
         if skip_decoder:
@@ -345,23 +351,17 @@ class EncoderDecoder(AbstractModel):
         decoder_depth=8,
         decoder_num_heads=16,
         decoder_mlp_ratio=4.0,
-        **kwargs
+        **kwargs,
     ):
         backbone_arch = encoder
         self.channels_last = channels_last
         if "swin" in backbone_arch:
             backbone = SWIN_CFG[backbone_arch](
-                img_size=crop_size,
-                pretrained=pretrained,
-                input_dim=in_chans,
-                **kwargs
+                img_size=crop_size, pretrained=pretrained, input_dim=in_chans, **kwargs
             )
         elif "vit" in backbone_arch:
             backbone = VIT_CFG[backbone_arch](
-                img_size=crop_size,
-                pretrained=pretrained,
-                input_dim=in_chans,
-                **kwargs
+                img_size=crop_size, pretrained=pretrained, input_dim=in_chans, **kwargs
             )
         else:
             backbone = timm.create_model(
@@ -369,7 +369,7 @@ class EncoderDecoder(AbstractModel):
                 features_only=True,
                 in_chans=in_chans,
                 pretrained=pretrained,
-                **kwargs
+                **kwargs,
             )
         self.crop_size = crop_size
         self.filters = [f["num_chs"] for f in backbone.feature_info]
@@ -478,7 +478,7 @@ class UNetDecoder(nn.Module):
         skip_decoder,
         last_upsample_filters,
         *args,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(*args, **kwargs)
 
@@ -494,10 +494,7 @@ class UNetDecoder(nn.Module):
             ]
         )
         self.decoder_stages = nn.ModuleList(
-            [
-                self.get_decoder(idx)
-                for idx in range(0, len(self.decoder_filters))
-            ]
+            [self.get_decoder(idx) for idx in range(0, len(self.decoder_filters))]
         )
         decoder_cls = UnetDecoderLastConv
         if skip_decoder:
@@ -571,7 +568,7 @@ class SemanticSegDecoder(nn.Module):
         last_upsample_filters,
         num_classes,
         *args,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(*args, **kwargs)
 
@@ -587,10 +584,7 @@ class SemanticSegDecoder(nn.Module):
             ]
         )
         self.decoder_stages = nn.ModuleList(
-            [
-                self.get_decoder(idx)
-                for idx in range(0, len(self.decoder_filters))
-            ]
+            [self.get_decoder(idx) for idx in range(0, len(self.decoder_filters))]
         )
         decoder_cls = UnetDecoderLastConv
         if skip_decoder:
@@ -611,9 +605,7 @@ class SemanticSegDecoder(nn.Module):
             b = x.shape
             pp.append((a, b))
 
-        seg = self.seg(x, x_skip).contiguous(
-            memory_format=torch.contiguous_format
-        )
+        seg = self.seg(x, x_skip).contiguous(memory_format=torch.contiguous_format)
         output = {
             "seg": seg,
         }
@@ -630,7 +622,8 @@ class SemanticSegDecoder(nn.Module):
             self.decoder_filters[layer],
             self.decoder_filters[max(layer, 0)],
         )
-    
+
+
 class TransformerXLContextModel(nn.Module):
     def __init__(
         self, xl_config, crop_size, reduction, d_model, *args, **kwargs
@@ -663,45 +656,46 @@ class TransformerXLContextModel(nn.Module):
             pre_lnorm=True,
             tgt_len=n_length,
             ext_len=n_length,
-            mem_len=n_length*4,
+            mem_len=n_length * 4,
             cutoffs=cutoffs,
             attn_type=0,
         )
 
         xl_args.update(transformer_xl_config)
         self.model = MemTransformerLM(**xl_args)
-        self.classification_mode = xl_config.get('classification_mode')
+        self.classification_mode = xl_config.get("classification_mode")
         if self.classification_mode:
-            self.cls_token = nn.Parameter(torch.zeros(1, 1, d_model)) 
+            self.cls_token = nn.Parameter(torch.zeros(1, 1, d_model))
         self.init_weights()
 
     def init_weights(self, pretrained=None):
         if self.classification_mode:
             nn.init.normal_(self.cls_token, std=1e-6)
 
-    def forward(self, enc_results, mem,skip=False):
+    def forward(self, enc_results, mem, skip=False):
         xx = enc_results[-1]  # N C H W
         old_shape = xx.shape
-        xx = rearrange(xx,'n c h w -> (h w) n c')
+        xx = rearrange(xx, "n c h w -> (h w) n c")
         L = xx.shape[0]
         N = xx.shape[1]
         if self.classification_mode:
-            xx = torch.cat([xx,self.cls_token.repeat(1,N,1)],dim=0) # L+1 N C
+            xx = torch.cat([xx, self.cls_token.repeat(1, N, 1)], dim=0)  # L+1 N C
         xx = self.model(xx, xx, *mem)
         pred_out, mem = xx[0], xx[1:]
-        pred_out = pred_out.permute(1, 2, 0) # N C L+1
+        pred_out = pred_out.permute(1, 2, 0)  # N C L+1
 
-        
         if self.classification_mode:
             assert pred_out.shape[0] == old_shape[0]
-            assert pred_out.shape[2] == L +1
-            enc_results[-1] = pred_out[:,:,-1][...,None,None]
+            assert pred_out.shape[2] == L + 1
+            enc_results[-1] = pred_out[:, :, -1][..., None, None]
         else:
             pred_out = pred_out.view(*old_shape)
             assert pred_out.shape[0] == old_shape[0]
             assert pred_out.shape[1] == old_shape[1]
             if skip:
-                enc_results[-1] = torch.cat([enc_results[-1],pred_out],dim=1)  # overwrite
+                enc_results[-1] = torch.cat(
+                    [enc_results[-1], pred_out], dim=1
+                )  # overwrite
             else:
                 enc_results[-1] = pred_out  # overwrite
         mem = mem
@@ -719,7 +713,7 @@ class LLMTransformerXLContextModel(nn.Module):
             "n_layer": xl_config.n_layer,
         }
         hidden_size = xl_config.hidden_size
-        mlp_ratio =  xl_config.mlp_ratio
+        mlp_ratio = xl_config.mlp_ratio
         num_heads = xl_config.mlp_ratio
 
         n_length = (crop_size // reduction) ** 2
@@ -743,21 +737,24 @@ class LLMTransformerXLContextModel(nn.Module):
             pre_lnorm=True,
             tgt_len=n_length,
             ext_len=n_length,
-            mem_len=n_length*4,
+            mem_len=n_length * 4,
             cutoffs=cutoffs,
             attn_type=0,
         )
 
         xl_args.update(transformer_xl_config)
-        #self.model = MemTransformerLM(**xl_args)
-        self.input_proj = nn.Linear(d_model,hidden_size)
-        self.layers =  nn.Sequential(
-            *[LLMLayer(hidden_size,hidden_size*mlp_ratio,num_heads,causal=False) for _ in range(xl_config.n_layer)]
+        # self.model = MemTransformerLM(**xl_args)
+        self.input_proj = nn.Linear(d_model, hidden_size)
+        self.layers = nn.Sequential(
+            *[
+                LLMLayer(hidden_size, hidden_size * mlp_ratio, num_heads, causal=False)
+                for _ in range(xl_config.n_layer)
+            ]
         )
         self.hidden_size = hidden_size
-        self.classification_mode = xl_config.get('classification_mode')
+        self.classification_mode = xl_config.get("classification_mode")
         if self.classification_mode:
-            self.cls_token = nn.Parameter(torch.zeros(1, 1, d_model)) 
+            self.cls_token = nn.Parameter(torch.zeros(1, 1, d_model))
         self.mem_chip = xl_config.mem_chip
         self.init_weights()
 
@@ -765,86 +762,85 @@ class LLMTransformerXLContextModel(nn.Module):
         if self.classification_mode:
             nn.init.normal_(self.cls_token, std=1e-6)
 
-    def forward(self, enc_results, mem,skip=False,cord=(0,0)):
+    def forward(self, enc_results, mem, skip=False, cord=(0, 0)):
         xx = enc_results[-1]  # N C H W
-        N,C,H,W = xx.shape
-        xx = rearrange(xx,'n c h w -> n (h w) c')
-        xx = self.input_proj(xx) 
-        i,j = cord
-        pos_embed = get_2d_sincos_pos_embed(self.hidden_size,H, cls_token=False,i=i,j=j)
+        N, C, H, W = xx.shape
+        xx = rearrange(xx, "n c h w -> n (h w) c")
+        xx = self.input_proj(xx)
+        i, j = cord
+        pos_embed = get_2d_sincos_pos_embed(
+            self.hidden_size, H, cls_token=False, i=i, j=j
+        )
         xx = xx + torch.tensor(pos_embed).to(xx)
-        _,L,D = xx.shape
+        _, L, D = xx.shape
         # L = xx.shape[0]
         # N = xx.shape[1]
-        
+
         if self.classification_mode:
-            xx = torch.cat([xx,self.cls_token.repeat(N,1,1)],dim=1) #  N L+1 C
+            xx = torch.cat([xx, self.cls_token.repeat(N, 1, 1)], dim=1)  #  N L+1 C
         base_len = xx.shape[1]
         keep_len = base_len * self.mem_chip
         new_mem = []
-        for idx,layer in enumerate(self.layers):
+        for idx, layer in enumerate(self.layers):
             if not mem:
                 xx_i = xx
             else:
-                xx_i = torch.cat([mem[idx],xx],dim=1)[:,-keep_len:]
-            new_mem.append(
-                xx_i.detach()
-            )
-            xx = layer(xx_i)[:,-base_len:] # N L D
+                xx_i = torch.cat([mem[idx], xx], dim=1)[:, -keep_len:]
+            new_mem.append(xx_i.detach())
+            xx = layer(xx_i)[:, -base_len:]  # N L D
 
         # pred_out, mem = xx[0], xx[1:]
-        pred_out = xx.permute(0, 2, 1) # N C L+1
+        pred_out = xx.permute(0, 2, 1)  # N C L+1
 
-        
         if self.classification_mode:
-            assert pred_out.shape == (N, C, L+1)
-            enc_results[-1] = pred_out[:,:,-1][...,None,None]
+            assert pred_out.shape == (N, C, L + 1)
+            enc_results[-1] = pred_out[:, :, -1][..., None, None]
         else:
-            
-            assert pred_out.shape == (N,C,H*W)
-            pred_out = pred_out.view(N,C,H,W)
+            assert pred_out.shape == (N, C, H * W)
+            pred_out = pred_out.view(N, C, H, W)
             if skip:
-                enc_results[-1] = torch.cat([enc_results[-1],pred_out],dim=1)  # overwrite
+                enc_results[-1] = torch.cat(
+                    [enc_results[-1], pred_out], dim=1
+                )  # overwrite
             else:
                 enc_results[-1] = pred_out  # overwrite
         mem = mem
         return enc_results, mem
-    
+
 
 class ClassificationDecoder(nn.Module):
-
-    def __init__(self,in_dim,num_classes,mlp_ratio=4):
+    def __init__(self, in_dim, num_classes, mlp_ratio=4):
         super().__init__()
-        self.layers =  nn.Sequential(
-            nn.Linear(in_dim,in_dim*mlp_ratio),
+        self.layers = nn.Sequential(
+            nn.Linear(in_dim, in_dim * mlp_ratio),
             nn.GELU(),
-            nn.LayerNorm(in_dim*mlp_ratio),
-            nn.Linear(in_dim*mlp_ratio,num_classes),
+            nn.LayerNorm(in_dim * mlp_ratio),
+            nn.Linear(in_dim * mlp_ratio, num_classes),
         )
 
     def forward(self, enc_results, mem):
         xx = enc_results[-1]  # N C H W
-        xx = xx.mean((-1,-2)) # GAP->N X C
-        logits = self.layers(xx) # CLS
-        return {'label':logits}
-    
-from  hyp.attention.hyper_attn import HyperAttention
+        xx = xx.mean((-1, -2))  # GAP->N X C
+        logits = self.layers(xx)  # CLS
+        return {"label": logits}
+
+
+from hyp.attention.hyper_attn import HyperAttention
 
 
 class LLMAttention(nn.Module):
-    
-    def __init__(self,dim,inner_dim,num_heads,causal=False):
+    def __init__(self, dim, inner_dim, num_heads, causal=False):
         super().__init__()
         self.qkv = nn.Linear(dim, inner_dim * 3, bias=True)
         self.proj = nn.Linear(inner_dim, dim)
-        assert inner_dim % num_heads == 0,(inner_dim,num_heads)
+        assert inner_dim % num_heads == 0, (inner_dim, num_heads)
         self.num_heads = num_heads
         self.attn = HyperAttention(
             input_dim=inner_dim // num_heads,
             lsh_num_projs=7,
             block_size=256,
             sample_size=256,
-            min_seq_len=4096
+            min_seq_len=4096,
         )
         self.causal = causal
         # self.query_key_value = torch.nn.Linear(
@@ -853,23 +849,29 @@ class LLMAttention(nn.Module):
         #     bias=bias,
         #     dtype=params_dtype,
         # )
-    def forward(self,x):
-        '''
+
+    def forward(self, x):
+        """
         X: N L H
-        '''
-        B, L,D = x.shape
-        q,k,v = self.qkv(x).reshape(B, L, 3, self.num_heads, -1).permute(
-                2,0,3,1,4) # B H L D // num_heads
-        attn_out = self.attn(q,k,v,causal=self.causal).permute(0,2,1,3)  # B H L D // num_heads
-        attn_out = attn_out.reshape(B,L,-1).contiguous()
+        """
+        B, L, D = x.shape
+        q, k, v = (
+            self.qkv(x).reshape(B, L, 3, self.num_heads, -1).permute(2, 0, 3, 1, 4)
+        )  # B H L D // num_heads
+        attn_out = self.attn(q, k, v, causal=self.causal).permute(
+            0, 2, 1, 3
+        )  # B H L D // num_heads
+        attn_out = attn_out.reshape(B, L, -1).contiguous()
         attn_out = self.proj(attn_out)
-       
+
         return attn_out
+
 
 from transformers.models.llama.modeling_llama import LlamaRMSNorm
 
+
 class LlamaMLP(nn.Module):
-    def __init__(self, hidden_size,intermediate_size):
+    def __init__(self, hidden_size, intermediate_size):
         super().__init__()
         self.pretraining_tp = 1
         self.hidden_size = hidden_size
@@ -880,35 +882,32 @@ class LlamaMLP(nn.Module):
         self.act_fn = nn.GELU()
 
     def forward(self, x):
-
         down_proj = self.down_proj(self.act_fn(self.gate_proj(x)) * self.up_proj(x))
 
         return down_proj
-    
-class LLMLayer(nn.Module):
 
-    def __init__(self,dim,inner_dim,num_heads,causal=False):
+
+class LLMLayer(nn.Module):
+    def __init__(self, dim, inner_dim, num_heads, causal=False):
         super().__init__()
         num_heads = dim // 128
-        self.attn = LLMAttention(dim,dim,num_heads,causal=causal)
+        self.attn = LLMAttention(dim, dim, num_heads, causal=causal)
         self.input_layernorm = LlamaRMSNorm(dim, eps=1e-05)
         self.post_attention_layernorm = LlamaRMSNorm(dim, eps=1e-05)
-        self.mlp = LlamaMLP(dim,inner_dim)
+        self.mlp = LlamaMLP(dim, inner_dim)
         self.causal = causal
 
-    def forward(self,hidden_states,residual_in=-1):
+    def forward(self, hidden_states, residual_in=-1):
         residual = hidden_states
         hidden_states = self.input_layernorm(hidden_states)
-        hidden_states = self.attn(
-           hidden_states
-        )
+        hidden_states = self.attn(hidden_states)
         hidden_states = residual + hidden_states
         residual = hidden_states
         hidden_states = self.post_attention_layernorm(hidden_states)
         hidden_states = self.mlp(hidden_states)
         hidden_states = residual + hidden_states
         if residual_in != -1:
-            return hidden_states,0.0
+            return hidden_states, 0.0
         return hidden_states
 
 
@@ -916,21 +915,32 @@ from torch import Tensor
 from typing import Optional
 
 from functools import partial
+
 # from .mamba import *
 
 
 import torch.utils.checkpoint as checkpoint
 
-class LLMClassificationDecoder(nn.Module):
 
-    def __init__(self,in_dim,
-                 num_classes,mlp_ratio=4,use_checkpoint=False,hidden_size=768,num_heads=8,
-                 n_layers=2):
+class LLMClassificationDecoder(nn.Module):
+    def __init__(
+        self,
+        in_dim,
+        num_classes,
+        mlp_ratio=4,
+        use_checkpoint=False,
+        hidden_size=768,
+        num_heads=8,
+        n_layers=2,
+    ):
         super().__init__()
         self.use_checkpoint = use_checkpoint
-        self.input_proj = nn.Linear(in_dim,hidden_size)
-        self.layers =  nn.Sequential(
-            *[LLMLayer(hidden_size,hidden_size*mlp_ratio,num_heads,causal=True) for _ in range(n_layers)]
+        self.input_proj = nn.Linear(in_dim, hidden_size)
+        self.layers = nn.Sequential(
+            *[
+                LLMLayer(hidden_size, hidden_size * mlp_ratio, num_heads, causal=True)
+                for _ in range(n_layers)
+            ]
         )
         # self.layers = nn.Sequential(
         #     *[create_block(in_dim,
@@ -939,11 +949,10 @@ class LLMClassificationDecoder(nn.Module):
         #         reverse=False
         #     ) for _ in range(4)]
         # )
-        self.cls_token = nn.Parameter(torch.zeros(1, 1, hidden_size)) 
+        self.cls_token = nn.Parameter(torch.zeros(1, 1, hidden_size))
         self.hidden_size = hidden_size
         self.cls = nn.Sequential(
-            nn.LayerNorm(hidden_size),
-            nn.Linear(hidden_size,num_classes)
+            nn.LayerNorm(hidden_size), nn.Linear(hidden_size, num_classes)
         )
         self.init_weights()
 
@@ -964,36 +973,36 @@ class LLMClassificationDecoder(nn.Module):
         #     )
         if self.cls_token is not None:
             nn.init.normal_(self.cls_token, std=1e-6)
-                            
-    def forward(self,x,mem):
+
+    def forward(self, x, mem):
         x = x[-1]
-        n,_,h,w = x.shape
+        n, _, h, w = x.shape
         pos_embed = get_2d_sincos_pos_embed(self.hidden_size, h, cls_token=False)
-        x = rearrange(x,'n c h w -> n (h w )c')
-        
-        
+        x = rearrange(x, "n c h w -> n (h w )c")
+
         # breakpoint()
         x = self.input_proj(x)
         x = x + torch.tensor(pos_embed).to(x)
-        x = torch.cat([x,self.cls_token.repeat(n,1,1)],dim=1) 
+        x = torch.cat([x, self.cls_token.repeat(n, 1, 1)], dim=1)
         residual = None
         if self.use_checkpoint:
-            for i,blk in enumerate(self.layers):
-                x,residual = checkpoint.checkpoint(blk,x,residual)
+            for i, blk in enumerate(self.layers):
+                x, residual = checkpoint.checkpoint(blk, x, residual)
                 if i == len(self.layers) - 1:
                     x = (x + residual) if residual is not None else x
         else:
-            for i,blk in enumerate(self.layers):
-                x,residual = blk(x,residual)
+            for i, blk in enumerate(self.layers):
+                x, residual = blk(x, residual)
                 if i == len(self.layers) - 1:
                     x = (x + residual) if residual is not None else x
-        x = self.cls(x[:,-1]) # N C
-        return {'label':x}
+        x = self.cls(x[:, -1])  # N C
+        return {"label": x}
 
-    
 
 from typing import Any
 from einops import rearrange
+
+
 class EncoderDecoderV2(AbstractModel):
     def __init__(
         self,
@@ -1003,12 +1012,12 @@ class EncoderDecoderV2(AbstractModel):
         crop_size: int = 256,
         skip_decoder: bool = False,
         backbone_name: str = "revswinv2_tiny",
-        dataset: str = 'xview3',
+        dataset: str = "xview3",
         num_classes: int = 9999,
         mlp_ratio: int = 4,
         skip_conntection: bool = False,
         cls_head: str = None,
-        **kwargs
+        **kwargs,
     ):
         # if not hasattr(self, "first_layer_stride_two"):
         # if not hasattr(self, "decoder_block"):
@@ -1046,35 +1055,57 @@ class EncoderDecoderV2(AbstractModel):
             d_model=self.filters[-1],
         )
 
-    def forward(self, x, mem=tuple(),cord=(0,0), **kwargs):
+    def forward(self, x, mem=tuple(), cord=(0, 0), **kwargs):
         # Encoder
         if self.channels_last:
             x = x.contiguous(memory_format=torch.channels_last)
         x_skip = x
         n_chip = x.shape[2] // self.crop_size
         # print(n_chip)
-        if do_chip:=n_chip > 1: # on gradient chipping
-            x = rearrange(x,'N C (HP HC) (WP WC)-> (N HP WP) C HC WC ',HP=n_chip,WP=n_chip,HC=self.crop_size,WC=self.crop_size)
+        if do_chip := n_chip > 1:  # on gradient chipping
+            x = rearrange(
+                x,
+                "N C (HP HC) (WP WC)-> (N HP WP) C HC WC ",
+                HP=n_chip,
+                WP=n_chip,
+                HC=self.crop_size,
+                WC=self.crop_size,
+            )
             if self.grad_ratio >= 1.0:
                 enc_results = self.encoder(x)
             else:
                 n = x.shape[0]
-                n_grad = math.ceil(n* self.grad_ratio )
+                n_grad = math.ceil(n * self.grad_ratio)
                 idx = torch.randperm(n)
                 idx_inv = torch.argsort(idx)
                 out_grad = self.encoder(x[:n_grad])
                 with torch.no_grad():
                     out_stopgrad = self.encoder(x[n_grad:])
                 enc_results = list(
-                    [torch.cat([a,b],dim=0)[idx_inv] for a,b in zip (out_grad,out_stopgrad)]
+                    [
+                        torch.cat([a, b], dim=0)[idx_inv]
+                        for a, b in zip(out_grad, out_stopgrad)
+                    ]
                 )
                 del out_grad
                 del out_stopgrad
-            enc_results = list([rearrange(i,'(N HP WP) C HC WC -> N C (HP HC) (WP WC)',HP=n_chip,WP=n_chip) for i in enc_results])
+            enc_results = list(
+                [
+                    rearrange(
+                        i,
+                        "(N HP WP) C HC WC -> N C (HP HC) (WP WC)",
+                        HP=n_chip,
+                        WP=n_chip,
+                    )
+                    for i in enc_results
+                ]
+            )
         else:
             enc_results = self.encoder(x)
         if self.context_mode:
-             enc_results, mem = self.context_model(enc_results, mem,cord=cord,skip=self.skip_conntection)
+            enc_results, mem = self.context_model(
+                enc_results, mem, cord=cord, skip=self.skip_conntection
+            )
         output = self.decoder(enc_results, x_skip)
         if self.context_mode:
             return output, mem
@@ -1082,7 +1113,7 @@ class EncoderDecoderV2(AbstractModel):
             return output
 
     def init_decoder(self):
-        if self.dataset == 'xview':
+        if self.dataset == "xview":
             self.decoder = UNetDecoder(
                 ConvBottleneck,
                 self.filters,
@@ -1091,17 +1122,21 @@ class EncoderDecoderV2(AbstractModel):
                 self.skip_decoder,
                 default_last,
             )
-        elif self.dataset == 'inaturalist':
-            assert self.cls_head in ['naive','xl']
-            
-            clasifier = ClassificationDecoder if self.cls_head == 'naive' else LLMClassificationDecoder
+        elif self.dataset == "inaturalist":
+            assert self.cls_head in ["naive", "xl"]
+
+            clasifier = (
+                ClassificationDecoder
+                if self.cls_head == "naive"
+                else LLMClassificationDecoder
+            )
             self.decoder = clasifier(
                 in_dim=self.filters[-1] * (2 if self.skip_conntection else 1),
                 num_classes=self.num_classes,
-                mlp_ratio=self.mlp_ratio
+                mlp_ratio=self.mlp_ratio,
             )
         else:
-            raise Exception('Unknown dataset {}'.format(self.dataset))
+            raise Exception("Unknown dataset {}".format(self.dataset))
 
 
 class HierVitND(AbstractModel):
@@ -1134,7 +1169,7 @@ class HierVitND(AbstractModel):
         block_extr_args_swin=None,
         use_checkpoint=False,
         decoder_conv_layers=2,
-        **kwargs
+        **kwargs,
     ):
         super().__init__()
         self.use_checkpoint = True
@@ -1263,7 +1298,7 @@ class HierVitND(AbstractModel):
                     depth=block_extr_args_swin["hier_depths"][i],
                     use_checkpoint=self.use_checkpoint,
                     **block_extr_args,
-                    **norm_mode_swin[i]
+                    **norm_mode_swin[i],
                 )
                 decoder_layer = block_cls(
                     block_extr_args_swin["embed_dim"][i],
@@ -1282,7 +1317,7 @@ class HierVitND(AbstractModel):
                     depth=block_extr_args_swin["decode_depths"][i],
                     use_checkpoint=self.use_checkpoint,
                     **block_extr_args,
-                    **norm_mode_swin[i]
+                    **norm_mode_swin[i],
                 )
                 encoder_layers.append(encoder_layer)
                 decoder_layers.append(decoder_layer)
