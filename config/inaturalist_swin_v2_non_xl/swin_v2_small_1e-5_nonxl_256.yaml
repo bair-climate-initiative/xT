@@ -48,8 +48,8 @@ optimizer:
   classifier_ratio: 1.0
   warmup_epochs: 0
 train:
-  epochs: 20
-  batch_size: 32
+  epochs: 100
+  batch_size: 80
   val_batch_size: 1
   freeze_epochs: 0
   test_every: 1

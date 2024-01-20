@@ -2,7 +2,7 @@
 base_configs: 
   - config/base.yaml
   - config/cluster_paths_inat.yaml
-name: swin_v2_tiny_1e-5_256
+name: swin_v2_tiny_1e-5_xl_256_256
 fsdp: off
 data:
   dataset: inaturalist
@@ -39,7 +39,7 @@ model:
     use_vanilla_backward: False
     pretrained: ${oc.env:PRETRAINED_CKPT_PATH, "./ckpts"}/swinv2_tiny_patch4_window16_256.pth
     upsample: False
-  cls_head: naive
+  cls_head: xl
   xl_context:
     skip_connection: off
     enabled: off
@@ -54,7 +54,7 @@ optimizer:
   warmup_epochs: 0
 train:
   epochs: 100
-  batch_size: 2
+  batch_size: 120
   val_batch_size: 1
   freeze_epochs: 0
   test_every: 1
