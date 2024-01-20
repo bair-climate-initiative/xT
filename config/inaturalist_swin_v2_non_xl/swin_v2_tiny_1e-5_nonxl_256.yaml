@@ -30,7 +30,7 @@ model:
   name: EncoderDecoderV2
   num_classes: ${data.num_classes}
   mlp_ratio: 4
-  backbone_class: swinv2_tiny_window16_256_xview
+  backbone_class: swinv2_tiny_window16_256_timm
   backbone:
     img_size: 256
     input_dim: 3
