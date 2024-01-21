@@ -15,6 +15,10 @@ from .backbones.swin_timm import (
     swinv2_large_window16_256_timm,
     swinv2_small_window16_256_timm,
     swinv2_tiny_window16_256_timm,
+    swinv2_base_window16_256_timm_xview,
+    swinv2_large_window16_256_timm_xview,
+    swinv2_small_window16_256_timm_xview,
+    swinv2_tiny_window16_256_timm_xview,
 )
 from .transformer_xl import TransformerXLConfig
 from .unet import EncoderDecoderV2, TimmUnet
