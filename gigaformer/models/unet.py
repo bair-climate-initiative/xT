@@ -1035,6 +1035,7 @@ class EncoderDecoderV2(AbstractModel):
         self.skip_conntection = skip_conntection
         self.cls_head = cls_head
         self.grad_ratio = xl_config.grad_ratio
+        self.xl_config = xl_config
 
         super().__init__()
 
@@ -1133,10 +1134,17 @@ class EncoderDecoderV2(AbstractModel):
                 if self.cls_head == "naive"
                 else LLMClassificationDecoder
             )
+            extra_kwargs = {}
+            if self.cls_head == "xl":
+                extra_kwargs = dict(
+                    hidden_size =  self.xl_config.hidden_size,
+                    n_layers = self.xl_config.n_layer
+                )
             self.decoder = clasifier(
                 in_dim=self.filters[-1] * (2 if self.skip_conntection else 1),
                 num_classes=self.num_classes,
                 mlp_ratio=self.mlp_ratio,
+                **extra_kwargs
             )
         else:
             raise Exception("Unknown dataset {}".format(self.dataset))
