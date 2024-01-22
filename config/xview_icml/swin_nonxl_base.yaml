@@ -1,10 +1,10 @@
 base_configs:
   - config/base.yaml
-  - config/cluster_paths_em.yaml
+  - config/cluster_paths.yaml
 distributed: True
 fsdp: on
 fp16: True
-name: swin_base_xl_512_lr1e-3
+name: xview_swin_base_xl_512_lr1e-3
 output_dir: ${oc.env:OUTPUT_DIR, "/shared/jacklishufan/large-image-models/new"} 
 test: False
 val: False

@@ -1,7 +1,0 @@
-base_configs:
-  - config/xview3/base.yaml
-  - config/cluster_paths.yaml
-
-name: swin_v2_base_3e-4_256
-optimizer:
-  base_lr: 3e-4

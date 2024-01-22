@@ -1,0 +1,7 @@
+base_configs:
+  - config/xview_icml/swin_nonxl_base.yaml
+  - config/cluster_paths.yaml
+
+name: xview_swin_v2_base_1e-4_nonxl_256
+optimizer:
+  base_lr: 1e-4
