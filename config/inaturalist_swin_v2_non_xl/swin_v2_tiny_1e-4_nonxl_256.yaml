@@ -37,10 +37,13 @@ model:
     use_vanilla_backward: False
     pretrained: ${oc.env:PRETRAINED_CKPT_PATH, "./ckpts"}/swinv2_tiny_patch4_window16_256.pth
     upsample: False
+  cls_head: naive
   xl_context:
     skip_connection: off
     enabled: off
-    n_layer: 12
+    classification_mode: on
+    tiling: naive_two_stream
+    n_layer: 2
   resume: '' # /shared/jacklishufan/inatualist/checkpoints/EncoderDecoderV2_revswinv2_tiny_window16_256_xview_77_hwcy21mb_accuracy_top1.ckpt
 optimizer:
   name: adamw
