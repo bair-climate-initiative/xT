@@ -745,6 +745,7 @@ class LLMTransformerXLContextModel(nn.Module):
         xl_args.update(transformer_xl_config)
         # self.model = MemTransformerLM(**xl_args)
         self.input_proj = nn.Linear(d_model, hidden_size)
+        self.out_proj = nn.Linear(hidden_size, d_model)
         self.layers = nn.Sequential(
             *[
                 LLMLayer(hidden_size, hidden_size * mlp_ratio, num_heads, causal=False)
@@ -766,6 +767,7 @@ class LLMTransformerXLContextModel(nn.Module):
         xx = enc_results[-1]  # N C H W
         N, C, H, W = xx.shape
         xx = rearrange(xx, "n c h w -> n (h w) c")
+        raw_xx = xx
         xx = self.input_proj(xx)
         i, j = cord
         pos_embed = get_2d_sincos_pos_embed(
@@ -790,6 +792,7 @@ class LLMTransformerXLContextModel(nn.Module):
             xx = layer(xx_i)[:, -base_len:]  # N L D
 
         # pred_out, mem = xx[0], xx[1:]
+        xx = self.out_proj(xx) + raw_xx
         pred_out = xx.permute(0, 2, 1)  # N C L+1
 
         if self.classification_mode:
@@ -1113,7 +1116,7 @@ class EncoderDecoderV2(AbstractModel):
             return output
 
     def init_decoder(self):
-        if self.dataset == "xview":
+        if self.dataset == "xview3":
             self.decoder = UNetDecoder(
                 ConvBottleneck,
                 self.filters,

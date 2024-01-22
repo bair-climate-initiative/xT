@@ -337,8 +337,8 @@ class PytorchTrainer:
             start_time = time.time()
             sample = next(train_loader)
             data_time.update(time.time() - start_time)
-            imgs = sample["image"].cuda().float()
-            labels = sample["label"].cuda()
+            imgs = sample["image"].cuda()
+            labels = sample["label"].cuda() if "label" in sample else None
             cord = (0,0)
             if self.mixup_fn is not None:
                 imgs, sample["label"] = self.mixup_fn(imgs, labels) 
@@ -355,7 +355,7 @@ class PytorchTrainer:
                     raw_indices=sample["raw_indices"],
                 )
             self.optimizer.zero_grad()
-            with torch.cuda.amp.autocast(enabled=False):
+            with torch.cuda.amp.autocast(enabled=self.config.fp16):
                 with torch.autograd.detect_anomaly():
                     if extra_context and sample["mem_only"]:
                         with torch.no_grad():

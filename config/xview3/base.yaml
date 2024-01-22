@@ -1,0 +1,100 @@
+base_configs:
+  - config/base.yaml
+  - config/cluster_paths_em.yaml
+distributed: True
+fsdp: on
+fp16: True
+name: swin_base_xl_512_lr1e-3
+output_dir: ${oc.env:OUTPUT_DIR, "/shared/jacklishufan/large-image-models/new"} 
+test: False
+val: False
+data:
+  dataset: xview3
+  dir: ${oc.env:XVIEW3_ROOT, "/shared/group/xview3"} 
+  shoreline_dir: ${oc.env:XVIEW3_ROOT, "/shared/group/xview3"} /shoreline/validation
+  folds_csv:  ${oc.env:XVIEW3_FOLD_PATH, "meta/folds.csv"} 
+  fold: 77
+  multiplier: 64
+  num_workers: 8
+  test: False
+  crop_size: 256
+  val_crop_size: 256
+  overlap: 10 
+  positive_ratio: 0.85
+  supercategories:
+  category_label_path: ''
+model: 
+  name: TimmUnet
+  patch_size: 16
+  mlp_ratio: 4
+  # backbone_class: swinv2_large_window16_256_timm
+  # backbone_class: get_hiera_model_base
+  # backbone_class: get_hiera_model_base_plus
+  backbone_class: swinv2_base_window16_256_timm_xview
+  backbone:
+    in_chans: 3
+    input_dim: 2
+    drop_path_rate: 0.2
+    pretrained:  ${oc.env:PRETRAINED_CKPT_PATH, "./ckpts"}/swinv2_base_patch4_window16_256.pth
+    channel_last: True
+    img_size: 256
+  resume: ''
+  tiling: 'naive'
+  xl_context:
+    enabled: off
+    skip_connection: off
+    grad_ratio: 0.25
+    tiling: naive_two_stream
+    n_layer: 12
+optimizer:
+  name: sgd 
+  base_lr: 1e-3
+  min_lr_ratio: 0.01
+  classifier_ratio: 1.0
+  warmup_epochs: 0
+  weight_decay: 1e-4
+  momentum: 0.9
+  nesterov: True
+  scheduler: cosine
+  mode: step
+train:
+  epochs: 120
+  batch_size: 8
+  val_batch_size: 2
+  freeze_epochs: 0
+  freeze_bn: false
+  test_every: 20 
+  test_reset: True
+losses:
+  losses:
+    - name: mask_vessel
+      type: Combo
+      params: 
+        field: vessel_mask 
+        weights: 
+          bce: 1
+          focal: 3
+          dice: 1
+      weight: 1.0 
+      display: True
+    - name: mask_fishing 
+      type: Combo
+      params: 
+        field: fishing_mask
+        weights: 
+          bce: 1
+          focal: 3
+          dice: 1
+      weight: 2.0 
+      display: True
+    - name: center 
+      type: Center
+      params: 
+      weight: 3e-7
+      display: True
+    - name: length
+      type: Length
+      params: 
+      weight: 2.0
+      display: True
+eval_sampler: False
