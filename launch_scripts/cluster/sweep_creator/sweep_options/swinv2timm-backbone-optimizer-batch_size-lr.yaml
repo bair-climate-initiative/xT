@@ -1,0 +1,27 @@
+key_names:
+  - name: model.backbone_class
+    options:
+      - swinv2_tiny_window16_256_timm_xview
+      - swinv2_base_window16_256_timm_xview
+      - swinv2_large_window16_256_timm_xview
+  - name: model.backbone.img_size
+    options:
+      - 256 
+      - 512
+      - 1024
+  - name: optimizer.name
+    options:
+      - sgd
+      - adamw
+  - name: optimizer.base_lr
+    options:
+      - 1e-3
+      - 3e-4
+      - 1e-4
+      - 1e-5
+      - 3e-5
+  - name: train.batch_size
+    options:
+      - 24
+      - 32
+      - 54

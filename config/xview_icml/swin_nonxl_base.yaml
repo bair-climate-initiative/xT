@@ -17,8 +17,8 @@ data:
   multiplier: 64
   num_workers: 8
   test: False
-  crop_size: 256
-  val_crop_size: 256
+  crop_size: ${model.backbone.img_size}
+  val_crop_size: ${model.backbone.img_size}
   overlap: 10 
   positive_ratio: 0.85
   supercategories:
@@ -37,7 +37,7 @@ model:
     drop_path_rate: 0.2
     pretrained:  ${oc.env:PRETRAINED_CKPT_PATH, "./ckpts"}/swinv2_base_patch4_window16_256.pth
     channel_last: True
-    img_size: 256
+    img_size: 512
   resume: ''
   tiling: 'naive'
   xl_context:
