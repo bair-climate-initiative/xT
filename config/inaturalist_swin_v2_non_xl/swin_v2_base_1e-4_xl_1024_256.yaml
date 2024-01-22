@@ -2,12 +2,12 @@
 base_configs: 
   - config/base.yaml
   - config/cluster_paths_inat.yaml
-name: swin_v2_base_1e-4_xl_512_256
+name: swin_v2_base_1e-4_xl_1024_256
 fsdp: off
 data:
   dataset: inaturalist
-  crop_size: 512 
-  val_crop_size: 512
+  crop_size: 1024
+  val_crop_size: 1024
   batch_size: ${train.batch_size}
   val_batch_size: ${train.val_batch_size}
   num_workers: 1
@@ -54,7 +54,7 @@ optimizer:
   warmup_epochs: 0
 train:
   epochs: 100
-  batch_size: 14
+  batch_size: 4
   val_batch_size: 1
   freeze_epochs: 0
   test_every: 1
