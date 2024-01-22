@@ -1,0 +1,6 @@
+base_configs:
+  - config/xview3/base.yaml
+
+name: swin_v2_base_1e-4_256
+optimizer:
+  base_lr: 1e-4
