@@ -110,7 +110,7 @@ def predict_scene_and_return_mm(
         slice = TileSlice(*slice_vals[0])
         with torch.no_grad():
             batch = batch
-            with torch.cuda.amp.autocast(enabled=False):
+            with torch.cuda.amp.autocast(enabled=use_fp16):
                 outputs = []
                 for model in models:
                     extra_context = model.module.context_mode
