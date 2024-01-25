@@ -26,6 +26,7 @@ class TransformerXLConfig:
     classification_mode: bool = False
     """Ratio of chips have gradient traacked, must be between 0 and 1"""
     grad_ratio: float = 1.0
+    attention_method: str = 'hyper'
 
 
 class PositionalEmbedding(nn.Module):
