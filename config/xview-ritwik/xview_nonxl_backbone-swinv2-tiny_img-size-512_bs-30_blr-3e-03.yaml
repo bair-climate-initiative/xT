@@ -4,7 +4,7 @@ base_configs:
 distributed: true
 fsdp: false
 fp16: true
-name: xview_nonxl_backbone-swinv2-tiny_img-size-512_bs-32_blr-3e-03
+name: xview_nonxl_backbone-swinv2-tiny_img-size-512_bs-30_blr-3e-03
 test: false
 val: false
 data:
@@ -53,7 +53,7 @@ optimizer:
   mode: step
 train:
   epochs: 120
-  batch_size: 32
+  batch_size: 30
   val_batch_size: 2
   freeze_epochs: 0
   freeze_bn: false
