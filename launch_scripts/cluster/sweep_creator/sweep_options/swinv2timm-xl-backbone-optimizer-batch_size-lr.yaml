@@ -1,34 +1,34 @@
 key_names:
-  - name: model.backbone_class
-    options:
-      # - swinv2_tiny_window16_256_timm_xview
-      - swinv2_base_window16_256_timm_xview
-      # - swinv2_large_window16_256_timm_xview
   - group:
-      # - data.crop_size: 2048
-        # data.val_crop_size: 2048
-        # model.backbone.img_size: 256
-      # - data.crop_size: 2048
-        # data.val_crop_size: 2048
-        # model.backbone.img_size: 512
-      - data.crop_size: 4096
-        # data.val_crop_size: 4096
+      - model.backbone_class: swinv2_tiny_window16_256_timm_xview
+        data.crop_size: 4096
         model.backbone.img_size: 512
-      # - data.crop_size: 4096
-        # data.val_crop_size: 4096
-        # model.backbone.img_size: 1024
-      - data.crop_size: 8192
-        # data.val_crop_size: 8192
+        # train.batch_size: 4
+        train.batch_size: 16 # for cluster, or 18
+      - model.backbone_class: swinv2_tiny_window16_256_timm_xview
+        data.crop_size: 4096
         model.backbone.img_size: 1024
+        # train.batch_size: 1
+        train.batch_size: 4 # for cluster, estimated
+      - model.backbone_class: swinv2_base_window16_256_timm_xview
+        data.crop_size: 4096
+        model.backbone.img_size: 512
+        # train.batch_size: 2
+        train.batch_size: 10 # for cluster
+      - model.backbone_class: swinv2_base_window16_256_timm_xview
+        data.crop_size: 4096
+        model.backbone.img_size: 1024
+        # train.batch_size: 1
+        train.batch_size: 2 # for cluster
+  - name: model.xl_context.n_layer
+    options:
+      - 2
+      - 4
+      - 6
   - name: optimizer.base_lr
     options:
-      # - 1e-3
+      - 1e-3
       # - 3e-4
       - 1e-4
-      - 1e-5
-      # - 3e-5
-  - name: train.batch_size
-    options:
-      - 24
-      # - 32
-      # - 54
+      - 3e-5
+      # - 1e-5

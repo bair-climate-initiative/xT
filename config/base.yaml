@@ -20,6 +20,8 @@ data:
   positive_ratio: 0.85
   supercategories:
   category_label_path: ''
+  batch_size: ${train.batch_size}
+  val_batch_size: ${train.val_batch_size}
 model: 
   name: TimmUnet
   patch_size: 16

@@ -201,8 +201,9 @@ class PytorchTrainer:
         input = torch.randn(shape).cuda()
         flops = FlopCountAnalysis(self.model, input)
         r = flops.by_operator()
-        print(r)
-        print(dict(total_flops=sum(r.values())))
+        if is_main_process():
+            print(r)
+            print(dict(total_flops=sum(r.values())))
 
     def _get_current_payload(self):
         payload = {
