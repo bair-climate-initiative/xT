@@ -5,14 +5,10 @@ name: xview_xl_backbone-swinv2-base_crop-size-4096_img-size-512_bs-10_n-layer-2_
 fsdp: false
 distributed: true
 fp16: false
-output_dir: ${oc.env:OUTPUT_DIR, "/shared/jacklishufan/large-image-models/new"}
 test: false
 val: false
 data:
   dataset: xview3
-  dir: ${oc.env:XVIEW3_ROOT, "/shared/group/xview3"}
-  shoreline_dir: ${oc.env:XVIEW3_ROOT, "/shared/group/xview3"} /shoreline/validation
-  folds_csv: ${oc.env:XVIEW3_FOLD_PATH, "meta/folds.csv"}
   fold: 77
   multiplier: 1
   num_workers: 8
@@ -64,7 +60,6 @@ model:
     grad_ratio: 1.0
     n_layer: 2
     mem_chip: 1
-  resume: ''
 optimizer:
   name: adamw
   base_lr: 0.0001
