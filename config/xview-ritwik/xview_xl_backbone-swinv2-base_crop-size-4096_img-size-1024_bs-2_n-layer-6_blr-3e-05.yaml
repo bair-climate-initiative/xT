@@ -1,10 +1,10 @@
 base_configs:
 - config/base.yaml
 - config/cluster_paths.yaml
-distributed: true
+name: xview_xl_backbone-swinv2-base_crop-size-4096_img-size-1024_bs-2_n-layer-6_blr-3e-05
 fsdp: false
-fp16: true
-name: xview_nonxl_backbone-swinv2-base_img-size-512_bs-4_blr-1e-03
+distributed: true
+fp16: false
 output_dir: ${oc.env:OUTPUT_DIR, "/shared/jacklishufan/large-image-models/new"}
 test: false
 val: false
@@ -14,56 +14,70 @@ data:
   shoreline_dir: ${oc.env:XVIEW3_ROOT, "/shared/group/xview3"} /shoreline/validation
   folds_csv: ${oc.env:XVIEW3_FOLD_PATH, "meta/folds.csv"}
   fold: 77
-  multiplier: 64
+  multiplier: 1
   num_workers: 8
   test: false
-  crop_size: ${model.backbone.img_size}
-  val_crop_size: ${model.backbone.img_size}
+  crop_size: 4096
+  val_crop_size: ${data.crop_size}
   batch_size: ${train.batch_size}
   val_batch_size: ${train.val_batch_size}
   overlap: 10
   positive_ratio: 0.85
-  supercategories: null
-  category_label_path: ''
+  num_classes: 284
+  interpolation: bilinear
+  test_crop: false
+  aug:
+    auto_augment: rand-m9-mstd0.5-inc1
+    color_jitter: 0.4
+    reprob: 0.0
+    remode: pixel
+    recount: 1
+    mixup: 0.0
+    cutmix: 0.0
+    label_smoothing: 0.3
+    random_resized_crop: false
+    mean:
+    - 0.485
+    - 0.456
+    - 0.406
+    std:
+    - 0.229
+    - 0.224
+    - 0.225
 model:
   name: EncoderDecoderV2
-  patch_size: 16
+  num_classes: ${data.num_classes}
   mlp_ratio: 4
   backbone_class: swinv2_base_window16_256_timm_xview
   backbone:
-    in_chans: 3
-    input_dim: 2
-    drop_path_rate: 0.2
+    img_size: 1024
+    input_dim: 3
+    use_vanilla_backward: false
     pretrained: ${oc.env:PRETRAINED_CKPT_PATH, "./ckpts"}/swinv2_base_patch4_window16_256.pth
-    channel_last: true
-    img_size: 512
-  resume: ''
-  tiling: naive
+    upsample: false
   xl_context:
-    enabled: false
     skip_connection: false
-    grad_ratio: 0.25
+    enabled: true
+    hidden_size: 256
+    classification_mode: false
     tiling: naive_two_stream
-    n_layer: 12
+    grad_ratio: 1.0
+    n_layer: 6
+    mem_chip: 1
+  resume: ''
 optimizer:
-  name: sgd
-  base_lr: 0.001
-  min_lr_ratio: 0.01
+  name: adamw
+  base_lr: 3.0e-05
   classifier_ratio: 1.0
   warmup_epochs: 0
-  weight_decay: 0.0001
-  momentum: 0.9
-  nesterov: true
-  scheduler: cosine
-  mode: step
 train:
   epochs: 120
-  batch_size: 3
-  val_batch_size: 2
+  batch_size: 2
+  val_batch_size: 1
   freeze_epochs: 0
-  freeze_bn: false
   test_every: 20
   test_reset: true
+  clip_grad: 5.0
 losses:
   losses:
   - name: mask_vessel

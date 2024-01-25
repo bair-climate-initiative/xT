@@ -4,7 +4,7 @@ base_configs:
 distributed: true
 fsdp: false
 fp16: true
-name: xview_nonxl_backbone-swinv2-base_img-size-512_bs-4_blr-1e-03
+name: xview_nonxl_backbone-swinv2-tiny_img-size-1024_bs-7_blr-3e-03
 output_dir: ${oc.env:OUTPUT_DIR, "/shared/jacklishufan/large-image-models/new"}
 test: false
 val: false
@@ -29,14 +29,14 @@ model:
   name: EncoderDecoderV2
   patch_size: 16
   mlp_ratio: 4
-  backbone_class: swinv2_base_window16_256_timm_xview
+  backbone_class: swinv2_tiny_window16_256_timm_xview
   backbone:
     in_chans: 3
     input_dim: 2
     drop_path_rate: 0.2
     pretrained: ${oc.env:PRETRAINED_CKPT_PATH, "./ckpts"}/swinv2_base_patch4_window16_256.pth
     channel_last: true
-    img_size: 512
+    img_size: 1024
   resume: ''
   tiling: naive
   xl_context:
@@ -47,7 +47,7 @@ model:
     n_layer: 12
 optimizer:
   name: sgd
-  base_lr: 0.001
+  base_lr: 0.003
   min_lr_ratio: 0.01
   classifier_ratio: 1.0
   warmup_epochs: 0
@@ -58,7 +58,7 @@ optimizer:
   mode: step
 train:
   epochs: 120
-  batch_size: 3
+  batch_size: 7
   val_batch_size: 2
   freeze_epochs: 0
   freeze_bn: false

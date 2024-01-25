@@ -19,7 +19,7 @@ key_names:
         data.crop_size: 4096
         model.backbone.img_size: 1024
         # train.batch_size: 1
-        train.batch_size: 4 # for cluster
+        train.batch_size: 2 # for cluster
   - name: model.xl_context.n_layer
     options:
       - 2
