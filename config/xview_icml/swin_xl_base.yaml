@@ -1,12 +1,14 @@
-base_configs:
+
+base_configs: 
   - config/base.yaml
+  # - config/cluster_paths_xview_bair.yaml
   - config/cluster_paths.yaml
-distributed: True
+name: xview_swin_v2_base_1e-5_xl_512_256
 fsdp: False
-fp16: True
-name: xview_swin_base_xl_512_lr1e-3
+distributed: true
+fp16: False
 output_dir: ${oc.env:OUTPUT_DIR, "/shared/jacklishufan/large-image-models/new"} 
-test: False
+test: False 
 val: False
 data:
   dataset: xview3
@@ -14,59 +16,64 @@ data:
   shoreline_dir: ${oc.env:XVIEW3_ROOT, "/shared/group/xview3"} /shoreline/validation
   folds_csv:  ${oc.env:XVIEW3_FOLD_PATH, "meta/folds.csv"} 
   fold: 77
-  multiplier: 64
+  multiplier: 1
   num_workers: 8
   test: False
-  crop_size: ${model.backbone.img_size}
-  val_crop_size: ${model.backbone.img_size}
+  crop_size: 512
+  val_crop_size: ${data.crop_size}
   batch_size: ${train.batch_size}
   val_batch_size: ${train.val_batch_size}
-  overlap: 10 
+  overlap: 10
   positive_ratio: 0.85
-  supercategories:
-  category_label_path: ''
+  num_classes: 284
+  interpolation: bilinear
+  test_crop: False
+  aug:
+    auto_augment: rand-m9-mstd0.5-inc1
+    color_jitter: 0.4
+    reprob: 0.0
+    remode: pixel
+    recount: 1
+    mixup: 0.0
+    cutmix: 0.0
+    label_smoothing: 0.3
+    random_resized_crop: False
+    mean: [0.485, 0.456, 0.406]
+    std: [0.229, 0.224, 0.225]
 model: 
   name: EncoderDecoderV2
-  patch_size: 16
+  num_classes: ${data.num_classes}
   mlp_ratio: 4
-  # backbone_class: swinv2_large_window16_256_timm
-  # backbone_class: get_hiera_model_base
-  # backbone_class: get_hiera_model_base_plus
   backbone_class: swinv2_base_window16_256_timm_xview
   backbone:
-    in_chans: 3
-    input_dim: 2
-    drop_path_rate: 0.2
-    pretrained:  ${oc.env:PRETRAINED_CKPT_PATH, "./ckpts"}/swinv2_base_patch4_window16_256.pth
-    channel_last: True
-    img_size: 512
-  resume: ''
-  tiling: 'naive'
+    img_size: 256
+    input_dim: 3
+    use_vanilla_backward: False
+    pretrained: ${oc.env:PRETRAINED_CKPT_PATH, "./ckpts"}/swinv2_base_patch4_window16_256.pth
+    upsample: False
   xl_context:
-    enabled: off
-    skip_connection: off
-    grad_ratio: 0.25
+    skip_connection: off # on
+    enabled: on
+    hidden_size: 256
+    classification_mode: off
     tiling: naive_two_stream
-    n_layer: 12
+    grad_ratio: 1.0
+    n_layer: 4
+    mem_chip: 1
+  resume: '' # /shared/jacklishufan/inatualist/checkpoints/EncoderDecoderV2_revswinv2_tiny_window16_256_xview_77_hwcy21mb_accuracy_top1.ckpt
 optimizer:
-  name: sgd 
-  base_lr: 1e-3
-  min_lr_ratio: 0.01
+  name: adamw
+  base_lr: 1e-5
   classifier_ratio: 1.0
   warmup_epochs: 0
-  weight_decay: 1e-4
-  momentum: 0.9
-  nesterov: True
-  scheduler: cosine
-  mode: step
 train:
   epochs: 120
-  batch_size: 8
-  val_batch_size: 2
+  batch_size: 64
+  val_batch_size: 1
   freeze_epochs: 0
-  freeze_bn: false
-  test_every: 20 
+  test_every: 20
   test_reset: True
+  clip_grad: 5.0
 losses:
   losses:
     - name: mask_vessel
