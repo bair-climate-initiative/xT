@@ -72,12 +72,15 @@ class PytorchTrainer:
         self.scale_learning_rate()
 
         self._init_amp()
+
         self.optimizer, self.scheduler = create_optimizer(
             self.config.optimizer,
             self.model,
             len(train_loader),
             self.config.train.epochs,
         )
+        self._load_optimizer_from_ckpt()
+
         self.parms = self.count_parameters()
         if is_main_process():
             if WANDB_OFFLINE:
@@ -109,6 +112,8 @@ class PytorchTrainer:
             wandb.log_artifact(artifact)
             self.wandb_id = wandb.run.id
             wandb.run.summary["total_parms"] = self.count_parameters()
+            if os.environ.get("SLURM_JOBID", None):
+                wandb.config.update({"SLURM_JOBID": os.environ["SLURM_JOBID"]})
 
             print(self.model)
 
@@ -214,6 +219,7 @@ class PytorchTrainer:
         payload = {
             "epoch": self.current_epoch,
             "state_dict": self.model.state_dict(),  # ? need .cpu()?
+            "optimizer_state_dict": self.optimizer.state_dict(),
             "metrics": self.current_metrics,
         }
 
@@ -617,12 +623,10 @@ class PytorchTrainer:
                 for k in mismatched_keys:
                     del state_dict[k]
                 model.load_state_dict(state_dict, strict=False)
-                # if not self.config.from_zero:
-                #     self.current_epoch = checkpoint["epoch"]
-                #     if not self.config.zero_score:
-                #         self.current_metrics = checkpoint.get(
-                #             "metrics", self.evaluator.init_metrics()
-                #         )
+                self.current_epoch = checkpoint["epoch"]
+                self.current_metrics = checkpoint.get(
+                    "metrics", self.evaluator.init_metrics()
+                )
                 if is_main_process():
                     print(
                         "=> loaded checkpoint '{}' (epoch {})".format(
@@ -637,6 +641,18 @@ class PytorchTrainer:
         # if self.config.from_zero:
         #     self.current_metrics = self.evaluator.init_metrics()
         #     self.current_epoch = 0
+
+    def _load_optimizer_from_ckpt(self):
+        checkpoint_path = self.config.model.resume
+        if not checkpoint_path:
+            return
+        if os.path.isfile(checkpoint_path):
+            checkpoint = torch.load(checkpoint_path, map_location="cpu")
+            if "optimizer_state_dict" in checkpoint:
+                self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+            else:
+                if is_main_process():
+                    print("=> no optimizer checkpoint found at '{}'".format(checkpoint_path))
 
     def _init_model(self):
         self.input_size = self.config.model.backbone.img_size
