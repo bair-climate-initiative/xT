@@ -1,4 +1,5 @@
 OUTPUT_DIR=outputs \
+WANDB_MODE=disabled \
 XVIEW3_ROOT=/datasets/xview3_2024-01-10_1001/ \
 /home/tyler/miniconda3/envs/scalemae2/bin/torchrun --nproc_per_node=$1 --master_port $2 \
   train_val_segmentor.py \

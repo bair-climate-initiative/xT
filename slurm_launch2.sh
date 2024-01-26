@@ -10,8 +10,8 @@
 ##SBATCH --cpus-per-task=4  # Number of cores per task.
 ##SBATCH --ntasks-per-node=4
 ## SBATCH -t 0-2:00          # Time requested (D-HH:MM).
-##SBATCH --nodelist=em1,em2,em3,em9    # Uncomment if you need a specific machine.
-#SBATCH --exclude=em8    # Uncomment if you need a specific machine.
+#SBATCH --nodelist=em9    # Uncomment if you need a specific machine.
+##SBATCH --exclude=em8    # Uncomment if you need a specific machine.
 
 # Uncomment this to have Slurm cd to a directory before running the script.
 # You can also just run the script from the directory you want to be in.
