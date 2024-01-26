@@ -5,14 +5,10 @@ distributed: true
 fsdp: false
 fp16: true
 name: xview_nonxl_backbone-swinv2-tiny_img-size-256_bs-64_blr-1e-04
-output_dir: ${oc.env:OUTPUT_DIR, "/shared/jacklishufan/large-image-models/new"}
 test: false
 val: false
 data:
   dataset: xview3
-  dir: ${oc.env:XVIEW3_ROOT, "/shared/group/xview3"}
-  shoreline_dir: ${oc.env:XVIEW3_ROOT, "/shared/group/xview3"} /shoreline/validation
-  folds_csv: ${oc.env:XVIEW3_FOLD_PATH, "meta/folds.csv"}
   fold: 77
   multiplier: 64
   num_workers: 8
@@ -37,7 +33,6 @@ model:
     pretrained: ${oc.env:PRETRAINED_CKPT_PATH, "./ckpts"}/swinv2_base_patch4_window16_256.pth
     channel_last: true
     img_size: 256
-  resume: ''
   tiling: naive
   xl_context:
     enabled: false
@@ -46,16 +41,11 @@ model:
     tiling: naive_two_stream
     n_layer: 12
 optimizer:
-  name: sgd
-  base_lr: 0.0001
-  min_lr_ratio: 0.01
+  name: adamw
+  base_lr: 1.0e-05
   classifier_ratio: 1.0
   warmup_epochs: 0
-  weight_decay: 0.0001
-  momentum: 0.9
-  nesterov: true
-  scheduler: cosine
-  mode: step
+  lr: 0.0001
 train:
   epochs: 120
   batch_size: 64
