@@ -1,30 +1,28 @@
 base_configs:
-  - config/base.yaml
+  # - config/base.yaml
   - config/cluster_paths.yaml
 distributed: True
-fsdp: on
+fsdp: False
 fp16: True
 name: xview_swin_base_xl_512_lr1e-3
-output_dir: ${oc.env:OUTPUT_DIR, "/shared/jacklishufan/large-image-models/new"} 
 test: False
 val: False
 data:
   dataset: xview3
-  dir: ${oc.env:XVIEW3_ROOT, "/shared/group/xview3"} 
-  shoreline_dir: ${oc.env:XVIEW3_ROOT, "/shared/group/xview3"} /shoreline/validation
-  folds_csv:  ${oc.env:XVIEW3_FOLD_PATH, "meta/folds.csv"} 
   fold: 77
   multiplier: 64
   num_workers: 8
   test: False
   crop_size: ${model.backbone.img_size}
   val_crop_size: ${model.backbone.img_size}
+  batch_size: ${train.batch_size}
+  val_batch_size: ${train.val_batch_size}
   overlap: 10 
   positive_ratio: 0.85
   supercategories:
   category_label_path: ''
 model: 
-  name: TimmUnet
+  name: EncoderDecoderV2
   patch_size: 16
   mlp_ratio: 4
   # backbone_class: swinv2_large_window16_256_timm
@@ -38,7 +36,6 @@ model:
     pretrained:  ${oc.env:PRETRAINED_CKPT_PATH, "./ckpts"}/swinv2_base_patch4_window16_256.pth
     channel_last: True
     img_size: 512
-  resume: ''
   tiling: 'naive'
   xl_context:
     enabled: off
@@ -47,7 +44,7 @@ model:
     tiling: naive_two_stream
     n_layer: 12
 optimizer:
-  name: sgd 
+  name: adam
   base_lr: 1e-3
   min_lr_ratio: 0.01
   classifier_ratio: 1.0
@@ -58,12 +55,12 @@ optimizer:
   scheduler: cosine
   mode: step
 train:
-  epochs: 120
+  epochs: 480
   batch_size: 8
   val_batch_size: 2
   freeze_epochs: 0
   freeze_bn: false
-  test_every: 20 
+  test_every: 40 
   test_reset: True
 losses:
   losses:

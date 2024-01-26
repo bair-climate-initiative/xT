@@ -29,7 +29,7 @@ warnings.filterwarnings("ignore")
 def main(cfg: XviewConfig = None, args = None) -> None:
     if os.environ.get("RANK", "0") == "0":  
         _make_output_directory_structure(cfg)
-        print(OmegaConf.to_yaml(cfg))
+        # print(OmegaConf.to_yaml(cfg))
 
     process_group = _init_distributed(config=cfg)
     if hasattr(args,'name'):
@@ -45,6 +45,7 @@ def main(cfg: XviewConfig = None, args = None) -> None:
         mixup_fn=mixup_fn,
         process_group=process_group
     )
+    cfg = trainer.config # updates lazy entries
 
     if is_main_process():
         # os.makedirs(cfg.output_dir, exist_ok=True)

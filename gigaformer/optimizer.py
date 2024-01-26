@@ -18,8 +18,8 @@ class OptimizerConfig:
 
     name: str = "sgd"
     """Optimizer shortname: options are [sgd, adam, adamw]"""
-    lr: float = 1e-3
-    """Absolute learning rate, NOT SET DIRECTLY! Overridden below."""
+    lr: float = -1.0
+    """Absolute learning rate, NOT SET DIRECTLY (unless you want to)! Overridden below."""
     base_lr: float = 1e-3
     """Base learning rate (adjusted by effective batch size)."""
     min_lr_ratio: float = 0.01

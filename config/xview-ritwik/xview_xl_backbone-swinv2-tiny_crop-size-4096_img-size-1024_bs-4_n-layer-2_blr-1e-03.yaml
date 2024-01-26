@@ -1,0 +1,108 @@
+base_configs:
+- config/base.yaml
+- config/cluster_paths.yaml
+name: xview_xl_backbone-swinv2-tiny_crop-size-4096_img-size-1024_bs-4_n-layer-2_blr-1e-03
+fsdp: false
+distributed: true
+fp16: false
+test: false
+val: false
+data:
+  dataset: xview3
+  fold: 77
+  multiplier: 1
+  num_workers: 8
+  test: false
+  crop_size: 4096
+  val_crop_size: ${data.crop_size}
+  batch_size: ${train.batch_size}
+  val_batch_size: ${train.val_batch_size}
+  overlap: 10
+  positive_ratio: 0.85
+  num_classes: 284
+  interpolation: bilinear
+  test_crop: false
+  aug:
+    auto_augment: rand-m9-mstd0.5-inc1
+    color_jitter: 0.4
+    reprob: 0.0
+    remode: pixel
+    recount: 1
+    mixup: 0.0
+    cutmix: 0.0
+    label_smoothing: 0.3
+    random_resized_crop: false
+    mean:
+    - 0.485
+    - 0.456
+    - 0.406
+    std:
+    - 0.229
+    - 0.224
+    - 0.225
+model:
+  name: EncoderDecoderV2
+  num_classes: ${data.num_classes}
+  mlp_ratio: 4
+  backbone_class: swinv2_tiny_window16_256_timm_xview
+  backbone:
+    img_size: 1024
+    input_dim: 3
+    use_vanilla_backward: false
+    pretrained: ${oc.env:PRETRAINED_CKPT_PATH, "./ckpts"}/swinv2_base_patch4_window16_256.pth
+    upsample: false
+  xl_context:
+    skip_connection: false
+    enabled: true
+    hidden_size: 256
+    classification_mode: false
+    tiling: naive_two_stream
+    grad_ratio: 1.0
+    n_layer: 2
+    mem_chip: 1
+optimizer:
+  name: adamw
+  base_lr: 0.001
+  classifier_ratio: 1.0
+  warmup_epochs: 0
+train:
+  epochs: 120
+  batch_size: 4
+  val_batch_size: 1
+  freeze_epochs: 0
+  test_every: 20
+  test_reset: true
+  clip_grad: 5.0
+losses:
+  losses:
+  - name: mask_vessel
+    type: Combo
+    params:
+      field: vessel_mask
+      weights:
+        bce: 1
+        focal: 3
+        dice: 1
+    weight: 1.0
+    display: true
+  - name: mask_fishing
+    type: Combo
+    params:
+      field: fishing_mask
+      weights:
+        bce: 1
+        focal: 3
+        dice: 1
+    weight: 2.0
+    display: true
+  - name: center
+    type: Center
+    params: null
+    weight: 3.0e-07
+    display: true
+  - name: length
+    type: Length
+    params: null
+    weight: 2.0
+    display: true
+eval_sampler: false

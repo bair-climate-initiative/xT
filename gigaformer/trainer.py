@@ -186,8 +186,13 @@ class PytorchTrainer:
 
     def scale_learning_rate(self):
         # linear scale the learning rate according to total batch size, may not be optimal
+        if self.config.optimizer.lr > 0: # means default was overridden
+            if is_main_process():
+                print("Keeping lr as is, absolute passed")
+            return
+
         eff_batch_size = self.config.train.batch_size * dist.get_world_size()
-        eff_batch_size = 8.0
+        # eff_batch_size = 8.0
         # base batch size is 8 * 1 = 32
         lr = self.config.optimizer.base_lr * eff_batch_size / 8.0
         if is_main_process():
@@ -201,8 +206,9 @@ class PytorchTrainer:
         input = torch.randn(shape).cuda()
         flops = FlopCountAnalysis(self.model, input)
         r = flops.by_operator()
-        print(r)
-        print(dict(total_flops=sum(r.values())))
+        if is_main_process():
+            print(r)
+            print(dict(total_flops=sum(r.values())))
 
     def _get_current_payload(self):
         payload = {

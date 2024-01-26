@@ -4,8 +4,8 @@
 
 #SBATCH --qos medium       # QOS (priority).
 #SBATCH -N 1               # Number of nodes requested.
-#SBATCH -n 8               # Number of tasks (i.e. processes).
-#SBATCH --gres=gpu:8       # Number of GPUs.
+#SBATCH -n 4               # Number of tasks (i.e. processes).
+#SBATCH --gres=gpu:4       # Number of GPUs.
 ##SBATCH --gpus-per-node=4
 ##SBATCH --cpus-per-task=4  # Number of cores per task.
 ##SBATCH --ntasks-per-node=4
@@ -31,7 +31,7 @@ date
 echo "Starting job..."
 
 source ~/.bashrc
-conda activate scalemae
+conda activate scalemae2
 
 # Python will buffer output of your script unless you set this.
 # If you're not using python, figure out how to turn off output
@@ -41,7 +41,7 @@ export PYTHONUNBUFFERED=1
 
 # Do all the research.
 # python train.py
-bash $1
+bash $1 $@
 
 # Print completion time.
 date
