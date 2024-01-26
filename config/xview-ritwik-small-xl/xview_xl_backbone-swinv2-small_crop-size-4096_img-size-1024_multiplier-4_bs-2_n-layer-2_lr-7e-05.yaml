@@ -1,5 +1,4 @@
 base_configs:
-- config/base.yaml
 - config/cluster_paths.yaml
 name: xview_xl_backbone-swinv2-small_crop-size-4096_img-size-1024_multiplier-4_bs-2_n-layer-2_lr-7e-05
 fsdp: false
@@ -67,11 +66,11 @@ optimizer:
   warmup_epochs: 0
   lr: 7.0e-05
 train:
-  epochs: 120
+  epochs: 480
   batch_size: 2
   val_batch_size: 1
   freeze_epochs: 0
-  test_every: 20
+  test_every: 40
   test_reset: true
   clip_grad: 5.0
 losses:

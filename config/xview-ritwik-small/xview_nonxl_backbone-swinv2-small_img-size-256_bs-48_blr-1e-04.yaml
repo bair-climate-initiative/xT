@@ -1,10 +1,9 @@
 base_configs:
-- config/base.yaml
 - config/cluster_paths.yaml
 distributed: true
 fsdp: false
 fp16: true
-name: xview_nonxl_backbone-swinv2-base_img-size-256_bs-32_blr-1e-04
+name: xview_nonxl_backbone-swinv2-small_img-size-256_bs-48_blr-1e-04
 test: false
 val: false
 data:
@@ -25,7 +24,7 @@ model:
   name: EncoderDecoderV2
   patch_size: 16
   mlp_ratio: 4
-  backbone_class: swinv2_base_window16_256_timm_xview
+  backbone_class: swinv2_small_window16_256_timm_xview
   backbone:
     in_chans: 3
     input_dim: 2
@@ -41,7 +40,7 @@ model:
     tiling: naive_two_stream
     n_layer: 12
 optimizer:
-  name: sgd
+  name: adam
   base_lr: 0.0001
   min_lr_ratio: 0.01
   classifier_ratio: 1.0
@@ -52,12 +51,12 @@ optimizer:
   scheduler: cosine
   mode: step
 train:
-  epochs: 120
-  batch_size: 32
+  epochs: 480
+  batch_size: 48
   val_batch_size: 2
   freeze_epochs: 0
   freeze_bn: false
-  test_every: 20
+  test_every: 40
   test_reset: true
 losses:
   losses:
