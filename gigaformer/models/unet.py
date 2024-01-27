@@ -5,7 +5,7 @@ from torch.nn import Dropout2d
 from .backbones.vit import MAEDecoder
 from .backbones.vit import registry as VIT_CFG
 from .transformer_xl import MemTransformerLM, TransformerXLConfig
-
+from .mamba import create_block
 default_decoder_filters = [48, 96, 176, 256]
 default_last = 48
 
@@ -748,7 +748,7 @@ class LLMTransformerXLContextModel(nn.Module):
         self.out_proj = nn.Linear(hidden_size, d_model)
         self.layers = nn.Sequential(
             *[
-                LLMLayer(hidden_size, hidden_size * mlp_ratio, num_heads, causal=False)
+                LLMLayer(hidden_size, hidden_size * mlp_ratio, num_heads, causal=False,attention_method=xl_config.attention_method)
                 for _ in range(xl_config.n_layer)
             ]
         )
@@ -832,7 +832,7 @@ from hyp.attention.hyper_attn import HyperAttention
 
 
 class LLMAttention(nn.Module):
-    def __init__(self, dim, inner_dim, num_heads, causal=False):
+    def __init__(self, dim, inner_dim, num_heads, causal=False,):
         super().__init__()
         self.qkv = nn.Linear(dim, inner_dim * 3, bias=True)
         self.proj = nn.Linear(inner_dim, dim)
@@ -861,6 +861,7 @@ class LLMAttention(nn.Module):
         q, k, v = (
             self.qkv(x).reshape(B, L, 3, self.num_heads, -1).permute(2, 0, 3, 1, 4)
         )  # B H L D // num_heads
+        breakpoint()
         attn_out = self.attn(q, k, v, causal=self.causal).permute(
             0, 2, 1, 3
         )  # B H L D // num_heads
@@ -869,7 +870,42 @@ class LLMAttention(nn.Module):
 
         return attn_out
 
+class ViTAttention(nn.Module):
+    def __init__(self, dim, num_heads=8, qkv_bias=False, qk_scale=None, attn_drop=0., proj_drop=0., use_mask=False,**kwargs):
+        super().__init__()
+        self.num_heads = num_heads
+        head_dim = dim // num_heads
+        # NOTE scale factor was wrong in my original version, can set manually to be compat with prev weights
+        self.scale = qk_scale or head_dim ** -0.5
 
+        self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias)
+
+        self.attn_drop = nn.Dropout(attn_drop)
+        self.proj = nn.Linear(dim, dim)
+        self.proj_drop = nn.Dropout(proj_drop)
+
+        self.use_mask = use_mask
+        if use_mask:
+            self.att_mask = nn.Parameter(torch.Tensor(self.num_heads, 196, 196))
+
+    def forward(self, x):
+        B, N, C = x.shape
+
+        qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
+        q, k, v = qkv[0], qkv[1], qkv[2]   # make torchscript happy (cannot use tensor as tuple)
+
+        attn = (q @ k.transpose(-2, -1)) * self.scale
+        if self.use_mask:
+            attn = attn * torch.sigmoid(self.att_mask).expand(B, -1, -1, -1)
+
+        attn = attn.softmax(dim=-1)
+        attn = self.attn_drop(attn)
+
+        x = (attn @ v).transpose(1, 2).reshape(B, N, C)
+        x = self.proj(x)
+        x = self.proj_drop(x)
+        return x
+    
 from transformers.models.llama.modeling_llama import LlamaRMSNorm
 
 
@@ -891,10 +927,13 @@ class LlamaMLP(nn.Module):
 
 
 class LLMLayer(nn.Module):
-    def __init__(self, dim, inner_dim, num_heads, causal=False):
+    def __init__(self, dim, inner_dim, num_heads, causal=False,attention_method='hyper'):
         super().__init__()
         num_heads = dim // 128
-        self.attn = LLMAttention(dim, dim, num_heads, causal=causal)
+        if attention_method == 'hyper':
+            self.attn = LLMAttention(dim, dim, num_heads, causal=causal)
+        else:
+            self.attn = ViTAttention(dim, dim, num_heads, causal=causal)
         self.input_layernorm = LlamaRMSNorm(dim, eps=1e-05)
         self.post_attention_layernorm = LlamaRMSNorm(dim, eps=1e-05)
         self.mlp = LlamaMLP(dim, inner_dim)
@@ -935,23 +974,40 @@ class LLMClassificationDecoder(nn.Module):
         hidden_size=768,
         num_heads=8,
         n_layers=2,
+        attention_method=None
     ):
         super().__init__()
         self.use_checkpoint = use_checkpoint
         self.input_proj = nn.Linear(in_dim, hidden_size)
-        self.layers = nn.Sequential(
-            *[
-                LLMLayer(hidden_size, hidden_size * mlp_ratio, num_heads, causal=True)
-                for _ in range(n_layers)
-            ]
-        )
-        # self.layers = nn.Sequential(
-        #     *[create_block(in_dim,
-        #         fused_add_norm=False,
-        #         residual_in_fp32=False,
-        #         reverse=False
-        #     ) for _ in range(4)]
-        # )
+        assert attention_method in ['hyper','naive','mamba']
+        if attention_method == 'mamba':
+            ssm_cfg={"d_state":16}
+            self.layers = nn.Sequential(
+                *[create_block(
+                    d_model=hidden_size,
+                    ssm_cfg=ssm_cfg,
+                    fused_add_norm=False,
+                    residual_in_fp32=True,
+                    drop_rate=0.0,
+                    drop_path_rate=0.0,
+                    reverse=i % 2 == 0,
+                    transpose =False,
+                    use_mlp=False,
+                    is_2d=False,
+                    rms_norm=False,
+                    split_head=False,
+                    use_nd=False,
+                    downsample=False
+                ) for i in range(n_layers)]
+            )
+        else:
+            self.layers = nn.Sequential(
+                *[
+                    LLMLayer(hidden_size, hidden_size * mlp_ratio, num_heads, causal=True,attention_method=attention_method)
+                    for _ in range(n_layers)
+                ]
+            )
+
         self.cls_token = nn.Parameter(torch.zeros(1, 1, hidden_size))
         self.hidden_size = hidden_size
         self.cls = nn.Sequential(
@@ -1138,7 +1194,8 @@ class EncoderDecoderV2(AbstractModel):
             if self.cls_head == "xl":
                 extra_kwargs = dict(
                     hidden_size =  self.xl_config.hidden_size,
-                    n_layers = self.xl_config.n_layer
+                    n_layers = self.xl_config.n_layer,
+                    attention_method = self.xl_config.attention_method,
                 )
             self.decoder = clasifier(
                 in_dim=self.filters[-1] * (2 if self.skip_conntection else 1),
