@@ -5,7 +5,7 @@ from torch.nn import Dropout2d
 from .backbones.vit import MAEDecoder
 from .backbones.vit import registry as VIT_CFG
 from .transformer_xl import MemTransformerLM, TransformerXLConfig
-
+from .mamba import create_block
 default_decoder_filters = [48, 96, 176, 256]
 default_last = 48
 
@@ -861,6 +861,7 @@ class LLMAttention(nn.Module):
         q, k, v = (
             self.qkv(x).reshape(B, L, 3, self.num_heads, -1).permute(2, 0, 3, 1, 4)
         )  # B H L D // num_heads
+        breakpoint()
         attn_out = self.attn(q, k, v, causal=self.causal).permute(
             0, 2, 1, 3
         )  # B H L D // num_heads
@@ -978,21 +979,35 @@ class LLMClassificationDecoder(nn.Module):
         super().__init__()
         self.use_checkpoint = use_checkpoint
         self.input_proj = nn.Linear(in_dim, hidden_size)
-        assert attention_method in ['hyper','naive']
-        self.layers = nn.Sequential(
-            *[
-                LLMLayer(hidden_size, hidden_size * mlp_ratio, num_heads, causal=True,attention_method=attention_method)
-                for _ in range(n_layers)
-            ]
-        )
-        
-        # self.layers = nn.Sequential(
-        #     *[create_block(in_dim,
-        #         fused_add_norm=False,
-        #         residual_in_fp32=False,
-        #         reverse=False
-        #     ) for _ in range(4)]
-        # )
+        assert attention_method in ['hyper','naive','mamba']
+        if attention_method == 'mamba':
+            ssm_cfg={"d_state":16}
+            self.layers = nn.Sequential(
+                *[create_block(
+                    d_model=hidden_size,
+                    ssm_cfg=ssm_cfg,
+                    fused_add_norm=False,
+                    residual_in_fp32=True,
+                    drop_rate=0.0,
+                    drop_path_rate=0.0,
+                    reverse=i % 2 == 0,
+                    transpose =False,
+                    use_mlp=False,
+                    is_2d=False,
+                    rms_norm=False,
+                    split_head=False,
+                    use_nd=False,
+                    downsample=False
+                ) for i in range(n_layers)]
+            )
+        else:
+            self.layers = nn.Sequential(
+                *[
+                    LLMLayer(hidden_size, hidden_size * mlp_ratio, num_heads, causal=True,attention_method=attention_method)
+                    for _ in range(n_layers)
+                ]
+            )
+
         self.cls_token = nn.Parameter(torch.zeros(1, 1, hidden_size))
         self.hidden_size = hidden_size
         self.cls = nn.Sequential(
