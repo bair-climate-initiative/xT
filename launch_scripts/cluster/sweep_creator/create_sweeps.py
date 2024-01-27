@@ -58,6 +58,7 @@ def parse_args():
 opt_key_map = {
     "optimizer.name": "optimizer",
     "optimizer.base_lr": "blr",
+    "optimizer.lr": "lr",
     "train.batch_size": "bs",
     "optimizer.warmup_epochs": "warmup",
     "data.crop_size": "crop_size",
@@ -123,7 +124,7 @@ def main():
             key_name = key_name.replace("_", "-")
 
             opt= opt_map.get(opt, opt)
-            if key_name == "blr":
+            if key_name in ["blr", "lr"]:
                 experiment_name += f"_{key_name}-{opt:.0e}"
             else:
                 experiment_name += f"_{key_name}-{opt}"
