@@ -76,6 +76,8 @@ opt_map = {
 
 def main():
     args = parse_args()
+    import os
+    print(os.getcwd())
     sweep_options = OmegaConf.load(args.sweep_options)
     base_config = OmegaConf.load(args.base_config)
     output_folder = args.output_folder
