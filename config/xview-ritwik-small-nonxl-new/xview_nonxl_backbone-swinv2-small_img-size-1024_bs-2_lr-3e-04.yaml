@@ -1,5 +1,5 @@
 base_configs:
-- config/cluster_paths.yaml
+- config/cluster_paths_em.yaml
 distributed: true
 fsdp: false
 fp16: true
@@ -31,7 +31,7 @@ model:
     drop_path_rate: 0.2
     pretrained: ${oc.env:PRETRAINED_CKPT_PATH, "./ckpts"}/swinv2_base_patch4_window16_256.pth
     channel_last: true
-    img_size: 1024
+    img_size: 512
   tiling: naive
   xl_context:
     enabled: false
@@ -41,7 +41,6 @@ model:
     n_layer: 12
 optimizer:
   name: adam
-  base_lr: 0.001
   min_lr_ratio: 0.01
   classifier_ratio: 1.0
   warmup_epochs: 0

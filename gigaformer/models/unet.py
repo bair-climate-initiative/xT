@@ -5,7 +5,6 @@ from torch.nn import Dropout2d
 from .backbones.vit import MAEDecoder
 from .backbones.vit import registry as VIT_CFG
 from .transformer_xl import MemTransformerLM, TransformerXLConfig
-from .mamba import create_block
 default_decoder_filters = [48, 96, 176, 256]
 default_last = 48
 
@@ -981,6 +980,7 @@ class LLMClassificationDecoder(nn.Module):
         self.input_proj = nn.Linear(in_dim, hidden_size)
         assert attention_method in ['hyper','naive','mamba']
         if attention_method == 'mamba':
+            from .mamba import create_block
             ssm_cfg={"d_state":16}
             self.layers = nn.Sequential(
                 *[create_block(

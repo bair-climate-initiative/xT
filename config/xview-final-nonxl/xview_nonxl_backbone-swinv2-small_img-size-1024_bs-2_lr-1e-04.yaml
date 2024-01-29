@@ -51,12 +51,12 @@ optimizer:
   mode: step
   lr: 0.0001
 train:
-  epochs: 480
+  epochs: 120
   batch_size: 2
   val_batch_size: 2
   freeze_epochs: 0
   freeze_bn: false
-  test_every: 40
+  test_every: 20
   test_reset: true
 losses:
   losses:
