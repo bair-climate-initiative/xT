@@ -3,7 +3,7 @@ base_configs:
 distributed: true
 fsdp: false
 fp16: true
-name: xview_nonxl_backbone-swinv2-small_img-size-1024_bs-2_lr-3e-05
+name: xview_nonxl_backbone-swinv2-small_img-size-1024_bs-2_lr-1e-03
 test: false
 val: false
 data:
@@ -49,14 +49,14 @@ optimizer:
   nesterov: true
   scheduler: cosine
   mode: step
-  lr: 3.0e-05
+  lr: 0.001
 train:
-  epochs: 480
+  epochs: 120
   batch_size: 2
   val_batch_size: 2
   freeze_epochs: 0
   freeze_bn: false
-  test_every: 40
+  test_every: 20
   test_reset: true
 losses:
   losses:

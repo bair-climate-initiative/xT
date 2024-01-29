@@ -58,15 +58,14 @@ model:
     mem_chip: 1
 optimizer:
   name: adamw
-  base_lr: 1e-5
   classifier_ratio: 1.0
   warmup_epochs: 0
 train:
-  epochs: 480
+  epochs: 120
   batch_size: 64
   val_batch_size: 1
   freeze_epochs: 0
-  test_every: 40
+  test_every: 20
   test_reset: True
   clip_grad: 5.0
 losses:

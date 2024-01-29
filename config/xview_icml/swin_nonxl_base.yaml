@@ -45,7 +45,6 @@ model:
     n_layer: 12
 optimizer:
   name: adam
-  base_lr: 1e-3
   min_lr_ratio: 0.01
   classifier_ratio: 1.0
   warmup_epochs: 0
@@ -55,12 +54,12 @@ optimizer:
   scheduler: cosine
   mode: step
 train:
-  epochs: 480
+  epochs: 120
   batch_size: 8
   val_batch_size: 2
   freeze_epochs: 0
   freeze_bn: false
-  test_every: 40 
+  test_every: 20 
   test_reset: True
 losses:
   losses:
