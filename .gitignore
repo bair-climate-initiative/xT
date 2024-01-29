@@ -157,3 +157,4 @@ zoo/
 casual-conv1d
 causal-conv1d/
 cluster
+run_submit.sh

@@ -53,7 +53,7 @@ optimizer:
   lr: 3.0e-05
 train:
   epochs: 480
-  batch_size: 2
+  batch_size: 4
   val_batch_size: 2
   freeze_epochs: 0
   freeze_bn: false

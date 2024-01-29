@@ -650,6 +650,8 @@ class PytorchTrainer:
             checkpoint = torch.load(checkpoint_path, map_location="cpu")
             if "optimizer_state_dict" in checkpoint:
                 self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+                if is_main_process():
+                    print("=> loaded optimizer state")
             else:
                 if is_main_process():
                     print("=> no optimizer checkpoint found at '{}'".format(checkpoint_path))

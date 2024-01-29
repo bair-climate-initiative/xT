@@ -1,7 +1,7 @@
 #!/bin/bash
 HOME=/p/home/ritwik
 PROJECT_DIR=/p/home/ritwik/dev/revswin-xl
-PRETRAINED_CKPT_PATH=/p/home/ritwik/pretrained_weights
+PRETRAINED_CKPT_PATH=/p/app/projects/nga-frontier/pretrained_weights
 
 CONSTRAINT=$1
 CFG_FILEPATH=$2

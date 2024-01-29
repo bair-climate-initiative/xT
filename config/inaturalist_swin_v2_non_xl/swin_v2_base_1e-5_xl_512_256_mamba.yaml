@@ -58,7 +58,7 @@ optimizer:
   warmup_epochs: 0
 train:
   epochs: 100
-  batch_size: 4
+  batch_size: 16
   val_batch_size: 1
   freeze_epochs: 0
   test_every: 1

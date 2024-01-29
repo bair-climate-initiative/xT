@@ -60,6 +60,7 @@ model:
     grad_ratio: 1.0
     n_layer: 6
     mem_chip: 1
+  resume: '/p/app/projects/nga-frontier/gigaformer-runs/logs/34818_xview_xl_backbone-swinv2-base_crop-size-4096_img-size-512_bs-10_n-layer-6_blr-3e-05/checkpoints/EncoderDecoderV2_swinv2_base_window16_256_timm_xview_77_5dxz7gbw_10.ckpt'
 optimizer:
   name: adamw
   base_lr: 3.0e-05
