@@ -860,7 +860,6 @@ class LLMAttention(nn.Module):
         q, k, v = (
             self.qkv(x).reshape(B, L, 3, self.num_heads, -1).permute(2, 0, 3, 1, 4)
         )  # B H L D // num_heads
-        breakpoint()
         attn_out = self.attn(q, k, v, causal=self.causal).permute(
             0, 2, 1, 3
         )  # B H L D // num_heads
