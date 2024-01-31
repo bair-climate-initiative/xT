@@ -1,6 +1,6 @@
 base_configs:
-- config/cluster_paths_em.yaml
-name: xview_xl_backbone-swinv2-base_crop-size-4096_img-size-512_bs-10_n-layer-4_blr-3e-04
+- config/cluster_paths.yaml
+name: xview_xl_backbone-swinv2-tiny_crop-size-4096_img-size-512_bs-16_warmup-2_n-layer-4_blr-3e-03
 fsdp: false
 distributed: true
 fp16: false
@@ -43,7 +43,7 @@ model:
   name: EncoderDecoderV2
   num_classes: ${data.num_classes}
   mlp_ratio: 4
-  backbone_class: swinv2_base_window16_256_timm_xview
+  backbone_class: swinv2_tiny_window16_256_timm_xview
   backbone:
     img_size: 512
     input_dim: 3
@@ -62,11 +62,11 @@ model:
 optimizer:
   name: adamw
   classifier_ratio: 1.0
-  warmup_epochs: 0
-  base_lr: 0.0003
+  warmup_epochs: 2
+  base_lr: 0.003
 train:
   epochs: 120
-  batch_size: 2
+  batch_size: 16
   val_batch_size: 1
   freeze_epochs: 0
   test_every: 20
