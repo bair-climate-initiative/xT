@@ -1,35 +1,30 @@
 distributed: True
 fsdp: False
 fp16: True
-name: revswinv2_chip512_swinpt_lr1e-3
-output_dir: ${oc.env:OUTPUT_DIR, "/shared/jacklishufan/large-image-models/new"} 
+name: temp_name
+output_dir: ${oc.env:OUTPUT_DIR, "/path/to/output"} 
 test: False
 val: False
 data:
-  dataset: xview3
-  dir: ${oc.env:XVIEW3_ROOT, "/shared/group/xview3"} 
-  shoreline_dir: ${oc.env:XVIEW3_ROOT, "/shared/group/xview3"} /shoreline/validation
-  folds_csv:  ${oc.env:XVIEW3_FOLD_PATH, "meta/folds.csv"} 
-  fold: 77
-  multiplier: 64
+  dataset: inaturalist
+  dir: ${oc.env:XVIEW3_ROOT, "/path/to/inaturalist"} 
   num_workers: 8
   test: False
   crop_size: 512
   val_crop_size: 512
-  overlap: 10 
-  positive_ratio: 0.85
   supercategories:
   category_label_path: ''
   batch_size: ${train.batch_size}
   val_batch_size: ${train.val_batch_size}
 model: 
-  name: TimmUnet
+  name: EncoderDecoderV2
   patch_size: 16
-  backbone_class: revswinv2_tiny_window16_256_xview
+  backbone_class: swinv2_tiny_window16_256_timm
   backbone:
     in_chans: 3
-    input_dim: 2
+    input_dim: 3
     drop_path_rate: 0.2
+    # pretrained does not matter anymore -- we load from Huggingface Hub
     pretrained:  ${oc.env:PRETRAINED_CKPT_PATH, "./ckpts"}/swinv2_tiny_window16_256.pth
     channel_last: True
     use_vanilla_backward: False
@@ -44,8 +39,8 @@ model:
     tiling: ${model.tiling}
     skip_connection: false
 optimizer:
-  name: sgd 
-  base_lr: 1e-3
+  name: adamw 
+  base_lr: 1e-4
   min_lr_ratio: 0.01
   classifier_ratio: 1.0
   warmup_epochs: 0
@@ -57,41 +52,17 @@ optimizer:
 train:
   epochs: 120
   batch_size: 8
-  val_batch_size: 2
+  val_batch_size: 1
   freeze_epochs: 0
   freeze_bn: false
   test_every: 20 
   test_reset: True
 losses:
   losses:
-    - name: mask_vessel
-      type: Combo
+    - name: cls
+      type: CrossEntropy
       params: 
-        field: vessel_mask 
-        weights: 
-          bce: 1
-          focal: 3
-          dice: 1
-      weight: 1.0 
-      display: True
-    - name: mask_fishing 
-      type: Combo
-      params: 
-        field: fishing_mask
-        weights: 
-          bce: 1
-          focal: 3
-          dice: 1
-      weight: 2.0 
-      display: True
-    - name: center 
-      type: Center
-      params: 
-      weight: 3e-7
-      display: True
-    - name: length
-      type: Length
-      params: 
-      weight: 2.0
-      display: True
+        field: label 
+      weight: 1.0
+      display: on
 eval_sampler: False

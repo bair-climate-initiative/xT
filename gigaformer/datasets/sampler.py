@@ -2,7 +2,6 @@
 DistributedEvalSampler taken from https://github.com/SeungjunNah/DeepDeblur-PyTorch/blob/master/src/data/sampler.py. 
 """
 
-import math
 from typing import Optional, Sequence
 
 import numpy as np
@@ -96,20 +95,14 @@ class DistributedEvalSampler(Sampler):
         ...     train(loader)
     """
 
-    def __init__(
-        self, dataset, num_replicas=None, rank=None, shuffle=False, seed=0
-    ):
+    def __init__(self, dataset, num_replicas=None, rank=None, shuffle=False, seed=0):
         if num_replicas is None:
             if not dist.is_available():
-                raise RuntimeError(
-                    "Requires distributed package to be available"
-                )
+                raise RuntimeError("Requires distributed package to be available")
             num_replicas = dist.get_world_size()
         if rank is None:
             if not dist.is_available():
-                raise RuntimeError(
-                    "Requires distributed package to be available"
-                )
+                raise RuntimeError("Requires distributed package to be available")
             rank = dist.get_rank()
         self.dataset = dataset
         self.num_replicas = num_replicas

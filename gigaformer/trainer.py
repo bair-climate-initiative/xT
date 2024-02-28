@@ -3,7 +3,6 @@ import math
 import os
 import re
 import time
-import sys
 from numbers import Number
 from pathlib import Path
 from typing import Dict
@@ -11,27 +10,31 @@ from typing import Dict
 import torch
 import torch.distributed
 import torch.distributed as dist
+import wandb
 from einops import rearrange
 from fvcore.nn import FlopCountAnalysis
 from omegaconf import OmegaConf
+from prettytable import PrettyTable
 from timm.utils import AverageMeter
 from torch.nn import DataParallel, SyncBatchNorm
 from torch.nn.modules.batchnorm import _BatchNorm
 from torch.nn.parallel.distributed import DistributedDataParallel
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
-from prettytable import PrettyTable
-import wandb
 
-from .datasets.sampler import (DistributedEvalSampler,
-                               DistributedWeightedRandomSampler)
+from .datasets.sampler import DistributedEvalSampler, DistributedWeightedRandomSampler
 from .evaluator import Evaluator
 from .losses import build_losses
 from .models import build_model
 from .optimizer import create_optimizer
 from .tiling import build_tiling
-from .utils import (SmoothedValue, get_rank, get_world_size,
-                    is_dist_avail_and_initialized, is_main_process)
+from .utils import (
+    SmoothedValue,
+    get_rank,
+    get_world_size,
+    is_dist_avail_and_initialized,
+    is_main_process,
+)
 
 logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO").upper())
 os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
@@ -55,7 +58,7 @@ class PytorchTrainer:
         self.config = config
 
         self.pg = process_group
-        
+
         self.evaluator = evaluator
         self.current_metrics = evaluator.init_metrics()
         self.current_epoch = 0
@@ -118,7 +121,8 @@ class PytorchTrainer:
             print(self.model)
 
         # self._profile_model((1, 2, self.conf["crop_size"], self.conf["crop_size"]))
-    def count_parameters(self,model=None):
+
+    def count_parameters(self, model=None):
         if model is None:
             model = self.model
         table = PrettyTable(["Modules", "Parameters"])
@@ -133,7 +137,7 @@ class PytorchTrainer:
         print(table)
         print(f"Total Trainable Params: {total_params}")
         return total_params
-        
+
     def validate(self, test_loader=None):
         if is_dist_avail_and_initialized():
             dist.barrier()
@@ -191,7 +195,7 @@ class PytorchTrainer:
 
     def scale_learning_rate(self):
         # linear scale the learning rate according to total batch size, may not be optimal
-        if self.config.optimizer.lr > 0: # means default was overridden
+        if self.config.optimizer.lr > 0:  # means default was overridden
             if is_main_process():
                 print("Keeping lr as is, absolute passed")
             return
@@ -231,7 +235,8 @@ class PytorchTrainer:
         if is_main_process():
             torch.save(
                 payload,
-                checkpoint_dir / f"{self.snapshot_name}_{str(self.wandb_id)}_{self.current_epoch}.ckpt"
+                checkpoint_dir
+                / f"{self.snapshot_name}_{str(self.wandb_id)}_{self.current_epoch}.ckpt",
             )
 
     def _save_best(self, improved_metrics: Dict):
@@ -241,7 +246,8 @@ class PytorchTrainer:
             for metric_name in improved_metrics.keys():
                 torch.save(
                     payload,
-                    checkpoint_dir / f"{self.snapshot_name}_{str(self.wandb_id)}_{metric_name}.ckpt"
+                    checkpoint_dir
+                    / f"{self.snapshot_name}_{str(self.wandb_id)}_{metric_name}.ckpt",
                 )
 
     def build_iterator(self, dataloader):
@@ -284,8 +290,7 @@ class PytorchTrainer:
                     ]
                 )
                 patch_indices = torch.stack([h_idx, w_idx])  # 2 X B X L
-                new_payload = {
-                }
+                new_payload = {}
                 for key, v in x.items():
                     if torch.is_tensor(v) and len(v.shape) >= 2:
                         new_payload[key] = v[
@@ -301,7 +306,7 @@ class PytorchTrainer:
                 new_payload["raw_indices"] = raw_indices
                 new_payload["context_id"] = k["context_id"]
                 new_payload["mem_only"] = k.get("mem_only", False)
-                new_payload["cord"] = (i,j)
+                new_payload["cord"] = (i, j)
                 yield new_payload
 
     def _run_one_epoch_train(self):
@@ -340,9 +345,7 @@ class PytorchTrainer:
         # Sliced Images with context_id
         # todo: make configurable
         if is_main_process():
-            train_loader_tqdm = tqdm(
-                train_loader, total=iter_scale * len_train_loader
-            )
+            train_loader_tqdm = tqdm(train_loader, total=iter_scale * len_train_loader)
         train_loader = iter(train_loader)
         # Broken, temporaily disable time logging
         for i in range(iter_scale * len_train_loader):
@@ -351,16 +354,16 @@ class PytorchTrainer:
             data_time.update(time.time() - start_time)
             imgs = sample["image"].cuda()
             labels = sample["label"].cuda() if "label" in sample else None
-            cord = (0,0)
+            cord = (0, 0)
             if self.mixup_fn is not None:
-                imgs, sample["label"] = self.mixup_fn(imgs, labels) 
-            
+                imgs, sample["label"] = self.mixup_fn(imgs, labels)
+
             if extra_context:
                 if sample["context_id"] == 0:
                     mem = tuple()
                 else:
                     pass
-                cord = sample.pop('cord')
+                cord = sample.pop("cord")
                 context = dict(
                     context_patches=sample["context_patches"].cuda(),
                     patch_indices=sample["patch_indices"],
@@ -372,11 +375,13 @@ class PytorchTrainer:
                     if extra_context and sample["mem_only"]:
                         with torch.no_grad():
                             output, mem = self.model(
-                                imgs, context=context, mem=mem,cord=cord
+                                imgs, context=context, mem=mem, cord=cord
                             )
                         continue
                     elif extra_context:
-                        output, mem = self.model(imgs, context=context, mem=mem,cord=cord)
+                        output, mem = self.model(
+                            imgs, context=context, mem=mem, cord=cord
+                        )
                     else:
                         output = self.model(imgs)
                     # if i % 400 == 0:
@@ -404,9 +409,7 @@ class PytorchTrainer:
                             print("is nan!")
                         if loss_def.display:
                             avg_meters[loss_def.name].update(
-                                loss
-                                if isinstance(loss, Number)
-                                else loss.item(),
+                                loss if isinstance(loss, Number) else loss.item(),
                                 imgs.size(0),
                             )
                         total_loss += loss_def.weight * loss
@@ -415,9 +418,7 @@ class PytorchTrainer:
                 raise ValueError("NaN loss !!")
             avg_metrics = {k: f"{v.avg:.4f}" for k, v in avg_meters.items()}
             if is_main_process() and wandb.run is not None and i % 50 == 0:
-                payload = {
-                    k: float(f"{v.avg:.4f}") for k, v in avg_meters.items()
-                }
+                payload = {k: float(f"{v.avg:.4f}") for k, v in avg_meters.items()}
                 payload.update(dict(lr=float(self.scheduler.get_lr()[-1])))
                 payload.update({"epoch": self.current_epoch})
                 wandb.log(payload)
@@ -438,7 +439,9 @@ class PytorchTrainer:
                 # self.gscaler.update()
             else:
                 total_loss.backward()
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.config.train.clip_grad)
+                torch.nn.utils.clip_grad_norm_(
+                    self.model.parameters(), self.config.train.clip_grad
+                )
                 self.optimizer.step()
             # backward_time.update(time.time() - end)
 
@@ -456,7 +459,7 @@ class PytorchTrainer:
                         "epoch": self.current_epoch,
                         "mem": f"{torch.cuda.max_memory_reserved() / 1024 ** 3:.2f}G",
                         **avg_metrics,
-                        "data": data_time
+                        "data": data_time,
                     }
                 )
                 train_loader_tqdm.update()
@@ -555,10 +558,17 @@ class PytorchTrainer:
         self.gscaler = torch.cuda.amp.GradScaler()
 
         if self.config.distributed and self.config.fsdp:
-            from torch.distributed.fsdp import (CPUOffload,
-                                                FullyShardedDataParallel,MixedPrecision)
-            from torch.distributed.fsdp.wrap import size_based_auto_wrap_policy,ModuleWrapPolicy
             from timm.models.swin_transformer_v2 import SwinTransformerV2Block
+            from torch.distributed.fsdp import (
+                CPUOffload,
+                FullyShardedDataParallel,
+                MixedPrecision,
+            )
+            from torch.distributed.fsdp.wrap import (
+                ModuleWrapPolicy,
+                size_based_auto_wrap_policy,
+            )
+
             fpSixteen = MixedPrecision(
                 param_dtype=torch.float32,
                 # Gradient communication precision.
@@ -569,7 +579,7 @@ class PytorchTrainer:
 
             self.model = FullyShardedDataParallel(
                 self.model,
-                #auto_wrap_policy=size_based_auto_wrap_policy,
+                # auto_wrap_policy=size_based_auto_wrap_policy,
                 auto_wrap_policy=ModuleWrapPolicy(
                     module_classes=[SwinTransformerV2Block]
                 ),
@@ -609,9 +619,7 @@ class PytorchTrainer:
                 mismatched_keys = []
                 for k, v in state_dict.items():
                     ori_size = (
-                        orig_state_dict[k].size()
-                        if k in orig_state_dict
-                        else None
+                        orig_state_dict[k].size() if k in orig_state_dict else None
                     )
                     if v.size() != ori_size:
                         print(
@@ -654,7 +662,11 @@ class PytorchTrainer:
                     print("=> loaded optimizer state")
             else:
                 if is_main_process():
-                    print("=> no optimizer checkpoint found at '{}'".format(checkpoint_path))
+                    print(
+                        "=> no optimizer checkpoint found at '{}'".format(
+                            checkpoint_path
+                        )
+                    )
 
     def _init_model(self):
         self.input_size = self.config.model.backbone.img_size

@@ -1,9 +1,0 @@
-base_configs: 
-  - config/revswin_xl/4096_chip1024_lr1e-3.yaml
-name: revswinv2_xl_4096_chip1024_lr1e-2_wu1
-optimizer:
-  base_lr: 1e-2
-  classifier_ratio: 1.0
-  warmup_epochs: 1
-train:
-  batch_size: 6

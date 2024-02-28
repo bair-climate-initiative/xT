@@ -4,9 +4,8 @@
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, List, Optional, Tuple
+from typing import Any, List, Optional
 
-import albumentations as A
 import cv2
 import torch
 from timm.data import Mixup, create_transform
@@ -15,7 +14,6 @@ from torchvision import transforms
 
 from ..utils import get_rank, get_world_size
 from .inaturalist import INatDataset
-from .xview3 import XviewDataset
 
 cv2.ocl.setUseOpenCL(False)
 cv2.setNumThreads(0)
@@ -25,11 +23,11 @@ try:
     from torchvision.transforms import InterpolationMode
 
     def _pil_interp(method):
-        if method == 'bicubic':
+        if method == "bicubic":
             return InterpolationMode.BICUBIC
-        elif method == 'lanczos':
+        elif method == "lanczos":
             return InterpolationMode.LANCZOS
-        elif method == 'hamming':
+        elif method == "hamming":
             return InterpolationMode.HAMMING
         else:
             return InterpolationMode.BILINEAR
@@ -61,7 +59,7 @@ class AugmentationConfig:
     """Probability of performing mixup or cutmix when either/both is enabled"""
     mixup_switch_prob: float = 0.0
     """Probability of switching to cutmix when both mixup and cutmix enabled"""
-    mixup_mode: str = 'batch'
+    mixup_mode: str = "batch"
     """How to apply mixup/cutmix params. Per batch, pair, or elem."""
     label_smoothing: float = 0.0
     """Label smoothing factor."""
@@ -78,42 +76,28 @@ class AugmentationConfig:
 class DataConfig:
     """General Dataset Configuration."""
 
-    dataset: str = "xview3"
+    dataset: str = "inaturalist"
     """Name of the dataset to use."""
-    dir: str = "/home/group/xview3"
+    dir: str = "/home/group/inaturalist"
     """Path to the dataset directory."""
     num_workers: int = 8
     """Number of workers for the data loader."""
     test: bool = False
     """Whether to use the test dataset."""
-    batch_size: int = 4 
+    batch_size: int = 4
     """Batch size for training."""
     val_batch_size: int = 1
     """Batch size for validation."""
     crop_size: int = 512
     """Size of the crop for training."""
-    num_classes: int = 8142 
+    val_crop_size: int = 512
+    """Size of the crop for validation."""
+    num_classes: int = 8142
     """Number of classes in the dataset."""
     test_crop: bool = True
     """Whether to use a center crop for testing."""
     interpolation: str = "bilinear"
     """Interpolation method for resizing."""
-
-    """Xview3 pertinent settings."""
-    val_crop_size: int = 512
-    """Size of the crop for validation."""
-    overlap: int = 10
-    """Overlap of the crops for validation."""
-    positive_ratio: float = 0.85
-    """Ratio of positive samples in a batch."""
-    fold: int = 77
-    """Fold number."""
-    folds_csv: str = "meta/folds.csv"
-    """Path to csv for folds."""
-    shoreline_dir: str = "/home/group/xview3/shoreline/validation"
-    """Shoreline validation path."""
-    multiplier: int = 64
-    """Number of times to increase dataset by."""
 
     """iNaturalist pertinent settings."""
     supercategories: Optional[List[str]] = field(default_factory=list)
@@ -128,45 +112,7 @@ def build_loader(config: DataConfig, test: bool = False):
     if os.environ.get("RANK", "0") == "0":
         # needed since distrbuted not initialized
         print("dataset config crop size", config.crop_size)
-        if config.dataset == "xview3" and config.shoreline_dir:
-            print("Legacy Warning:shoreline_dir is no longer used")
-    if config.dataset == "xview3":
-        if test:
-            # TODO: Do we need to construct the Xview Dataset when testing?
-            train_annotations = os.path.join(config.dir, "labels/public.csv")
-            train_dataset = XviewDataset(
-                mode="train",
-                dataset_dir=config.dir,
-                fold=12345,
-                folds_csv=config.folds_csv,
-                annotation_csv=train_annotations,
-                crop_size=config.crop_size,
-                multiplier=config.multiplier,
-            )
-            val_dataset = TestDataset(os.path.join(config.dir, "images/public"))
-        else:
-            train_annotations = os.path.join(
-                config.dir, "labels/validation.csv"
-            )
-            train_dataset = XviewDataset(
-                mode="train",
-                dataset_dir=config.dir,
-                fold=config.fold,
-                folds_csv=config.folds_csv,
-                annotation_csv=train_annotations,
-                crop_size=config.crop_size,
-                multiplier=config.multiplier,
-                positive_ratio=config.positive_ratio,
-            )
-            val_dataset = XviewDataset(
-                mode="val",
-                dataset_dir=config.dir,
-                fold=config.fold,
-                folds_csv=config.folds_csv,
-                annotation_csv=train_annotations,
-                crop_size=config.val_crop_size,
-            )
-    elif config.dataset == "inaturalist":
+    if config.dataset == "inaturalist":
         train_transforms = create_imagenet_transforms(config, is_train=True)
         train_dataset = INatDataset(
             mode="train",
@@ -187,9 +133,9 @@ def build_loader(config: DataConfig, test: bool = False):
             supercategories=config.supercategories,
             category_label_path=config.category_label_path,
             channels_first=True,
-            transforms=val_transforms
+            transforms=val_transforms,
         )
-    
+
     print(f"Rank {get_rank()} saw world size {get_world_size()}")
 
     train_sampler = torch.utils.data.distributed.DistributedSampler(
@@ -222,34 +168,26 @@ def build_loader(config: DataConfig, test: bool = False):
         drop_last=False,
     )
 
-    ## Setup mixup / cutmix 
+    ## Setup mixup / cutmix
     mixup_fn = None
-    mixup_active = config.aug.mixup > 0 or config.aug.cutmix > 0. \
+    mixup_active = (
+        config.aug.mixup > 0
+        or config.aug.cutmix > 0.0
         or config.aug.cutmix_minmax is not None
+    )
     if mixup_active:
-        mixup_fn = Mixup(mixup_alpha=config.aug.mixup, 
-                         cutmix_alpha=config.aug.cutmix,
-                         cutmix_minmax=config.aug.cutmix_minmax,
-                         prob=config.aug.mixup_prob,
-                         switch_prob=config.aug.mixup_switch_prob,
-                         mode=config.aug.mixup_mode,
-                         label_smoothing=config.aug.label_smoothing,
-                         num_classes=config.num_classes)
+        mixup_fn = Mixup(
+            mixup_alpha=config.aug.mixup,
+            cutmix_alpha=config.aug.cutmix,
+            cutmix_minmax=config.aug.cutmix_minmax,
+            prob=config.aug.mixup_prob,
+            switch_prob=config.aug.mixup_switch_prob,
+            mode=config.aug.mixup_mode,
+            label_smoothing=config.aug.label_smoothing,
+            num_classes=config.num_classes,
+        )
     return train_dataset, val_dataset, train_loader, val_loader, mixup_fn
 
-
-def create_xview_transforms():
-    transforms = []
-    return A.Compose(
-        [],
-        additional_targets={
-            "conf_mask": "mask",
-            "length_mask": "mask",
-            "vessel_mask": "mask",
-            "fishing_mask": "mask",
-            "center_mask": "mask",
-        },
-    )
 
 def create_imagenet_transforms(config: DataConfig, is_train: bool = True):
     resize_im = config.crop_size > 32
@@ -259,9 +197,11 @@ def create_imagenet_transforms(config: DataConfig, is_train: bool = True):
             input_size=config.crop_size,
             is_training=True,
             color_jitter=config.aug.color_jitter
-            if config.aug.color_jitter > 0 else None,
+            if config.aug.color_jitter > 0
+            else None,
             auto_augment=config.aug.auto_augment
-            if not config.aug.auto_augment is None else None,
+            if config.aug.auto_augment is not None
+            else None,
             re_prob=config.aug.reprob,
             re_mode=config.aug.remode,
             re_count=config.aug.recount,
@@ -270,8 +210,7 @@ def create_imagenet_transforms(config: DataConfig, is_train: bool = True):
         if not resize_im:
             # replace RandomResizedCropAndInterpolation with
             # RandomCrop
-            transform.transforms[0] = transforms.RandomCrop(
-                config.crop_size, padding=4)
+            transform.transforms[0] = transforms.RandomCrop(config.crop_size, padding=4)
 
         return transform
 
@@ -280,9 +219,9 @@ def create_imagenet_transforms(config: DataConfig, is_train: bool = True):
         if config.test_crop:
             size = int(1.0 * config.crop_size)
             t.append(
-                transforms.Resize(size,
-                                  interpolation=_pil_interp(
-                                      config.interpolation)),
+                transforms.Resize(
+                    size, interpolation=_pil_interp(config.interpolation)
+                ),
                 # to maintain same ratio w.r.t. 224 images
             )
             t.append(transforms.CenterCrop(config.crop_size))
@@ -290,12 +229,16 @@ def create_imagenet_transforms(config: DataConfig, is_train: bool = True):
             t.append(
                 transforms.RandomResizedCrop(
                     (config.crop_size, config.crop_size),
-                    interpolation=_pil_interp(config.interpolation)))
+                    interpolation=_pil_interp(config.interpolation),
+                )
+            )
         else:
             t.append(
                 transforms.Resize(
                     (config.crop_size, config.crop_size),
-                    interpolation=_pil_interp(config.interpolation)))
+                    interpolation=_pil_interp(config.interpolation),
+                )
+            )
     t.append(transforms.ToTensor())
     t.append(transforms.Normalize(config.aug.mean, config.aug.std))
 

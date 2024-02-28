@@ -1,8 +1,0 @@
-output_dir: outputs/
-data:
-  dir: /datasets/xview3_2024-01-10_1001/
-  category_label_path: meta/category_label_reptilia_map.json
-  shoreline_dir: /datasets/xview3_2024-01-10_1001/shoreline/validation
-  folds_csv: meta/folds.csv
-model:
-  resume: /shared/jacklishufan/inatualist/revswinv2_xl_4096_chip512_swinpt_lr1e-3_inaturalist

@@ -1,7 +1,0 @@
-output_dir: /p/app/projects/nga-frontier/gigaformer-runs/logs/%j
-data:
-  dir: /p/app/projects/nga-frontier/xview3
-  shoreline_dir: /p/app/projects/nga-frontier/xview3/shoreline/validation
-  folds_csv: /p/home/ritwik/dev/revswin-xl/meta/folds.csv
-model:
-  resume: /p/app/projects/nga-frontier/gigaformer-runs/logs/%j/resume/

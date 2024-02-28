@@ -1,7 +1,6 @@
 import json
-import os
 from pathlib import Path
-from typing import Dict, List, Set, Union
+from typing import List, Set
 
 import albumentations as A
 import numpy as np
@@ -14,7 +13,7 @@ class INatDataset(Dataset):
     def __init__(
         self,
         mode: str = "train",
-        dataset_dir="/shared/ritwik/data/inaturalist2018/",
+        dataset_dir="/shared/group/inaturalist/",
         annotation_json: str = "train2018.json",
         channels_first: bool = False,
         categories_json: str = "categories.json",
@@ -26,7 +25,7 @@ class INatDataset(Dataset):
         Args:
             mode: Can be either "train" or "val"
         """
-        if type(dataset_dir) is str:
+        if isinstance(dataset_dir, str):
             dataset_dir = Path(dataset_dir)
         self.dataset_dir = dataset_dir
         self.labels = COCO(annotation_file=str(dataset_dir / annotation_json))
@@ -103,7 +102,6 @@ class INatDataset(Dataset):
 
             ret_labels.append(
                 {
-                    "id": id,
                     "file_name": labels.imgs[id]["file_name"],
                     "label": category_label_map[label],
                     "id": labels.imgs[id]["id"],

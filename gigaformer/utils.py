@@ -1,4 +1,4 @@
-import os
+import functools
 import pickle
 import re
 from collections import deque
@@ -7,34 +7,40 @@ import cv2
 import numpy as np
 import torch
 import torch.distributed as dist
+import wandb
 from matplotlib import pyplot as plt
 from torch.utils.data import Subset
-import functools
-import wandb
 
 cv2.ocl.setUseOpenCL(False)
 cv2.setNumThreads(0)
+
 
 class ConflictResolver:
     """
     Utility methods for dealing with dictionaries.
     """
+
     @staticmethod
     def to_object(item):
         """
         Convert a dictionary to an object (recursive).
         """
-        def convert(item): 
+
+        def convert(item):
             if isinstance(item, dict):
-                return type('jo', (), {k: convert(v) for k, v in item.items()})
+                return type("jo", (), {k: convert(v) for k, v in item.items()})
             if isinstance(item, list):
+
                 def yield_convert(item):
                     for index, value in enumerate(item):
                         yield convert(value)
+
                 return list(yield_convert(item))
             else:
                 return item
+
         return convert(item)
+
 
 def is_dist_avail_and_initialized():
     if not dist.is_available():
@@ -89,9 +95,7 @@ def all_gather(data):
     # gathering tensors of different shapes
     tensor_list = []
     for _ in size_list:
-        tensor_list.append(
-            torch.empty((max_size,), dtype=torch.uint8, device="cuda")
-        )
+        tensor_list.append(torch.empty((max_size,), dtype=torch.uint8, device="cuda"))
     if local_size != max_size:
         padding = torch.empty(
             size=(max_size - local_size,), dtype=torch.uint8, device="cuda"
@@ -113,15 +117,11 @@ def load_checkpoint(model, checkpoint_path, strict=False, verbose=True):
     checkpoint = torch.load(checkpoint_path, map_location="cpu")
     if "state_dict" in checkpoint:
         state_dict = checkpoint["state_dict"]
-        state_dict = {
-            re.sub("^module.", "", k): w for k, w in state_dict.items()
-        }
+        state_dict = {re.sub("^module.", "", k): w for k, w in state_dict.items()}
         orig_state_dict = model.state_dict()
         mismatched_keys = []
         for k, v in state_dict.items():
-            ori_size = (
-                orig_state_dict[k].size() if k in orig_state_dict else None
-            )
+            ori_size = orig_state_dict[k].size() if k in orig_state_dict else None
             if v.size() != ori_size:
                 if verbose:
                     print(
@@ -176,9 +176,7 @@ class SmoothedValue:
         """
         if not is_dist_avail_and_initialized():
             return
-        t = torch.tensor(
-            [self.count, self.total], dtype=torch.float64, device="cuda"
-        )
+        t = torch.tensor([self.count, self.total], dtype=torch.float64, device="cuda")
         dist.barrier()
         dist.all_reduce(t)
         t = t.tolist()
@@ -236,7 +234,6 @@ def wandb_dump_images(imgs, name="vis", keys=None, epoch=0):
         plt.close(fig)
 
 
-
 @functools.lru_cache()
 def _get_global_gloo_group():
     """
@@ -247,6 +244,8 @@ def _get_global_gloo_group():
         return dist.new_group(backend="gloo")
     else:
         return dist.group.WORLD
+
+
 def all_gather(data, group=None):
     """
     Run all_gather on arbitrary picklable data (not necessarily tensors).
@@ -262,7 +261,9 @@ def all_gather(data, group=None):
     if dist.get_world_size() == 1:
         return [data]
     if group is None:
-        group = _get_global_gloo_group()  # use CPU group by default, to reduce GPU RAM usage.
+        group = (
+            _get_global_gloo_group()
+        )  # use CPU group by default, to reduce GPU RAM usage.
     world_size = dist.get_world_size(group)
     if world_size == 1:
         return [data]
