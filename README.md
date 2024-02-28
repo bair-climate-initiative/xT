@@ -13,32 +13,44 @@ _xT_ enables you to model large images, end-to-end, on contemporary, memory-limi
 
 The code has been tested on Linux on NVIDIA A100 GPUs with PyTorch 2+. We use custom CUDA kernels as implemented by the `Mamba` and `OpenAI Triton` projects. Therefore, modifications may be required to use this repository on other operating systems or GPUs.
 
+## Training
+Training can be launched through
+```./run_submit.sh <num GPUs> <port number> config=<path to config>```
+
+We also provide [SubmitIt](https://github.com/facebookincubator/submitit) scripts in `launch_scripts` to submit training jobs on Slurm clusters.
+
 ## Pretrained Models
 
 Weights and configs for our experiments are available on [Hugging Face](https://huggingface.co/bair-climate-initiative/swin-xt/tree/main).
 
-|Name                          |Top1-ACC|Top5-ACC|
-|------------------------------|-------:|-------:|
-|Swin-L-XL (1 layer) 512/256   |   69.25|   91.67|
-|Swin-L-XL 512/256             |   72.42|   94.48|
-|Swin-L-Mamba 512/256          |   73.36|   94.13|
-|Swin-L-XL 256/256             |   67.84|   92.25|
-|Swin-L                        |   68.78|   90.96|
-|------------------------------|--------|--------|
-|Swin-B-XL (1 layer) 512/256   |   65.49|   89.08|
-|Swin-B-XL 512/256             |   64.08|   90.73|
-|Swin-B-Mamba 512/256          |   63.73|   89.91|
-|Swin-B-XL 256/256             |   55.52|   85.80|
-|Swin-B                        |   58.57|   84.74|
-|------------------------------|--------|--------|
-|Swin-S-XL (1 layer) 512/256   |    63.5|   88.26|
-|Swin-S-XL 512/256             |   63.62|   88.03|
-|Swin-S-XL 256/256             |   57.04|   83.22|
-|Swin-S                        |   58.45|   85.21|
-|------------------------------|--------|--------|
-|Swin-T-XL (1 layer) 512/256   |   59.27|   86.38|
-|Swin-T-XL 512/256             |   60.56|   85.09|
-|Swin-T-Mamba 512/256          |   61.97|   86.27|
-|Swin-T-XL 256/256             |   52.93|   80.87|
-|Swin-T                        |   53.76|   82.86|
-|------------------------------|--------|--------|
+|Name                     |Top1-ACC|
+|-------------------------|-------:|
+|[Swin-T](https://huggingface.co/bair-climate-initiative/swin-xt/blob/main/swin-t/weights/swin-t-nonxl-256-top1.ckpt)                   |   53.76|
+|[Swin-T \<xT> XL 256/256](https://huggingface.co/bair-climate-initiative/swin-xt/blob/main/swin-t/weights/swin-t-xl-256-256-top1.ckpt)        |   52.93|
+|[Swin-T \<xT> XL 512/256](https://huggingface.co/bair-climate-initiative/swin-xt/blob/main/swin-t/weights/swin-t-xl-512-256-top1.ckpt)        |   60.56|
+|[Swin-T \<xT> Mamba 512/256](https://huggingface.co/bair-climate-initiative/swin-xt/blob/main/swin-t/weights/swin-t-mamba-512-256-top1.ckpt)     |   **61.97**|
+|-------------------------|--------|
+|[Swin-S](https://huggingface.co/bair-climate-initiative/swin-xt/blob/main/swin-s/weights/swin-s-nonxl-256-top1.ckpt)                   |   58.45|
+|[Swin-S \<xT> XL 256/256](https://huggingface.co/bair-climate-initiative/swin-xt/blob/main/swin-s/weights/swin-s-xl-256-256-top1.ckpt)        |   57.04|
+|[Swin-S \<xT> XL 512/256](https://huggingface.co/bair-climate-initiative/swin-xt/blob/main/swin-s/weights/swin-s-xl-512-256-top1.ckpt)        |   **63.62**|
+|-------------------------|--------|
+|[Swin-B](https://huggingface.co/bair-climate-initiative/swin-xt/blob/main/swin-b/weights/swin-b-nonxl-256-top1.ckpt)                   |   58.57|
+|[Swin-B \<xT> XL 256/256](https://huggingface.co/bair-climate-initiative/swin-xt/blob/main/swin-b/weights/swin-b-xl-256-256-top1.ckpt)        |   55.52|
+|[Swin-B \<xT> XL 512/256](https://huggingface.co/bair-climate-initiative/swin-xt/blob/main/swin-b/weights/swin-b-xl-512-256-top1.ckpt)        |   **64.08**|
+|[Swin-B \<xT> Mamba 512/256](https://huggingface.co/bair-climate-initiative/swin-xt/blob/main/swin-b/weights/swin-b-mamba-512-256-top1.ckpt)     |   63.73|
+|-------------------------|--------|
+|[Swin-L](https://huggingface.co/bair-climate-initiative/swin-xt/blob/main/swin-l/weights/swin-l-nonxl-256-top1.ckpt)                   |   68.78|
+|[Swin-L \<xT> XL 256/256](https://huggingface.co/bair-climate-initiative/swin-xt/blob/main/swin-l/weights/swin-l-xl-256-256-top1.ckpt)        |   67.84|
+|[Swin-L \<xT> XL 512/256](https://huggingface.co/bair-climate-initiative/swin-xt/blob/main/swin-l/weights/swin-l-xl-512-256-top1.ckpt)        |   72.42|
+|[Swin-L \<xT> Mamba 512/256](https://huggingface.co/bair-climate-initiative/swin-xt/blob/main/swin-l/weights/swin-l-mamba-512-256-top1.ckpt)     |   **73.36**|
+
+## Citation
+
+```
+@article{xTLargeImageModeling,
+  title={xT: Nested Tokenization for Larger Context in Large Images},
+  author={Gupta, Ritwik and Li, Shufan and Zhu, Tyler and Malik, Jitendra and Darrell, Trevor and Mangalam, Karttikeya},
+  journal={arXiv preprint arXiv:tbd},
+  year={2024}
+}
+```
