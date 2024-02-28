@@ -1113,7 +1113,7 @@ class EncoderDecoderV2(AbstractModel):
         crop_size: int = 256,
         skip_decoder: bool = False,
         backbone_name: str = "revswinv2_tiny",
-        dataset: str = "xview3",
+        dataset: str = "inaturalist",
         num_classes: int = 9999,
         mlp_ratio: int = 4,
         skip_conntection: bool = False,
@@ -1215,16 +1215,7 @@ class EncoderDecoderV2(AbstractModel):
             return output
 
     def init_decoder(self):
-        if self.dataset == "xview3":
-            self.decoder = UNetDecoder(
-                ConvBottleneck,
-                self.filters,
-                UnetDecoderBlock,
-                self.decoder_filters,
-                self.skip_decoder,
-                default_last,
-            )
-        elif self.dataset == "inaturalist":
+        if self.dataset == "inaturalist":
             assert self.cls_head in ["naive", "xl"]
 
             clasifier = (

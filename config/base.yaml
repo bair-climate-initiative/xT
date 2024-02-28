@@ -2,21 +2,21 @@ distributed: True
 fsdp: False
 fp16: True
 name: temp_name
-output_dir: ${oc.env:OUTPUT_DIR, "/path/to/output"} 
+output_dir: ${oc.env:OUTPUT_DIR, "/path/to/output"}
 test: False
 val: False
 data:
   dataset: inaturalist
-  dir: ${oc.env:XVIEW3_ROOT, "/path/to/inaturalist"} 
+  dir: ${oc.env:DATA_ROOT, "/path/to/inaturalist"}
   num_workers: 8
   test: False
   crop_size: 512
   val_crop_size: 512
   supercategories:
-  category_label_path: ''
+  category_label_path: ""
   batch_size: ${train.batch_size}
   val_batch_size: ${train.val_batch_size}
-model: 
+model:
   name: EncoderDecoderV2
   patch_size: 16
   backbone_class: swinv2_tiny_window16_256_timm
@@ -25,13 +25,13 @@ model:
     input_dim: 3
     drop_path_rate: 0.2
     # pretrained does not matter anymore -- we load from Huggingface Hub
-    pretrained:  ${oc.env:PRETRAINED_CKPT_PATH, "./ckpts"}/swinv2_tiny_window16_256.pth
+    pretrained: ${oc.env:PRETRAINED_CKPT_PATH, "./ckpts"}/swinv2_tiny_window16_256.pth
     channel_last: True
     use_vanilla_backward: False
     img_size: 512
-  resume: ''
-  tiling: 'naive'
-  cls_head: 'naive' # If this is 'xl', then we use the extra XL heads
+  resume: ""
+  tiling: "naive"
+  cls_head: "naive" # If this is 'xl', then we use the extra XL heads
   xl_context:
     enabled: False
     context_patch_len: 100
@@ -39,7 +39,7 @@ model:
     tiling: ${model.tiling}
     skip_connection: false
 optimizer:
-  name: adamw 
+  name: adamw
   base_lr: 1e-4
   min_lr_ratio: 0.01
   classifier_ratio: 1.0
@@ -55,14 +55,14 @@ train:
   val_batch_size: 1
   freeze_epochs: 0
   freeze_bn: false
-  test_every: 20 
+  test_every: 20
   test_reset: True
 losses:
   losses:
     - name: cls
       type: CrossEntropy
-      params: 
-        field: label 
+      params:
+        field: label
       weight: 1.0
       display: on
 eval_sampler: False

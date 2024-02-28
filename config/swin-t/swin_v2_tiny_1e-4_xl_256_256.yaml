@@ -1,12 +1,11 @@
-
-base_configs: 
+base_configs:
   - config/base.yaml
   - config/paths.yaml
 name: swin_v2_tiny_1e-4_xl_256_256
 fsdp: off
 data:
   dataset: inaturalist
-  crop_size: 256 
+  crop_size: 256
   val_crop_size: 256
   batch_size: ${train.batch_size}
   val_batch_size: ${train.val_batch_size}
@@ -28,7 +27,7 @@ data:
     std: [0.229, 0.224, 0.225]
   supercategories:
     - Reptilia
-model: 
+model:
   name: EncoderDecoderV2
   num_classes: ${data.num_classes}
   mlp_ratio: 4
@@ -46,7 +45,7 @@ model:
     classification_mode: on
     tiling: naive_two_stream
     n_layer: 2
-  resume: '' # /shared/jacklishufan/inatualist/checkpoints/EncoderDecoderV2_revswinv2_tiny_window16_256_xview_77_hwcy21mb_accuracy_top1.ckpt
+  resume: ""
 optimizer:
   name: adamw
   base_lr: 1e-4
@@ -65,7 +64,7 @@ losses:
   losses:
     - name: cls
       type: CrossEntropy
-      params: 
-        field: label 
+      params:
+        field: label
       weight: 1.0
       display: on
