@@ -8,13 +8,8 @@ import torch
 import torch.nn as nn
 from torch.nn import Conv2d, LayerNorm
 
-from .vit_d2_utils import (
-    PatchEmbed,
-    add_decomposed_rel_pos,
-    get_abs_pos,
-    window_partition,
-    window_unpartition,
-)
+from .vit_d2_utils import (PatchEmbed, add_decomposed_rel_pos, get_abs_pos,
+                           window_partition, window_unpartition)
 
 # from detectron2.layers import CNNBlockBase, Conv2d, get_norm
 # from detectron2.modeling.backbone.fpn import_assert_strides_are_log2_contiguous

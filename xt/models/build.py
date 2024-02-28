@@ -1,25 +1,18 @@
 from dataclasses import dataclass, field
 
 from .backbones import *
+from .backbones.swin_timm import (swinv2_base_window16_256_timm,
+                                  swinv2_base_window16_256_timm_xview,
+                                  swinv2_large_window16_256_timm,
+                                  swinv2_large_window16_256_timm_xview,
+                                  swinv2_small_window16_256_timm,
+                                  swinv2_small_window16_256_timm_xview,
+                                  swinv2_tiny_window16_256_timm,
+                                  swinv2_tiny_window16_256_timm_xview)
 from .backbones.vit import vit_base_patch16
-from .hiera import (
-    get_hiera_model,
-    get_hiera_model_base,
-    get_hiera_model_base_plus,
-    get_hiera_model_base_plus_448,
-    get_hiera_model_small,
-    get_hiera_model_tiny,
-)
-from .backbones.swin_timm import (
-    swinv2_base_window16_256_timm,
-    swinv2_large_window16_256_timm,
-    swinv2_small_window16_256_timm,
-    swinv2_tiny_window16_256_timm,
-    swinv2_base_window16_256_timm_xview,
-    swinv2_large_window16_256_timm_xview,
-    swinv2_small_window16_256_timm_xview,
-    swinv2_tiny_window16_256_timm_xview,
-)
+from .hiera import (get_hiera_model, get_hiera_model_base,
+                    get_hiera_model_base_plus, get_hiera_model_base_plus_448,
+                    get_hiera_model_small, get_hiera_model_tiny)
 from .transformer_xl import TransformerXLConfig
 from .unet import EncoderDecoderV2, TimmUnet
 

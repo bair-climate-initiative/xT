@@ -1,5 +1,6 @@
-from timm.models.swin_transformer_v2 import PatchMerging, SwinTransformerV2Stage
 from timm.models.swin_transformer import SwinTransformerStage
+from timm.models.swin_transformer_v2 import (PatchMerging,
+                                             SwinTransformerV2Stage)
 
 BasicLayer = SwinTransformerV2Stage
 
@@ -7,7 +8,8 @@ import numpy as np
 import torch
 import torch.nn as nn
 from timm.models.layers import PatchEmbed, trunc_normal_
-from timm.models.swin_transformer_v2 import PatchMerging, SwinTransformerV2Block
+from timm.models.swin_transformer_v2 import (PatchMerging,
+                                             SwinTransformerV2Block)
 
 
 class SwinTransformerV2Xview(nn.Module):

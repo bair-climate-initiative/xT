@@ -20,14 +20,8 @@ import timm
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from timm.layers import (
-    DropPath,  # manually add patchembed
-    Format,
-    Mlp,
-    nchw_to,
-    to_2tuple,
-    trunc_normal_,
-)
+from timm.layers import DropPath  # manually add patchembed
+from timm.layers import Format, Mlp, nchw_to, to_2tuple, trunc_normal_
 from torch.autograd import Function as Function
 
 from xt.utils import is_main_process

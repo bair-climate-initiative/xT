@@ -9,22 +9,19 @@ from .transformer_xl import MemTransformerLM, TransformerXLConfig
 default_decoder_filters = [48, 96, 176, 256]
 default_last = 48
 
+import math
+from functools import lru_cache
+
 import numpy as np
 import torch
 import torch.nn.functional as F
 from torch import nn
 
 from .lib.hier.utils.blocks import registry as BLOCKS
-from .lib.hier.utils.patch_embed import (
-    ConvBlock4D,
-    PatchEmbed4D,
-    PatchRecover4D,
-    build_downsample,
-    build_upsample,
-)
-import math
+from .lib.hier.utils.patch_embed import (ConvBlock4D, PatchEmbed4D,
+                                         PatchRecover4D, build_downsample,
+                                         build_upsample)
 from .pos_embed import get_2d_sincos_pos_embed as get_2d_sincos_pos_embed_base
-from functools import lru_cache
 
 
 @lru_cache(maxsize=32)
@@ -986,15 +983,15 @@ class LLMLayer(nn.Module):
         return hidden_states
 
 
-from torch import Tensor
+from functools import partial
 from typing import Optional
 
-from functools import partial
+import torch.utils.checkpoint as checkpoint
+from torch import Tensor
 
 # from .mamba import *
 
 
-import torch.utils.checkpoint as checkpoint
 
 
 class LLMClassificationDecoder(nn.Module):
@@ -1103,6 +1100,7 @@ class LLMClassificationDecoder(nn.Module):
 
 
 from typing import Any
+
 from einops import rearrange
 
 

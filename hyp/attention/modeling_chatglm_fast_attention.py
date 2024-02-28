@@ -1,7 +1,9 @@
 import math
+
 import torch
 
 from .hyper_attn import HyperAttention
+
 
 # Edited from https://huggingface.co/THUDM/chatglm2-6b-32k/blob/main/modeling_chatglm.py#L194
 class FastCoreAttention(torch.nn.Module):

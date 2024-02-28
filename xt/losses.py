@@ -5,7 +5,6 @@ from typing import Any, Dict, List, Optional
 import torch
 import torch.nn.functional as F
 from timm.loss import LabelSmoothingCrossEntropy, SoftTargetCrossEntropy
-
 # from hydra.utils import instantiate
 from torch import nn, topk
 from torch.nn import BCEWithLogitsLoss, MSELoss, NLLLoss2d

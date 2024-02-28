@@ -1,9 +1,11 @@
 import math
+
 import torch
 from einops import rearrange
 
-from .utils import exact_attention, exact_attention_cuda, add_self_attentions, indexing
 from .angular_lsh import AngularLSH
+from .utils import (add_self_attentions, exact_attention, exact_attention_cuda,
+                    indexing)
 
 
 class HyperAttention(torch.nn.Module):
