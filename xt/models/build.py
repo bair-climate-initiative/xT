@@ -1,11 +1,8 @@
 from dataclasses import dataclass, field
 
-from .backbones import *
-from .transformer_xl import TransformerXLConfig
-from .unet import EncoderDecoderV2
-
-# from hydra.core.config_store import ConfigStore
-# from hydra.utils import instantiate
+import backbones
+from .context_encoders.transformer_xl import TransformerXLConfig
+from .decoders.unet import EncoderDecoderV2
 
 
 @dataclass
@@ -28,10 +25,6 @@ class BackboneConfig:
     """If channels are last in data format."""
     img_size: int = 256
     """Expected input size of data."""
-    use_vanilla_backward: bool = False
-    """Use vanilla backward pass for Revswin (debug only)."""
-    upsample: bool = True
-    """Whether to add an upsample on top of feature maps for RevSwin (False for EncDecv2)"""
 
 
 @dataclass
@@ -42,7 +35,7 @@ class ModelConfig:
     """Path to checkpoint to resume training from. Empty for none."""
     tiling: str = "naive"
     """Transformer-XL tiling strategy"""
-    backbone_class: str = "revswinv2_tiny_window16_256_xview"
+    backbone_class: str = "swinv2_tiny_window16_256_timm"
     """Class name for backbone."""
     patch_size: int = 16
     """Patch sized used for transformer XL."""  # TODO: properly derive this

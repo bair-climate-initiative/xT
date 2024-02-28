@@ -4,7 +4,6 @@ NUM_TOTAL_LAYERS = {
 
 
 def patch_attention_layers(model, model_name, patch_config, num_patch_layers, **kwargs):
-
     num_total_layers = NUM_TOTAL_LAYERS[model_name]
     num_patch_layers = num_total_layers if num_patch_layers < 0 else num_patch_layers
 
@@ -40,8 +39,7 @@ def patch_attention_layers(model, model_name, patch_config, num_patch_layers, **
         raise NotImplementedError(f"Invalid patch_config option: {patch_config}")
 
     if model_name == "chatglm2-6b-32k":
-        from models.attention.modeling_chatglm_fast_attention import \
-            FastCoreAttention
+        from models.attention.modeling_chatglm_fast_attention import FastCoreAttention
 
         print(
             f"patch_config: {patch_config}, attn_method: {kwargs['attn_method']}, num_patch_layers: {num_patch_layers}, patch_indices: {list(patch_layer_indices)}"

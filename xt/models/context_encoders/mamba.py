@@ -4,7 +4,9 @@ from typing import Optional
 import torch
 from mamba_ssm import Mamba
 from mamba_ssm.ops.triton.layernorm import RMSNorm, layer_norm_fn, rms_norm_fn
-from mmcv.cnn.bricks.drop import build_dropout
+from timm.layers.drop import DropPath
+from torch.nn import Dropout
+# from mmcv.cnn.bricks.drop import build_dropout
 from torch import Tensor, nn
 
 
@@ -44,8 +46,8 @@ class Block(nn.Module):
         self.split_head = split_head
         self.reverse = reverse
         self.transpose = transpose
-        self.drop_path = build_dropout(dict(type="DropPath", drop_prob=drop_path_rate))
-        self.dropout = build_dropout(dict(type="Dropout", drop_prob=drop_rate))
+        self.drop_path = DropPath(drop_prob=drop_path_rate)
+        self.dropout = Dropout(p=drop_rate)
         self.downsample = downsample
         if downsample:
             self.down_sample_layer = PatchMerging(

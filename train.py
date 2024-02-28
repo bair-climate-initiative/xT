@@ -28,11 +28,9 @@ warnings.filterwarnings("ignore")
 def main(cfg: MainConfig = None, args=None) -> None:
     if os.environ.get("RANK", "0") == "0":
         _make_output_directory_structure(cfg)
-        # print(OmegaConf.to_yaml(cfg))
 
-    process_group = _init_distributed(config=cfg)
-    if hasattr(args, "name"):
-        cfg.name = args.name
+    process_group = _init_distributed(cfg)
+    cfg.name = getattr(args, "name", cfg.name)
 
     train_data, val_data, train_loader, val_loader, mixup_fn = build_loader(
         cfg.data, cfg.test
@@ -46,13 +44,12 @@ def main(cfg: MainConfig = None, args=None) -> None:
         mixup_fn=mixup_fn,
         process_group=process_group,
     )
-    cfg = trainer.config  # updates lazy entries
+    cfg = trainer.config  # Sync configuration with trainer updates
 
     if is_main_process():
-        # os.makedirs(cfg.output_dir, exist_ok=True)
         os.makedirs(os.path.join(cfg.output_dir, cfg.name), exist_ok=True)
         print(OmegaConf.to_yaml(cfg))
-    # trainer.count_parameters()
+
     if hasattr(args, "summary") and args.summary:
         return
     if cfg.test:
@@ -79,18 +76,17 @@ def main(cfg: MainConfig = None, args=None) -> None:
 
 
 def _init_distributed(config):
-    # TODO!: Make sure this is initialized correctly.
     if config.distributed:
         pg = dist.init_process_group(
             backend="nccl",
             # rank=self.config.local_rank, set to torchrun
             # world_size=self.config.world_size,
         )
-
-        print(f"Setting rank. Rank is {get_rank()}")
-        print(
-            f"There are {torch.cuda.device_count()} GPUs: {[torch.cuda.get_device_properties(i) for i in range(torch.cuda.device_count())]}"
-        )
+        if get_rank() == 0:
+            print(f"Setting rank. Rank is {get_rank()}")
+            print(
+                f"There are {torch.cuda.device_count()} GPUs: {[torch.cuda.get_device_properties(i) for i in range(torch.cuda.device_count())]}"
+            )
         torch.cuda.set_device(get_rank())
     else:
         os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"

@@ -22,15 +22,19 @@ from torch.nn.parallel.distributed import DistributedDataParallel
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
-from .datasets.sampler import (DistributedEvalSampler,
-                               DistributedWeightedRandomSampler)
+from .datasets.sampler import DistributedEvalSampler, DistributedWeightedRandomSampler
 from .evaluator import Evaluator
 from .losses import build_losses
 from .models import build_model
 from .optimizer import create_optimizer
 from .tiling import build_tiling
-from .utils import (SmoothedValue, get_rank, get_world_size,
-                    is_dist_avail_and_initialized, is_main_process)
+from .utils import (
+    SmoothedValue,
+    get_rank,
+    get_world_size,
+    is_dist_avail_and_initialized,
+    is_main_process,
+)
 
 logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO").upper())
 os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
@@ -280,9 +284,7 @@ class PytorchTrainer:
                 raw_indices = torch.stack(
                     [
                         raw_indices_h[:, None].repeat(1, PW),
-                        raw_indices_w[
-                            None,
-                        ].repeat(PH, 1),
+                        raw_indices_w[None,].repeat(PH, 1),
                     ]
                 )
                 patch_indices = torch.stack([h_idx, w_idx])  # 2 X B X L
@@ -555,11 +557,15 @@ class PytorchTrainer:
 
         if self.config.distributed and self.config.fsdp:
             from timm.models.swin_transformer_v2 import SwinTransformerV2Block
-            from torch.distributed.fsdp import (CPUOffload,
-                                                FullyShardedDataParallel,
-                                                MixedPrecision)
+            from torch.distributed.fsdp import (
+                CPUOffload,
+                FullyShardedDataParallel,
+                MixedPrecision,
+            )
             from torch.distributed.fsdp.wrap import (
-                ModuleWrapPolicy, size_based_auto_wrap_policy)
+                ModuleWrapPolicy,
+                size_based_auto_wrap_policy,
+            )
 
             fpSixteen = MixedPrecision(
                 param_dtype=torch.float32,

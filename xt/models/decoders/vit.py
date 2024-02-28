@@ -17,13 +17,11 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.checkpoint as checkpoint
-# from mmdet.utils import get_root_logger
-# from ..builder import BACKBONES
+
 from einops import rearrange
 from timm.models.layers import drop_path, to_2tuple, trunc_normal_
 
-from ..pos_embed import (get_1d_sincos_pos_embed_from_grid_torch,
-                         get_2d_sincos_pos_embed)
+from .pos_embed import get_1d_sincos_pos_embed_from_grid_torch, get_2d_sincos_pos_embed
 
 
 class DropPath(nn.Module):
