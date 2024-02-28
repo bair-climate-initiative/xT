@@ -1,5 +1,6 @@
 from timm.models.swin_transformer_v2 import PatchMerging, SwinTransformerV2Stage
 from timm.models.swin_transformer import SwinTransformerStage
+
 BasicLayer = SwinTransformerV2Stage
 
 import numpy as np
@@ -7,6 +8,7 @@ import torch
 import torch.nn as nn
 from timm.models.layers import PatchEmbed, trunc_normal_
 from timm.models.swin_transformer_v2 import PatchMerging, SwinTransformerV2Block
+
 
 class SwinTransformerV2Xview(nn.Module):
     r"""Swin Transformer V2
@@ -81,7 +83,7 @@ class SwinTransformerV2Xview(nn.Module):
             in_chans=in_chans,
             embed_dim=embed_dim,
             norm_layer=norm_layer,
-            output_fmt='NHWC',
+            output_fmt="NHWC",
         )
         num_patches = self.patch_embed.num_patches
 
@@ -94,7 +96,7 @@ class SwinTransformerV2Xview(nn.Module):
         # else:
         #     self.absolute_pos_embed = None
 
-        #self.pos_drop = nn.Dropout(p=drop_rate)
+        # self.pos_drop = nn.Dropout(p=drop_rate)
 
         # stochastic depth
         dpr = [
@@ -105,14 +107,14 @@ class SwinTransformerV2Xview(nn.Module):
         self.feature_info = []
         self.layers = nn.ModuleList()
         self.upsample = nn.ModuleList()
-        #self.upsample.append(nn.ConvTranspose2d(embed_dim, embed_dim, 2, 2))
+        # self.upsample.append(nn.ConvTranspose2d(embed_dim, embed_dim, 2, 2))
         self.upsample.append(nn.Identity())
         self.feature_info += [
             dict(num_chs=embed_dim, reduction=2, module="patch_embed")
         ]
         scale = 1
-        
-        embed_dim = [int(embed_dim * 2 ** i) for i in range(self.num_layers)]
+
+        embed_dim = [int(embed_dim * 2**i) for i in range(self.num_layers)]
         in_dim = embed_dim[0]
         for i_layer in range(self.num_layers):
             i = i_layer
@@ -131,9 +133,7 @@ class SwinTransformerV2Xview(nn.Module):
                 qkv_bias=qkv_bias,
                 proj_drop=drop_rate,
                 attn_drop=attn_drop_rate,
-                drop_path=dpr[
-                    sum(depths[:i_layer]) : sum(depths[: i_layer + 1])
-                ],
+                drop_path=dpr[sum(depths[:i_layer]) : sum(depths[: i_layer + 1])],
                 norm_layer=norm_layer,
                 downsample=i > 0,
                 pretrained_window_size=pretrained_window_sizes[i_layer],
@@ -149,8 +149,8 @@ class SwinTransformerV2Xview(nn.Module):
                 )
             ]
             if i > 0:
-                #self.upsample.append(nn.ConvTranspose2d(out_dim, out_dim, 2, 2))
-                self.upsample.append(nn.Identity()) # temp hack
+                # self.upsample.append(nn.ConvTranspose2d(out_dim, out_dim, 2, 2))
+                self.upsample.append(nn.Identity())  # temp hack
             else:
                 self.upsample.append(nn.Identity())
             self.layers.append(layer)
@@ -218,19 +218,19 @@ class SwinTransformerV2Xview(nn.Module):
         )
 
     def reshape(self, x):
-        return torch.einsum('nhwc->nchw',x) # no need for v2, already in nchw format
+        return torch.einsum("nhwc->nchw", x)  # no need for v2, already in nchw format
         _, hw, d = x.shape
         r = int(np.sqrt(hw))
         x_reshaped = x.view(-1, r, r, d).permute(0, 3, 1, 2)
         return x_reshaped
 
     def forward_features(self, x):
-        #x = self.input_ada(x)
+        # x = self.input_ada(x)
         x = self.patch_embed(x)
-        #outs = [self.reshape(x)]
+        # outs = [self.reshape(x)]
         # if self.absolute_pos_embed is not None:
         #     x = x + self.absolute_pos_embed
-        #x = self.pos_drop(x)
+        # x = self.pos_drop(x)
         outs = [self.reshape(x)]
         for layer in self.layers:
             x = layer(x)
@@ -336,7 +336,6 @@ def swinv2_base_window16_256_xview(pretrained=False, **kwargs):
             filtered[k] = v
         model.load_state_dict(filtered, strict=False)
     return model
-
 
 
 SWIN_CFG = dict(

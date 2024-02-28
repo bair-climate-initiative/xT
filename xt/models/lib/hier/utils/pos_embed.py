@@ -18,9 +18,7 @@ import torch
 # Transformer: https://github.com/tensorflow/models/blob/master/official/nlp/transformer/model_utils.py
 # MoCo v3: https://github.com/facebookresearch/moco-v3
 # --------------------------------------------------------
-def get_2d_sincos_pos_embed(
-    embed_dim, grid_size_h, grid_size_w, cls_token=False
-):
+def get_2d_sincos_pos_embed(embed_dim, grid_size_h, grid_size_w, cls_token=False):
     """
     grid_size: int of the grid height and width
     return:
@@ -34,9 +32,7 @@ def get_2d_sincos_pos_embed(
     grid = grid.reshape([2, 1, grid_size_h, grid_size_w])
     pos_embed = get_2d_sincos_pos_embed_from_grid(embed_dim, grid)
     if cls_token:
-        pos_embed = np.concatenate(
-            [np.zeros([1, embed_dim]), pos_embed], axis=0
-        )
+        pos_embed = np.concatenate([np.zeros([1, embed_dim]), pos_embed], axis=0)
     return pos_embed
 
 
@@ -53,16 +49,13 @@ def get_nd_sincos_pos_embed(embed_dim, dims, cls_token=False):
     embed_dims = np.array([embed_dim // (2 * len(dims)) * 2] * len(dims))
     embed_dims[-1] += embed_dim - sum(embed_dims)
     pos_embeds = [
-        get_1d_sincos_pos_embed_from_grid(d, g)
-        for d, g in zip(embed_dims, grid)
+        get_1d_sincos_pos_embed_from_grid(d, g) for d, g in zip(embed_dims, grid)
     ]
     pos_embed = np.concatenate(pos_embeds, axis=1)  # (H*W, D)
     pos_embed = pos_embed.reshape(embed_dim, *dims)
     assert not cls_token  # nnot implemennted
     if cls_token:
-        pos_embed = np.concatenate(
-            [np.zeros([1, embed_dim]), pos_embed], axis=0
-        )
+        pos_embed = np.concatenate([np.zeros([1, embed_dim]), pos_embed], axis=0)
     return pos_embed
 
 
@@ -70,12 +63,8 @@ def get_2d_sincos_pos_embed_from_grid(embed_dim, grid):
     assert embed_dim % 2 == 0
 
     # use half of dimensions to encode grid_h
-    emb_h = get_1d_sincos_pos_embed_from_grid(
-        embed_dim // 2, grid[0]
-    )  # (H*W, D/2)
-    emb_w = get_1d_sincos_pos_embed_from_grid(
-        embed_dim // 2, grid[1]
-    )  # (H*W, D/2)
+    emb_h = get_1d_sincos_pos_embed_from_grid(embed_dim // 2, grid[0])  # (H*W, D/2)
+    emb_w = get_1d_sincos_pos_embed_from_grid(embed_dim // 2, grid[1])  # (H*W, D/2)
 
     emb = np.concatenate([emb_h, emb_w], axis=1)  # (H*W, D)
     return emb

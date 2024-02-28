@@ -28,10 +28,7 @@ def load_checkpoint(model, pretrained: str):
     # checkpoint_model = checkpoint['model']
     state_dict = model.state_dict()
     for k in ["head.weight", "head.bias"]:
-        if (
-            k in checkpoint_model
-            and checkpoint_model[k].shape != state_dict[k].shape
-        ):
+        if k in checkpoint_model and checkpoint_model[k].shape != state_dict[k].shape:
             print(f"Removing key {k} from pretrained checkpoint")
             del checkpoint_model[k]
 
@@ -76,14 +73,10 @@ class Block(nn.Module):
             use_flash_attn=flash_attn,
         )
         self.ls1 = (
-            LayerScale(dim, init_values=init_values)
-            if init_values
-            else nn.Identity()
+            LayerScale(dim, init_values=init_values) if init_values else nn.Identity()
         )
         # NOTE: drop path for stochastic depth, we shall see if this is better than dropout here
-        self.drop_path1 = (
-            DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
-        )
+        self.drop_path1 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
 
         self.norm2 = norm_layer(dim)
         self.mlp = Mlp(
@@ -93,13 +86,9 @@ class Block(nn.Module):
             drop=drop,
         )
         self.ls2 = (
-            LayerScale(dim, init_values=init_values)
-            if init_values
-            else nn.Identity()
+            LayerScale(dim, init_values=init_values) if init_values else nn.Identity()
         )
-        self.drop_path2 = (
-            DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
-        )
+        self.drop_path2 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
 
     def forward(self, x):
         x = x + self.drop_path1(self.ls1(self.attn(self.norm1(x))))

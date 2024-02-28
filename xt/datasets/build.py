@@ -31,6 +31,7 @@ try:
             return InterpolationMode.HAMMING
         else:
             return InterpolationMode.BILINEAR
+
 except:
     from timm.data.transforms import _pil_interp
 

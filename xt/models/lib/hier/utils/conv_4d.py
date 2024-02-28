@@ -113,9 +113,7 @@ class Conv4d(nn.Module):
         w_o = (w_i + 2 * w_p - (w_k) - (w_k - 1) * (w_d - 1)) // w_s + 1
 
         # Pre-define output tensors
-        out = torch.zeros(Batch, self.out_channels, l_o, d_o, h_o, w_o).to(
-            input.device
-        )
+        out = torch.zeros(Batch, self.out_channels, l_o, d_o, h_o, w_o).to(input.device)
 
         # Convolve each kernel frame i with each input frame j
         for i in range(l_k):

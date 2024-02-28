@@ -53,9 +53,7 @@ class Tiler:
             ].astype(np.float16)
             c, c_h, c_w = crop.shape
             if c_h < self.tile_size or c_w < self.tile_size:
-                tmp = np.zeros(
-                    (c, self.tile_size, self.tile_size), dtype=np.float16
-                )
+                tmp = np.zeros((c, self.tile_size, self.tile_size), dtype=np.float16)
                 tmp[:, :, :] = self.pad_value
                 tmp[:, :c_h, :c_w] = crop
                 crop = tmp

@@ -9,9 +9,7 @@ class LRStepScheduler(_LRScheduler):
         super().__init__(optimizer, last_epoch)
 
     def get_lr(self):
-        pos = max(
-            bisect_right([x for x, y in self.lr_steps], self.last_epoch) - 1, 0
-        )
+        pos = max(bisect_right([x for x, y in self.lr_steps], self.last_epoch) - 1, 0)
         return [
             self.lr_steps[pos][1]
             if self.lr_steps[pos][0] <= self.last_epoch
@@ -31,8 +29,7 @@ class PolyLR(_LRScheduler):
     def get_lr(self):
         self.last_epoch = (self.last_epoch + 1) % self.max_iter
         return [
-            base_lr
-            * ((1 - float(self.last_epoch) / self.max_iter) ** (self.power))
+            base_lr * ((1 - float(self.last_epoch) / self.max_iter) ** (self.power))
             for base_lr in self.base_lrs
         ]
 
@@ -54,6 +51,4 @@ class ExponentialLRScheduler(_LRScheduler):
     def get_lr(self):
         if self.last_epoch <= 0:
             return self.base_lrs
-        return [
-            base_lr * self.gamma**self.last_epoch for base_lr in self.base_lrs
-        ]
+        return [base_lr * self.gamma**self.last_epoch for base_lr in self.base_lrs]

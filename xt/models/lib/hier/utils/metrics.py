@@ -100,9 +100,7 @@ def lat_weighted_mse_val(pred, y, transform, vars, lat, clim, log_postfix):
     loss_dict = {}
     with torch.no_grad():
         for i, var in enumerate(vars):
-            loss_dict[f"w_mse_{var}_{log_postfix}"] = (
-                error[:, i] * w_lat
-            ).mean()
+            loss_dict[f"w_mse_{var}_{log_postfix}"] = (error[:, i] * w_lat).mean()
 
     loss_dict["w_mse"] = np.mean([loss_dict[k].cpu() for k in loss_dict.keys()])
 
@@ -141,9 +139,7 @@ def lat_weighted_rmse(pred, y, transform, vars, lat, clim, log_postfix):
                 torch.sqrt(torch.mean(error[:, i] * w_lat, dim=(-2, -1)))
             )
 
-    loss_dict["w_rmse"] = np.mean(
-        [loss_dict[k].cpu() for k in loss_dict.keys()]
-    )
+    loss_dict["w_rmse"] = np.mean([loss_dict[k].cpu() for k in loss_dict.keys()])
 
     return loss_dict
 
@@ -182,8 +178,7 @@ def lat_weighted_acc(pred, y, transform, vars, lat, clim, log_postfix):
             loss_dict[f"acc_{var}_{log_postfix}"] = torch.sum(
                 w_lat * pred_prime * y_prime
             ) / torch.sqrt(
-                torch.sum(w_lat * pred_prime**2)
-                * torch.sum(w_lat * y_prime**2)
+                torch.sum(w_lat * pred_prime**2) * torch.sum(w_lat * y_prime**2)
             )
 
     loss_dict["acc"] = np.mean([loss_dict[k].cpu() for k in loss_dict.keys()])
@@ -215,9 +210,7 @@ def lat_weighted_nrmses(pred, y, transform, vars, lat, clim, log_postfix):
         for i, var in enumerate(vars):
             pred_ = pred[:, i]  # B, H, W
             y_ = y[:, i]  # B, H, W
-            error = (
-                torch.mean(pred_, dim=0) - torch.mean(y_, dim=0)
-            ) ** 2  # H, W
+            error = (torch.mean(pred_, dim=0) - torch.mean(y_, dim=0)) ** 2  # H, W
             error = torch.mean(error * w_lat)
             loss_dict[f"w_nrmses_{var}"] = torch.sqrt(error) / y_normalization
 
@@ -267,12 +260,8 @@ def lat_weighted_nrmse(pred, y, transform, vars, lat, clim, log_postfix):
     lat: H
     """
 
-    nrmses = lat_weighted_nrmses(
-        pred, y, transform, vars, lat, clim, log_postfix
-    )
-    nrmseg = lat_weighted_nrmseg(
-        pred, y, transform, vars, lat, clim, log_postfix
-    )
+    nrmses = lat_weighted_nrmses(pred, y, transform, vars, lat, clim, log_postfix)
+    nrmseg = lat_weighted_nrmseg(pred, y, transform, vars, lat, clim, log_postfix)
     loss_dict = {}
     for var in vars:
         loss_dict[f"w_nrmses_{var}"] = nrmses[f"w_nrmses_{var}"]
@@ -325,9 +314,7 @@ def pearson(pred, y, transform, vars, lat, log_steps, log_days, clim):
     return loss_dict
 
 
-def lat_weighted_mean_bias(
-    pred, y, transform, vars, lat, log_steps, log_days, clim
-):
+def lat_weighted_mean_bias(pred, y, transform, vars, lat, log_steps, log_days, clim):
     """
     y: [N, T, 3, H, W]
     pred: [N, T, 3, H, W]
@@ -357,16 +344,12 @@ def lat_weighted_mean_bias(
                     y[:, step - 1, i].flatten(),
                 )
                 pred_, y_ = remove_nans(pred_, y_)
-                loss_dict[f"mean_bias_{var}_day_{day}"] = (
-                    pred_.mean() - y_.mean()
-                )
+                loss_dict[f"mean_bias_{var}_day_{day}"] = pred_.mean() - y_.mean()
 
                 # pred_mean = torch.mean(w_lat * pred[:, step - 1, i])
                 # y_mean = torch.mean(w_lat * y[:, step - 1, i])
                 # loss_dict[f"mean_bias_{var}_day_{day}"] = y_mean - pred_mean
 
-    loss_dict["mean_bias"] = np.mean(
-        [loss_dict[k].cpu() for k in loss_dict.keys()]
-    )
+    loss_dict["mean_bias"] = np.mean([loss_dict[k].cpu() for k in loss_dict.keys()])
 
     return loss_dict

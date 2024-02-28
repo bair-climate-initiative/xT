@@ -17,7 +17,13 @@ import torch
 # Transformer: https://github.com/tensorflow/models/blob/master/official/nlp/transformer/model_utils.py
 # MoCo v3: https://github.com/facebookresearch/moco-v3
 # --------------------------------------------------------
-def get_2d_sincos_pos_embed(embed_dim, grid_size,cls_token=False,i=0,j=0,):
+def get_2d_sincos_pos_embed(
+    embed_dim,
+    grid_size,
+    cls_token=False,
+    i=0,
+    j=0,
+):
     """
     grid_size: int of the grid height and width
     return:
@@ -31,9 +37,7 @@ def get_2d_sincos_pos_embed(embed_dim, grid_size,cls_token=False,i=0,j=0,):
     grid = grid.reshape([2, 1, grid_size, grid_size])
     pos_embed = get_2d_sincos_pos_embed_from_grid(embed_dim, grid)
     if cls_token:
-        pos_embed = np.concatenate(
-            [np.zeros([1, embed_dim]), pos_embed], axis=0
-        )
+        pos_embed = np.concatenate([np.zeros([1, embed_dim]), pos_embed], axis=0)
     return pos_embed
 
 
@@ -41,12 +45,8 @@ def get_2d_sincos_pos_embed_from_grid(embed_dim, grid):
     assert embed_dim % 2 == 0
 
     # use half of dimensions to encode grid_h
-    emb_h = get_1d_sincos_pos_embed_from_grid(
-        embed_dim // 2, grid[0]
-    )  # (H*W, D/2)
-    emb_w = get_1d_sincos_pos_embed_from_grid(
-        embed_dim // 2, grid[1]
-    )  # (H*W, D/2)
+    emb_h = get_1d_sincos_pos_embed_from_grid(embed_dim // 2, grid[0])  # (H*W, D/2)
+    emb_w = get_1d_sincos_pos_embed_from_grid(embed_dim // 2, grid[1])  # (H*W, D/2)
 
     emb = np.concatenate([emb_h, emb_w], axis=1)  # (H*W, D)
     return emb
@@ -98,9 +98,7 @@ def interpolate_pos_embed(model, checkpoint_model):
         num_patches = model.patch_embed.num_patches
         num_extra_tokens = model.pos_embed.shape[-2] - num_patches
         # height (== width) for the checkpoint position embedding
-        orig_size = int(
-            (pos_embed_checkpoint.shape[-2] - num_extra_tokens) ** 0.5
-        )
+        orig_size = int((pos_embed_checkpoint.shape[-2] - num_extra_tokens) ** 0.5)
         # height (== width) for the new position embedding
         new_size = int(num_patches**0.5)
         # class_token and dist_token are kept unchanged

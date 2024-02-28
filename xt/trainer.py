@@ -284,7 +284,9 @@ class PytorchTrainer:
                 raw_indices = torch.stack(
                     [
                         raw_indices_h[:, None].repeat(1, PW),
-                        raw_indices_w[None,].repeat(PH, 1),
+                        raw_indices_w[
+                            None,
+                        ].repeat(PH, 1),
                     ]
                 )
                 patch_indices = torch.stack([h_idx, w_idx])  # 2 X B X L

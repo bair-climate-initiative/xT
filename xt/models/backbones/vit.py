@@ -17,13 +17,13 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.checkpoint as checkpoint
+
 # from mmdet.utils import get_root_logger
 # from ..builder import BACKBONES
 from einops import rearrange
 from timm.models.layers import drop_path, to_2tuple, trunc_normal_
 
-from ..pos_embed import (get_1d_sincos_pos_embed_from_grid_torch,
-                         get_2d_sincos_pos_embed)
+from ..pos_embed import get_1d_sincos_pos_embed_from_grid_torch, get_2d_sincos_pos_embed
 
 
 class DropPath(nn.Module):
@@ -77,7 +77,7 @@ class Attention(nn.Module):
         attn_drop=0.0,
         proj_drop=0.0,
         norm_layer=nn.LayerNorm,
-        **kwargs
+        **kwargs,
     ):
         super().__init__()
         assert dim % num_heads == 0, "dim should be divisible by num_heads"
@@ -190,13 +190,9 @@ def window_partition(x, window_size):
         windows: (num_windows*B, window_size, window_size, C)
     """
     B, H, W, C = x.shape
-    x = x.view(
-        B, H // window_size, window_size, W // window_size, window_size, C
-    )
+    x = x.view(B, H // window_size, window_size, W // window_size, window_size, C)
     windows = (
-        x.permute(0, 1, 3, 2, 4, 5)
-        .contiguous()
-        .view(-1, window_size, window_size, C)
+        x.permute(0, 1, 3, 2, 4, 5).contiguous().view(-1, window_size, window_size, C)
     )
     return windows
 
@@ -238,15 +234,13 @@ def calc_rel_pos_spatial(
     q_h_ratio = max(k_h / q_h, 1.0)
     k_h_ratio = max(q_h / k_h, 1.0)
     dist_h = (
-        torch.arange(q_h)[:, None] * q_h_ratio
-        - torch.arange(k_h)[None, :] * k_h_ratio
+        torch.arange(q_h)[:, None] * q_h_ratio - torch.arange(k_h)[None, :] * k_h_ratio
     )
     dist_h += (k_h - 1) * k_h_ratio
     q_w_ratio = max(k_w / q_w, 1.0)
     k_w_ratio = max(q_w / k_w, 1.0)
     dist_w = (
-        torch.arange(q_w)[:, None] * q_w_ratio
-        - torch.arange(k_w)[None, :] * k_w_ratio
+        torch.arange(q_w)[:, None] * q_w_ratio - torch.arange(k_w)[None, :] * k_w_ratio
     )
     dist_w += (k_w - 1) * k_w_ratio
 
@@ -322,12 +316,8 @@ class WindowAttention(nn.Module):
         B_, N, C = x.shape
         x = x.reshape(B_, H, W, C)
         pad_l = pad_t = 0
-        pad_r = (
-            self.window_size[1] - W % self.window_size[1]
-        ) % self.window_size[1]
-        pad_b = (
-            self.window_size[0] - H % self.window_size[0]
-        ) % self.window_size[0]
+        pad_r = (self.window_size[1] - W % self.window_size[1]) % self.window_size[1]
+        pad_b = (self.window_size[0] - H % self.window_size[0]) % self.window_size[0]
 
         x = F.pad(x, (0, 0, pad_l, pad_r, pad_t, pad_b))
         _, Hp, Wp, _ = x.shape
@@ -425,9 +415,7 @@ class Block(nn.Module):
                 attn_head_dim=attn_head_dim,
             )
         # NOTE: drop path for stochastic depth, we shall see if this is better than dropout here
-        self.drop_path = (
-            DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
-        )
+        self.drop_path = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
         self.norm2 = norm_layer(dim)
         mlp_hidden_dim = int(dim * mlp_ratio)
         self.mlp = Mlp(
@@ -455,9 +443,7 @@ class Block(nn.Module):
             x = x + self.drop_path(self.attn(self.norm1(x), H, W))
             x = x + self.drop_path(self.mlp(self.norm2(x)))
         else:
-            x = x + self.drop_path(
-                self.gamma_1 * self.attn(self.norm1(x), H, W)
-            )
+            x = x + self.drop_path(self.gamma_1 * self.attn(self.norm1(x), H, W))
             x = x + self.drop_path(self.gamma_2 * self.mlp(self.norm2(x)))
         if self.window:
             x = torch.cat([x, x_extra], dim=1)
@@ -471,9 +457,7 @@ class PatchEmbed(nn.Module):
         super().__init__()
         img_size = to_2tuple(img_size)
         patch_size = to_2tuple(patch_size)
-        num_patches = (img_size[1] // patch_size[1]) * (
-            img_size[0] // patch_size[0]
-        )
+        num_patches = (img_size[1] // patch_size[1]) * (img_size[0] // patch_size[0])
         self.patch_shape = (
             img_size[0] // patch_size[0],
             img_size[1] // patch_size[1],
@@ -524,9 +508,9 @@ class HybridEmbed(nn.Module):
                 training = backbone.training
                 if training:
                     backbone.eval()
-                o = self.backbone(
-                    torch.zeros(1, in_chans, img_size[0], img_size[1])
-                )[-1]
+                o = self.backbone(torch.zeros(1, in_chans, img_size[0], img_size[1]))[
+                    -1
+                ]
                 feature_size = o.shape[-2:]
                 feature_dim = o.shape[1]
                 backbone.train(training)
@@ -602,7 +586,7 @@ class ViT(nn.Module):
         pretrained=None,
         class_token=False,
         no_window=False,
-        **kwargs
+        **kwargs,
     ):
         super().__init__()
 
@@ -638,9 +622,7 @@ class ViT(nn.Module):
         self.out_indices = out_indices
 
         if use_abs_pos_emb:
-            self.pos_embed = nn.Parameter(
-                torch.zeros(1, num_patches, embed_dim)
-            )
+            self.pos_embed = nn.Parameter(torch.zeros(1, num_patches, embed_dim))
         else:
             self.pos_embed = None
 
@@ -742,9 +724,7 @@ class ViT(nn.Module):
                 int(self.patch_embed.num_patches**0.5),
                 cls_token=True,
             )
-            self.pos_embed.data.copy_(
-                torch.from_numpy(pos_embed).float().unsqueeze(0)
-            )
+            self.pos_embed.data.copy_(torch.from_numpy(pos_embed).float().unsqueeze(0))
         if self.cls_token is not None:
             nn.init.normal_(self.cls_token, std=1e-6)
 
@@ -767,14 +747,10 @@ class ViT(nn.Module):
         if context:
             context_patches = context["context_patches"]  # ' n c l hp wp'
             nc, cc, lc, hpc, wpc = context_patches.shape
-            context_patches = rearrange(
-                context_patches, "n c l h w-> ( n l ) c h w"
-            )
+            context_patches = rearrange(context_patches, "n c l h w-> ( n l ) c h w")
             context_patches = self.input_ada(context_patches)  # (n l) c_in h
             context_patches, _ = self.patch_embed(context_patches)  # (nl ) 1 d
-            context_patches = context_patches.view(
-                nc, lc, self.embed_dim
-            )  # n L d
+            context_patches = context_patches.view(nc, lc, self.embed_dim)  # n L d
             base_idx = context["raw_indices"][:, :1, :1]
             context_grid = context["patch_indices"] - base_idx
             context_pos_embed = torch.cat(
@@ -927,7 +903,7 @@ def vit_base_patch16(pretrained=False, **kwargs):
         mlp_ratio=4,
         qkv_bias=True,
         norm_layer=partial(nn.LayerNorm, eps=1e-6),
-        **kwargs
+        **kwargs,
     )
     if pretrained:
         print(f"Loading pretrained weights from {pretrained}")
@@ -944,7 +920,7 @@ def vit_small_patch16(pretrained=False, **kwargs):
         mlp_ratio=4,
         qkv_bias=True,
         norm_layer=partial(nn.LayerNorm, eps=1e-6),
-        **kwargs
+        **kwargs,
     )
     if pretrained:
         print(f"Loading pretrained weights from {pretrained}")

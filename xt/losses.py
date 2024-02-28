@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional
 import torch
 import torch.nn.functional as F
 from timm.loss import LabelSmoothingCrossEntropy, SoftTargetCrossEntropy
+
 # from hydra.utils import instantiate
 from torch import nn, topk
 from torch.nn import BCEWithLogitsLoss, MSELoss, NLLLoss2d
@@ -62,11 +63,13 @@ def build_losses(config) -> List[LossFunction]:
             loss_func = CenterLossCalculator()
         elif loss_type == "length":
             loss_func = LengthLoss()
-        elif loss_type == 'crossentropy':
-            if config.data.aug.mixup > 0.:
+        elif loss_type == "crossentropy":
+            if config.data.aug.mixup > 0.0:
                 loss_func = SoftTargetCrossEntropyLoss(**single_loss.params)
-            elif config.data.aug.label_smoothing > 0.:
-                loss_func = LabelSmoothingCrossEntropyLoss(smoothing=config.data.aug.label_smoothing, **single_loss.params)
+            elif config.data.aug.label_smoothing > 0.0:
+                loss_func = LabelSmoothingCrossEntropyLoss(
+                    smoothing=config.data.aug.label_smoothing, **single_loss.params
+                )
             else:
                 loss_func = CrossEntropy(**single_loss.params)
         else:
@@ -170,9 +173,7 @@ class LengthLoss(LossCalculator):
             pred = outputs["length_mask"].float()
             if torch.sum(targets >= 0).item() == 0:
                 return 0 * pred.mean()
-            return (
-                torch.abs(pred[mask] - targets[mask]) / targets[mask]
-            ).mean()
+            return (torch.abs(pred[mask] - targets[mask]) / targets[mask]).mean()
 
 
 def dice_round(preds, trues, t=0.5):
@@ -260,9 +261,7 @@ class NoiseRobustDice(nn.Module):
         input = input.view(-1)
         target = target.view(-1)
         numerator = torch.sum(torch.pow(torch.abs(target - input), self.beta))
-        denominator = (
-            torch.sum(torch.square(target) + torch.square(input)) + eps
-        )
+        denominator = torch.sum(torch.square(target) + torch.square(input)) + eps
         loss = numerator / denominator
         return loss.mean()
 
@@ -314,9 +313,7 @@ class BinaryFocalLoss(nn.Module):
         self.eps = eps
 
     def forward(self, inputs, targets):
-        BCE_loss = F.binary_cross_entropy_with_logits(
-            inputs, targets, reduction="none"
-        )
+        BCE_loss = F.binary_cross_entropy_with_logits(inputs, targets, reduction="none")
         pt = torch.exp(-BCE_loss)
         F_loss = (1 - pt) ** self.gamma * BCE_loss
         return F_loss.mean()
@@ -366,10 +363,7 @@ class ComboLoss(nn.Module):
                 channels = targets.size(1)
                 for c in range(channels):
                     if not self.channel_losses or k in self.channel_losses[c]:
-                        if (
-                            self.skip_empty
-                            and torch.sum(targets[:, c, ...]) < 50
-                        ):
+                        if self.skip_empty and torch.sum(targets[:, c, ...]) < 50:
                             continue
                         c_sigmoid_input = sigmoid_input[:, c, ...].view(-1)
                         c_targets = targets[:, c, ...].view(-1)
@@ -379,9 +373,7 @@ class ComboLoss(nn.Module):
                         c_targets = c_targets[non_ignored]
                         c_outputs = c_outputs[non_ignored]
                         val += self.channel_weights[c] * self.mapping[k](
-                            c_sigmoid_input
-                            if k in self.expect_sigmoid
-                            else c_outputs,
+                            c_sigmoid_input if k in self.expect_sigmoid else c_outputs,
                             c_targets,
                         )
 
@@ -431,9 +423,7 @@ class FocalLossWithDice(nn.Module):
         self.gamma = gamma
         if weight is not None:
             weight = torch.Tensor(weight).float()
-        self.nll_loss = NLLLoss2d(
-            weight, size_average, ignore_index=ignore_index
-        )
+        self.nll_loss = NLLLoss2d(weight, size_average, ignore_index=ignore_index)
         self.ignore_index = ignore_index
 
     def forward(self, outputs, targets):
@@ -592,17 +582,19 @@ class CrossEntropy(LossCalculator):
         # print("in loss: ", targets, pred)
         return self.ce(pred, targets)
 
+
 class SoftTargetCrossEntropyLoss(LossCalculator):
     def __init__(self, field):
         super().__init__()
         self.field = field
-        self.ce = SoftTargetCrossEntropy() 
+        self.ce = SoftTargetCrossEntropy()
 
     def calculate_loss(self, outputs, sample):
         targets = sample[self.field].cuda().long()  # Label map
         pred = outputs[self.field]
         # print("in loss: ", targets, pred)
         return self.ce(pred, targets)
+
 
 class LabelSmoothingCrossEntropyLoss(LossCalculator):
     def __init__(self, field, smoothing):

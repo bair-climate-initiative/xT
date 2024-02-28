@@ -9,9 +9,7 @@ def build_attention_mask_adjacent(input_resolution, radius, grid=None):
     """
     input_shape: tuple
     """
-    abs_coords = [
-        torch.arange(x, dtype=torch.float32) for x in input_resolution
-    ]
+    abs_coords = [torch.arange(x, dtype=torch.float32) for x in input_resolution]
     abs_coords = torch.stack(
         torch.meshgrid(abs_coords), dim=-1
     ).contiguous()  # T L H W 4
@@ -28,16 +26,19 @@ def build_attention_mask_adjacent(input_resolution, radius, grid=None):
         grid_indices = [(torch.arange(x) + 0.5) / x for x in grid]
         grid_indices = [x * y for x, y in zip(grid_indices, input_resolution)]
         grid_indices = [x.int() for x in grid_indices]
-        grid_indices = torch.stack(
-            torch.meshgrid(grid_indices), dim=-1
-        ).contiguous()
+        grid_indices = torch.stack(torch.meshgrid(grid_indices), dim=-1).contiguous()
         grid_indices = grid_indices.view(-1, n_dim).long()
         if n_dim == 4:
             i, j, k, w = grid_indices.T
             base_mask = torch.zeros(*input_resolution, dtype=bool)
             base_mask[i, j, k, w] = True
             base_mask = base_mask.view(-1)
-            in_grid = base_mask[None,] & base_mask[:, None]
+            in_grid = (
+                base_mask[
+                    None,
+                ]
+                & base_mask[:, None]
+            )
             mask = mask | in_grid
         else:
             raise NotImplementedError

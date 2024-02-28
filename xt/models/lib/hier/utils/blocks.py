@@ -102,8 +102,7 @@ class Attention(nn.Module):
                 nn.Linear(512, num_heads, bias=False),
             )
             abs_coords = [
-                torch.arange(x, dtype=torch.float32)
-                for x in self.input_resolution
+                torch.arange(x, dtype=torch.float32) for x in self.input_resolution
             ]
             abs_coords = torch.stack(
                 torch.meshgrid(abs_coords), dim=-1
@@ -142,7 +141,9 @@ class Attention(nn.Module):
             # print(self.abs_table.max(),'abs_table')
             abs_position_bias = self.cpb_mlp(self.abs_table)  # L L H
             # print(abs_position_bias.max(),'abs_position_bias')
-            abs_position_bias = abs_position_bias.permute(2, 0, 1)[None,]
+            abs_position_bias = abs_position_bias.permute(2, 0, 1)[
+                None,
+            ]
             abs_position_bias = 16 * torch.sigmoid(abs_position_bias)
             # print(abs_position_bias.max(),'abs_position_bias')
             return abs_position_bias
@@ -170,13 +171,9 @@ class Attention(nn.Module):
             attn = self.attn_drop(attn)
         elif self.attention_mode == "cosine":
             # print(q.max(),k.max(),v.max(),'qkv')
-            attn = F.normalize(q, dim=-1) @ F.normalize(k, dim=-1).transpose(
-                -2, -1
-            )
+            attn = F.normalize(q, dim=-1) @ F.normalize(k, dim=-1).transpose(-2, -1)
             # print(attn.max(),attn.min(),'attn')
-            logit_scale = torch.clamp(
-                self.logit_scale, max=math.log(1.0 / 0.01)
-            ).exp()
+            logit_scale = torch.clamp(self.logit_scale, max=math.log(1.0 / 0.01)).exp()
             attn = attn * logit_scale
             # print(attn.max(),logit_scale.max(),'attn * logit_scale')
             attn += self.add_rel_pos_bias(attn)
@@ -199,9 +196,7 @@ class Attention(nn.Module):
 
             q = F.normalize(q, dim=-1)
             k = F.normalize(k, dim=-1)
-            logit_scale = torch.clamp(
-                self.logit_scale, max=math.log(1.0 / 0.01)
-            ).exp()
+            logit_scale = torch.clamp(self.logit_scale, max=math.log(1.0 / 0.01)).exp()
 
             qk = torch.einsum("nlhd,nlhd->nlh", q[:, edges[0]], k[:, edges[1]])
             # qk = qk * self.scale # N L_E, N_H Q^T
@@ -220,14 +215,10 @@ class Attention(nn.Module):
             )
             q_exp_sum = q_exp_sum.scatter_add(
                 dim=1,
-                index=edges[0][None, :, None].expand(
-                    q.shape[0], -1, q.shape[2]
-                ),
+                index=edges[0][None, :, None].expand(q.shape[0], -1, q.shape[2]),
                 src=qk,
             )
-            qk = qk / (
-                q_exp_sum[:, edges[0]] + 1e-6
-            )  # softmax (Q^T K / sqrt(d) + B)
+            qk = qk / (q_exp_sum[:, edges[0]] + 1e-6)  # softmax (Q^T K / sqrt(d) + B)
             res = torch.einsum("nlh,nlhd->nlhd", qk, v[:, edges[1]])
             out = torch.zeros(q.shape, dtype=q.dtype, device=q.device)
             out = out.scatter_add(
@@ -284,12 +275,8 @@ class ViTBlock(nn.Module):
             rel_pos_bias=rel_pos_bias,
         )
         # NOTE: drop path for stochastic depth, we shall see if this is better than dropout here
-        self.drop_path = (
-            DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
-        )
-        self.drop_path2 = (
-            DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
-        )
+        self.drop_path = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
+        self.drop_path2 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
         self.norm2 = norm_layer(dim)
         mlp_hidden_dim = int(dim * mlp_ratio)
         self.mlp = Mlp(
@@ -408,18 +395,10 @@ class GlobalLocalAttentionBlock(nn.Module):
             drop=drop,
         )
         # NOTE: drop path for stochastic depth, we shall see if this is better than dropout here
-        self.drop_path = (
-            DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
-        )
-        self.drop_path2 = (
-            DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
-        )
-        self.drop_path3 = (
-            DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
-        )
-        self.drop_path4 = (
-            DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
-        )
+        self.drop_path = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
+        self.drop_path2 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
+        self.drop_path3 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
+        self.drop_path4 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
 
     def forward(self, x):
         """
@@ -504,12 +483,8 @@ class GraphAttentionBlock(nn.Module):
             drop=drop,
         )
         # NOTE: drop path for stochastic depth, we shall see if this is better than dropout here
-        self.drop_path = (
-            DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
-        )
-        self.drop_path2 = (
-            DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
-        )
+        self.drop_path = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
+        self.drop_path2 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
 
     def forward(self, x):
         """
@@ -594,24 +569,12 @@ class ThreeWayAttentionBlock(nn.Module):
             drop=drop,
         )
         # NOTE: drop path for stochastic depth, we shall see if this is better than dropout here
-        self.drop_path1 = (
-            DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
-        )
-        self.drop_path2 = (
-            DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
-        )
-        self.drop_path3 = (
-            DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
-        )
-        self.drop_path4 = (
-            DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
-        )
-        self.drop_path5 = (
-            DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
-        )
-        self.drop_path6 = (
-            DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
-        )
+        self.drop_path1 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
+        self.drop_path2 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
+        self.drop_path3 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
+        self.drop_path4 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
+        self.drop_path5 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
+        self.drop_path6 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
 
     def forward(self, x):
         """
@@ -688,12 +651,8 @@ class WindowedAttentionBlock(nn.Module):
             drop=drop,
         )
         # NOTE: drop path for stochastic depth, we shall see if this is better than dropout here
-        self.drop_path = (
-            DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
-        )
-        self.drop_path2 = (
-            DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
-        )
+        self.drop_path = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
+        self.drop_path2 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
 
     def forward(self, x):
         """

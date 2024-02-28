@@ -10,9 +10,7 @@ class PreEvalCallBack(Callback):
 
 
 class LoggerSaveConfigCallback(SaveConfigCallback):
-    def setup(
-        self, trainer: Trainer, pl_module: LightningModule, stage: str
-    ) -> None:
+    def setup(self, trainer: Trainer, pl_module: LightningModule, stage: str) -> None:
         if self.already_saved:
             return
         super().setup(trainer, pl_module, stage)

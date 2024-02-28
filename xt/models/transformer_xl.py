@@ -26,7 +26,7 @@ class TransformerXLConfig:
     classification_mode: bool = False
     """Ratio of chips have gradient traacked, must be between 0 and 1"""
     grad_ratio: float = 1.0
-    attention_method: str = 'hyper'
+    attention_method: str = "hyper"
 
 
 class PositionalEmbedding(nn.Module):
@@ -696,7 +696,7 @@ class MemTransformerLM(nn.Module):
         self.mem_len = mem_len
         self.ext_len = ext_len
 
-    def init_mems(self,x):
+    def init_mems(self, x):
         if self.mem_len > 0:
             mems = []
             for i in range(self.n_layer + 1):

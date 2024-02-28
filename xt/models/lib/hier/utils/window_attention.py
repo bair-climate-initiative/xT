@@ -52,9 +52,7 @@ def window_partition4d(x, window_size: Tuple[int, int]):
     )
 
 
-def window_reverse(
-    windows, window_size: Tuple[int, int], img_size: Tuple[int, int]
-):
+def window_reverse(windows, window_size: Tuple[int, int], img_size: Tuple[int, int]):
     """
     Args:
         windows: (num_windows * B, window_size[0], window_size[1], C)
@@ -108,9 +106,7 @@ class WindowAttention4D(nn.Module):
         super().__init__()
         self.dim = dim
         self.window_size = window_size  # Wh, Ww
-        self.shift_size = np.array([x // 2 for x in self.window_size]).astype(
-            int
-        )
+        self.shift_size = np.array([x // 2 for x in self.window_size]).astype(int)
         self.roll = roll
         self.num_heads = num_heads
         self.original_input_resolution = input_resolution
@@ -130,9 +126,7 @@ class WindowAttention4D(nn.Module):
         self.input_resolution = self.input_resolution + self.padding
         self.input_resolution = self.input_resolution.astype(int)
 
-        self.logit_scale = nn.Parameter(
-            torch.log(10 * torch.ones((num_heads, 1, 1)))
-        )
+        self.logit_scale = nn.Parameter(torch.log(10 * torch.ones((num_heads, 1, 1))))
 
         # mlp to generate continuous relative position bias
 
@@ -148,8 +142,7 @@ class WindowAttention4D(nn.Module):
                 nn.Linear(512, num_heads, bias=False),
             )
             relative_coords = [
-                torch.arange(-(x - 1), x, dtype=torch.float32)
-                for x in self.window_size
+                torch.arange(-(x - 1), x, dtype=torch.float32) for x in self.window_size
             ]
             # relative_coords_h = torch.arange(-(self.window_size[0] - 1), self.window_size[0], dtype=torch.float32)
             # relative_coords_w = torch.arange(-(self.window_size[1] - 1), self.window_size[1], dtype=torch.float32)
@@ -203,8 +196,7 @@ class WindowAttention4D(nn.Module):
             nL = np.product(self.window_size)
             # target should be NW * (TLHW) ( TLHW)
             abs_coords = [
-                torch.arange(x, dtype=torch.float32)
-                for x in self.input_resolution
+                torch.arange(x, dtype=torch.float32) for x in self.input_resolution
             ]  # T L H W
             abs_coords = torch.stack(
                 torch.meshgrid(abs_coords), dim=-1
@@ -371,9 +363,7 @@ class WindowAttention4D(nn.Module):
 
         # cosine attention
         attn = F.normalize(q, dim=-1) @ F.normalize(k, dim=-1).transpose(-2, -1)
-        logit_scale = torch.clamp(
-            self.logit_scale, max=math.log(1.0 / 0.01)
-        ).exp()
+        logit_scale = torch.clamp(self.logit_scale, max=math.log(1.0 / 0.01)).exp()
         attn = attn * logit_scale
         if self.bias_mode == "swin":
             relative_position_bias_table = self.cpb_mlp(
@@ -401,18 +391,16 @@ class WindowAttention4D(nn.Module):
             abs_position_bias = 16 * torch.sigmoid(abs_position_bias)
             nW = abs_position_bias.shape[0]
             n_batch = B_ // abs_position_bias.shape[0]
-            attn = attn.view(
-                n_batch, nW, nH, nL, nL
-            ) + abs_position_bias.unsqueeze(0)
+            attn = attn.view(n_batch, nW, nH, nL, nL) + abs_position_bias.unsqueeze(0)
             attn = attn.view((n_batch * nW), nH, nL, nL)
         else:
             raise NotImplemented
 
         if mask is not None:
             num_win = mask.shape[0]
-            attn = attn.view(
-                -1, num_win, self.num_heads, N, N
-            ) + mask.unsqueeze(1).unsqueeze(0)
+            attn = attn.view(-1, num_win, self.num_heads, N, N) + mask.unsqueeze(
+                1
+            ).unsqueeze(0)
             attn = attn.view(-1, self.num_heads, N, N)
             attn = self.softmax(attn)
         else:

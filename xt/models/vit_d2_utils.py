@@ -33,13 +33,9 @@ def window_partition(x, window_size):
         x = F.pad(x, (0, 0, 0, pad_w, 0, pad_h))
     Hp, Wp = H + pad_h, W + pad_w
 
-    x = x.view(
-        B, Hp // window_size, window_size, Wp // window_size, window_size, C
-    )
+    x = x.view(B, Hp // window_size, window_size, Wp // window_size, window_size, C)
     windows = (
-        x.permute(0, 1, 3, 2, 4, 5)
-        .contiguous()
-        .view(-1, window_size, window_size, C)
+        x.permute(0, 1, 3, 2, 4, 5).contiguous().view(-1, window_size, window_size, C)
     )
     return windows, (Hp, Wp)
 
@@ -90,18 +86,14 @@ def get_rel_pos(q_size, k_size, rel_pos):
             size=max_rel_dist,
             mode="linear",
         )
-        rel_pos_resized = rel_pos_resized.reshape(-1, max_rel_dist).permute(
-            1, 0
-        )
+        rel_pos_resized = rel_pos_resized.reshape(-1, max_rel_dist).permute(1, 0)
     else:
         rel_pos_resized = rel_pos
 
     # Scale the coords with short length if shapes for q and k are different.
     q_coords = torch.arange(q_size)[:, None] * max(k_size / q_size, 1.0)
     k_coords = torch.arange(k_size)[None, :] * max(q_size / k_size, 1.0)
-    relative_coords = (q_coords - k_coords) + (k_size - 1) * max(
-        q_size / k_size, 1.0
-    )
+    relative_coords = (q_coords - k_coords) + (k_size - 1) * max(q_size / k_size, 1.0)
 
     return rel_pos_resized[relative_coords.long()]
 

@@ -31,7 +31,6 @@ class SwinXviewWrapper(nn.Module):
         ] + self.feature_info
         self.upsample = nn.ConvTranspose2d(embed_dim, embed_dim, 2, 2)
 
-
     def forward(self, x):
         intermediates = self.model(x)
         intermediates = [self.model.patch_embed(x)] + intermediates
@@ -73,7 +72,10 @@ def swinv2_large_window16_256_timm(*args, **kwargs):
 def swinv2_tiny_window16_256_timm_xview(img_size, *args, **kwargs):
     opts = {"input_size": (2, img_size, img_size)}
     model = timm.create_model(
-        "swinv2_tiny_window16_256.ms_in1k", features_only=True, pretrained=True, in_chans=2, 
+        "swinv2_tiny_window16_256.ms_in1k",
+        features_only=True,
+        pretrained=True,
+        in_chans=2,
         pretrained_cfg_overlay=opts,
     )
     return SwinXviewWrapper(model)
@@ -82,7 +84,10 @@ def swinv2_tiny_window16_256_timm_xview(img_size, *args, **kwargs):
 def swinv2_small_window16_256_timm_xview(img_size, *args, **kwargs):
     opts = {"input_size": (2, img_size, img_size)}
     model = timm.create_model(
-        "swinv2_small_window16_256.ms_in1k", features_only=True, pretrained=True, in_chans=2,
+        "swinv2_small_window16_256.ms_in1k",
+        features_only=True,
+        pretrained=True,
+        in_chans=2,
         pretrained_cfg_overlay=opts,
     )
     return SwinXviewWrapper(model)
@@ -91,7 +96,10 @@ def swinv2_small_window16_256_timm_xview(img_size, *args, **kwargs):
 def swinv2_base_window16_256_timm_xview(img_size, *args, **kwargs):
     opts = {"input_size": (2, img_size, img_size)}
     model = timm.create_model(
-        "swinv2_base_window16_256.ms_in1k", features_only=True, pretrained=True, in_chans=2,
+        "swinv2_base_window16_256.ms_in1k",
+        features_only=True,
+        pretrained=True,
+        in_chans=2,
         pretrained_cfg_overlay=opts,
     )
     return SwinXviewWrapper(model)

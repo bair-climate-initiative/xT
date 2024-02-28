@@ -7,9 +7,7 @@ from .norm_4d import LayerNorm4d
 
 
 class PatchEmbedND(nn.Module):
-    def __init__(
-        self, patch_size, in_channels, out_channels, padding=None, bias=True
-    ):
+    def __init__(self, patch_size, in_channels, out_channels, padding=None, bias=True):
         self.patch_size = patch_size
         self.in_channels = in_channels
         self.out_channnnels = out_channels
@@ -120,9 +118,7 @@ class ConvBlock4D(nn.Module):
         NCTLHW
         """
         if self.depth == 0:
-            return self.skip(x.transpose(1, -1)).transpose(
-                1, -1
-            )  # +self.layers(x)
+            return self.skip(x.transpose(1, -1)).transpose(1, -1)  # +self.layers(x)
         elif self.depth == -1:
             x1, x2 = x.chunk(2, dim=1)
             return x1 + x2
@@ -193,9 +189,7 @@ class PatchRecover3D(PatchRecoverND):
             pH=ph,
             pW=pw,
         )
-        x = rearrange(
-            x, "N T H W (C pT pH pW )-> N C (T pT) (H pH) (W pW)", **axis_len
-        )
+        x = rearrange(x, "N T H W (C pT pH pW )-> N C (T pT) (H pH) (W pW)", **axis_len)
         x = x[
             :,
             :,
@@ -255,9 +249,7 @@ def compute_downsample_pad(input_shape, window_size, one_sided=False):
     return output_pad
 
 
-def build_downsample(
-    in_channels, out_channels, input_shape, window_size=(2, 2, 2, 2)
-):
+def build_downsample(in_channels, out_channels, input_shape, window_size=(2, 2, 2, 2)):
     if type(window_size) == int:
         window_size = (window_size, window_size, window_size, window_size)
     window_size = tuple([min(x, y) for x, y in zip(input_shape, window_size)])
@@ -271,9 +263,7 @@ def build_downsample(
     ), dict(window_size=np.array(window_size).astype(float), padding=padding)
 
 
-def build_upsample(
-    in_channels, out_channels, input_shape, window_size=(2, 2, 2, 2)
-):
+def build_upsample(in_channels, out_channels, input_shape, window_size=(2, 2, 2, 2)):
     if type(window_size) == int:
         window_size = (window_size, window_size, window_size, window_size)
     window_size = tuple([min(x, y) for x, y in zip(input_shape, window_size)])
