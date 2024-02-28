@@ -1,20 +1,8 @@
 from dataclasses import dataclass, field
 
 from .backbones import *
-from .backbones.swin_timm import (swinv2_base_window16_256_timm,
-                                  swinv2_base_window16_256_timm_xview,
-                                  swinv2_large_window16_256_timm,
-                                  swinv2_large_window16_256_timm_xview,
-                                  swinv2_small_window16_256_timm,
-                                  swinv2_small_window16_256_timm_xview,
-                                  swinv2_tiny_window16_256_timm,
-                                  swinv2_tiny_window16_256_timm_xview)
-from .backbones.vit import vit_base_patch16
-from .hiera import (get_hiera_model, get_hiera_model_base,
-                    get_hiera_model_base_plus, get_hiera_model_base_plus_448,
-                    get_hiera_model_small, get_hiera_model_tiny)
 from .transformer_xl import TransformerXLConfig
-from .unet import EncoderDecoderV2, TimmUnet
+from .unet import EncoderDecoderV2
 
 # from hydra.core.config_store import ConfigStore
 # from hydra.utils import instantiate
@@ -48,7 +36,7 @@ class BackboneConfig:
 
 @dataclass
 class ModelConfig:
-    name: str = "TimmUnet"
+    name: str = "EncoderDecoderV2"
     """Name of overarching model architecture."""
     resume: str = ""
     """Path to checkpoint to resume training from. Empty for none."""
@@ -68,25 +56,11 @@ class ModelConfig:
     xl_context: TransformerXLConfig = field(default_factory=TransformerXLConfig)
 
 
-# cs = ConfigStore.instance()
-# cs.store(name="config", group="model", node=ModelConfig)
-
-
-def build_model(config: ModelConfig, dataset: str = "xview3"):
+def build_model(config: ModelConfig, dataset: str = "inaturalist"):
     backbone_class = config.backbone_class
     backbone = eval(backbone_class)(**config.backbone)
 
-    if config.name == "TimmUnet":
-        model = TimmUnet(
-            backbone=backbone,
-            xl_config=config.xl_context,
-            channels_last=config.backbone.channel_last,
-            crop_size=config.backbone.img_size,
-            context_mode=config.xl_context.enabled,
-            skip_decoder=False,
-            backbone_name=config.backbone_class,
-        )
-    elif config.name == "EncoderDecoderV2":
+    if config.name == "EncoderDecoderV2":
         model = EncoderDecoderV2(
             backbone=backbone,
             xl_config=config.xl_context,
