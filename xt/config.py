@@ -34,7 +34,7 @@ class TrainConfig:
 
 
 @dataclass
-class XviewConfig:
+class MainConfig:
     data: DataConfig = field(default_factory=DataConfig)
     model: ModelConfig = field(default_factory=ModelConfig)
     optimizer: OptimizerConfig = field(default_factory=OptimizerConfig)
@@ -61,7 +61,7 @@ class XviewConfig:
     """Use evaluation sampler for validation, i.e. no repeated samples."""
 
 
-def _merge_configs(cfg: XviewConfig, cfg_file: str):
+def _merge_configs(cfg: MainConfig, cfg_file: str):
     """Merge config at cfg_file with cfg."""
     other_cfg = OmegaConf.load(cfg_file)
 
@@ -76,7 +76,7 @@ def _merge_configs(cfg: XviewConfig, cfg_file: str):
     return cfg
 
 
-def create_config(schema: XviewConfig, cfg_path: str):
+def create_config(schema: MainConfig, cfg_path: str):
     """Create config from input config, recursively resolving base configs."""
     # First resolve input config and it's base_configs
     cfg = _merge_configs(schema, cfg_path)

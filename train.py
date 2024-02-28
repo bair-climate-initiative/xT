@@ -8,7 +8,7 @@ import torch.distributed as dist
 from omegaconf import OmegaConf
 from torch.utils.data import DataLoader
 
-from xt.config import XviewConfig, create_config
+from xt.config import MainConfig, create_config
 from xt.datasets import build_loader
 from xt.evaluator import build_evaluator
 from xt.trainer import PytorchTrainer
@@ -25,7 +25,7 @@ torch.utils.data._utils.MP_STATUS_CHECK_INTERVAL = 120
 warnings.filterwarnings("ignore")
 
 
-def main(cfg: XviewConfig = None, args=None) -> None:
+def main(cfg: MainConfig = None, args=None) -> None:
     if os.environ.get("RANK", "0") == "0":
         _make_output_directory_structure(cfg)
         # print(OmegaConf.to_yaml(cfg))
@@ -110,6 +110,6 @@ def _make_output_directory_structure(cfg):
 
 if __name__ == "__main__":
     args = OmegaConf.from_cli()  # first grab from cli to determine config
-    schema = OmegaConf.structured(XviewConfig)
+    schema = OmegaConf.structured(MainConfig)
     config = create_config(schema, args.config)
     main(config, args)

@@ -19,7 +19,7 @@ import submitit
 from omegaconf import OmegaConf
 
 import train as segmentor
-from xt.config import XviewConfig, create_config
+from xt.config import MainConfig, create_config
 
 
 def parse_args():
@@ -183,7 +183,7 @@ def main():
     args.dist_url = get_init_file().as_uri()
     args.output_dir = args.job_dir
     config = create_config(
-        schema=OmegaConf.structured(XviewConfig), cfg_path=args.config
+        schema=OmegaConf.structured(MainConfig), cfg_path=args.config
     )
     print(OmegaConf.to_yaml(config))
 

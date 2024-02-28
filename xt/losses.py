@@ -52,7 +52,6 @@ class LossConfig:
 
 
 def build_losses(config) -> List[LossFunction]:
-    # * config: XviewConfig
     losses = []
     for single_loss in config.losses.losses:
         loss_type = str.lower(single_loss.type)
