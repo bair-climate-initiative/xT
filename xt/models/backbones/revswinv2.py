@@ -16,15 +16,21 @@ import math
 import sys
 from typing import Callable, Optional, Tuple, Union
 
+import timm
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from timm.layers import DropPath  # manually add patchembed
-from timm.layers import Format, Mlp, nchw_to, to_2tuple, trunc_normal_
-import timm
+from timm.layers import (
+    DropPath,  # manually add patchembed
+    Format,
+    Mlp,
+    nchw_to,
+    to_2tuple,
+    trunc_normal_,
+)
 from torch.autograd import Function as Function
 
-from gigaformer.utils import is_main_process
+from xt.utils import is_main_process
 
 _int_or_tuple_2_t = Union[int, Tuple[int, int]]
 
@@ -133,9 +139,7 @@ def window_partition(x, window_size: Tuple[int, int]):
 
 
 # @register_notrace_function  # reason: int argument is a Proxy
-def window_reverse(
-    windows, window_size: Tuple[int, int], img_size: Tuple[int, int]
-):
+def window_reverse(windows, window_size: Tuple[int, int], img_size: Tuple[int, int]):
     """
     Args:
         windows: (num_windows * B, window_size[0], window_size[1], C)
@@ -189,9 +193,7 @@ class WindowAttention(nn.Module):
         self.pretrained_window_size = pretrained_window_size
         self.num_heads = num_heads
 
-        self.logit_scale = nn.Parameter(
-            torch.log(10 * torch.ones((num_heads, 1, 1)))
-        )
+        self.logit_scale = nn.Parameter(torch.log(10 * torch.ones((num_heads, 1, 1))))
 
         # mlp to generate continuous relative position bias
         self.cpb_mlp = nn.Sequential(
@@ -241,9 +243,7 @@ class WindowAttention(nn.Module):
         relative_coords = relative_coords.permute(
             1, 2, 0
         ).contiguous()  # Wh*Ww, Wh*Ww, 2
-        relative_coords[:, :, 0] += (
-            self.window_size[0] - 1
-        )  # shift to start from 0
+        relative_coords[:, :, 0] += self.window_size[0] - 1  # shift to start from 0
         relative_coords[:, :, 1] += self.window_size[1] - 1
         relative_coords[:, :, 0] *= 2 * self.window_size[1] - 1
         relative_position_index = relative_coords.sum(-1)  # Wh*Ww, Wh*Ww
@@ -281,14 +281,12 @@ class WindowAttention(nn.Module):
 
         # cosine attention
         attn = F.normalize(q, dim=-1) @ F.normalize(k, dim=-1).transpose(-2, -1)
-        logit_scale = torch.clamp(
-            self.logit_scale, max=math.log(1.0 / 0.01)
-        ).exp()
+        logit_scale = torch.clamp(self.logit_scale, max=math.log(1.0 / 0.01)).exp()
         attn = attn * logit_scale
 
-        relative_position_bias_table = self.cpb_mlp(
-            self.relative_coords_table
-        ).view(-1, self.num_heads)
+        relative_position_bias_table = self.cpb_mlp(self.relative_coords_table).view(
+            -1, self.num_heads
+        )
         relative_position_bias = relative_position_bias_table[
             self.relative_position_index.view(-1)
         ].view(
@@ -304,9 +302,9 @@ class WindowAttention(nn.Module):
 
         if mask is not None:
             num_win = mask.shape[0]
-            attn = attn.view(
-                -1, num_win, self.num_heads, N, N
-            ) + mask.unsqueeze(1).unsqueeze(0)
+            attn = attn.view(-1, num_win, self.num_heads, N, N) + mask.unsqueeze(
+                1
+            ).unsqueeze(0)
             attn = attn.view(-1, self.num_heads, N, N)
             attn = self.softmax(attn)
         else:
@@ -338,25 +336,17 @@ class TwoStreamFusion(nn.Module):
         self.mode = mode
         self.dim = dim
         if mode == "add":
-            self.fuse_fn = lambda x: torch.stack(torch.chunk(x, 2, dim=2)).sum(
-                dim=0
-            )
+            self.fuse_fn = lambda x: torch.stack(torch.chunk(x, 2, dim=2)).sum(dim=0)
         elif mode == "max":
             self.fuse_fn = (
-                lambda x: torch.stack(torch.chunk(x, 2, dim=2))
-                .max(dim=0)
-                .values
+                lambda x: torch.stack(torch.chunk(x, 2, dim=2)).max(dim=0).values
             )
         elif mode == "min":
             self.fuse_fn = (
-                lambda x: torch.stack(torch.chunk(x, 2, dim=2))
-                .min(dim=0)
-                .values
+                lambda x: torch.stack(torch.chunk(x, 2, dim=2)).min(dim=0).values
             )
         elif mode == "avg":
-            self.fuse_fn = lambda x: torch.stack(torch.chunk(x, 2, dim=2)).mean(
-                dim=0
-            )
+            self.fuse_fn = lambda x: torch.stack(torch.chunk(x, 2, dim=2)).mean(dim=0)
         elif mode == "concat":
             # x itself is the channel concat version
             self.fuse_fn = lambda x: x
@@ -407,13 +397,13 @@ class TwoStreamFusion(nn.Module):
     def init_weights(self):
         "Purely for overriding the proj initialization"
         for name, param in self.fuse_fn.named_parameters():
-            if 'fc2' in name and 'weight' in name:
+            if "fc2" in name and "weight" in name:
                 with torch.no_grad():
                     torch.diagonal(param.data[:, : self.dim]).add_(0.5)
                     torch.diagonal(param.data[:, self.dim :]).add_(0.5)
-            elif 'weight' in name:
+            elif "weight" in name:
                 nn.init.eye_(param.data)
-            elif 'bias' in name:
+            elif "bias" in name:
                 nn.init.zeros_(param.data)
         # if "concat_linear" in self.mode:
         #     self.fuse_fn
@@ -479,9 +469,7 @@ class ReversibleSwinTransformerV2Block(nn.Module):
             pretrained_window_size=to_2tuple(pretrained_window_size),
         )
         self.norm1 = norm_layer(dim)
-        self.drop_path1 = (
-            DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
-        )
+        self.drop_path1 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
 
         self.mlp = Mlp(
             in_features=dim,
@@ -490,9 +478,7 @@ class ReversibleSwinTransformerV2Block(nn.Module):
             drop=proj_drop,
         )
         self.norm2 = norm_layer(dim)
-        self.drop_path2 = (
-            DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
-        )
+        self.drop_path2 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
         self.seeds = {}
 
         if any(self.shift_size):
@@ -561,9 +547,7 @@ class ReversibleSwinTransformerV2Block(nn.Module):
         ]
         shift_size = [
             0 if r <= w else s
-            for r, w, s in zip(
-                self.input_resolution, window_size, target_shift_size
-            )
+            for r, w, s in zip(self.input_resolution, window_size, target_shift_size)
         ]
         return tuple(window_size), tuple(shift_size)
 
@@ -696,9 +680,7 @@ class ReversibleSwinTransformerV2Block(nn.Module):
 class PatchMerging(nn.Module):
     """Patch Merging Layer, modified to support TwoStreamFusion."""
 
-    def __init__(
-        self, dim, out_dim=None, norm_layer=nn.LayerNorm, fusion_module=None
-    ):
+    def __init__(self, dim, out_dim=None, norm_layer=nn.LayerNorm, fusion_module=None):
         """
         Args:
             dim (int): Number of input channels.
@@ -722,11 +704,7 @@ class PatchMerging(nn.Module):
         B, H, W, C = x.shape
         assert H % 2 == 0, f"x height ({H}) is not even."
         assert W % 2 == 0, f"x width ({W}) is not even."
-        x = (
-            x.reshape(B, H // 2, 2, W // 2, 2, C)
-            .permute(0, 1, 3, 4, 2, 5)
-            .flatten(3)
-        )
+        x = x.reshape(B, H // 2, 2, W // 2, 2, C).permute(0, 1, 3, 4, 2, 5).flatten(3)
         x = self.reduction(x)
         x = self.norm(x)
         return x
@@ -808,7 +786,7 @@ class ReversibleSwinTransformerV2Stage(nn.Module):
         norm_layer=nn.LayerNorm,
         pretrained_window_size=0,
         output_nchw=False,
-        use_vanilla_backward=False
+        use_vanilla_backward=False,
     ):
         """
         Args:
@@ -831,9 +809,7 @@ class ReversibleSwinTransformerV2Stage(nn.Module):
         self.dim = dim
         self.input_resolution = input_resolution
         self.output_resolution = (
-            tuple(i // 2 for i in input_resolution)
-            if downsample
-            else input_resolution
+            tuple(i // 2 for i in input_resolution) if downsample else input_resolution
         )
         self.depth = depth
         self.output_nchw = output_nchw
@@ -978,17 +954,13 @@ class ReversibleSwinTransformerV2(nn.Module):
         self.output_fmt = "NHWC"
         self.num_layers = len(depths)
         self.embed_dim = embed_dim
-        self.num_features = int(
-            embed_dim * 2**self.num_layers
-        )  # x 2 for reversible
+        self.num_features = int(embed_dim * 2**self.num_layers)  # x 2 for reversible
         self.feature_info = []
 
         # ? TODO: what is proper embedding breakdown??
         # ? turns out x2 isn't right since it's the out dim as well.
         if not isinstance(embed_dim, (tuple, list)):
-            embed_dim = [
-                int(embed_dim * 2**i) for i in range(self.num_layers)
-            ]
+            embed_dim = [int(embed_dim * 2**i) for i in range(self.num_layers)]
 
         # split image into non-overlapping patches
         self.patch_embed = PatchEmbed(
@@ -1011,9 +983,7 @@ class ReversibleSwinTransformerV2(nn.Module):
 
         dpr = [
             x.tolist()
-            for x in torch.linspace(0, drop_path_rate, sum(depths)).split(
-                depths
-            )
+            for x in torch.linspace(0, drop_path_rate, sum(depths)).split(depths)
         ]
         layers = []
         in_dim = embed_dim[0]
@@ -1147,12 +1117,7 @@ def checkpoint_filter_fn(state_dict, model):
         # For deit models
         state_dict = state_dict["model"]
     for k, v in state_dict.items():
-        if any(
-            [
-                n in k
-                for n in ("relative_position_index", "relative_coords_table")
-            ]
-        ):
+        if any([n in k for n in ("relative_position_index", "relative_coords_table")]):
             continue  # skip buffers that should not be persistent
         out_dict[k] = v
     return out_dict
@@ -1169,9 +1134,7 @@ def revswinv2_tiny_window16_256_xview(pretrained=True, **kwargs):
     model = ReversibleSwinTransformerV2(**dict(model_args, **kwargs))
     if pretrained:
         if is_main_process():
-            print(
-                f"Loading pretrained backbone weights from path {pretrained}..."
-            )
+            print(f"Loading pretrained backbone weights from path {pretrained}...")
         ckpt = torch.load(pretrained, map_location="cpu")
         state_dict = model.state_dict()
         filtered = {}
@@ -1205,9 +1168,7 @@ def revswinv2_base_window16_256_xview(pretrained=True, **kwargs):
     model = ReversibleSwinTransformerV2(**dict(model_args, **kwargs))
     if pretrained:
         if is_main_process():
-            print(
-                f"Loading pretrained backbone weights from {pretrained}..."
-            )
+            print(f"Loading pretrained backbone weights from {pretrained}...")
         # ckpt = timm.create_model("swinv2_base_window16_256", pretrained=True).state_dict()
         ckpt = torch.load(pretrained, map_location="cpu")
         state_dict = model.state_dict()

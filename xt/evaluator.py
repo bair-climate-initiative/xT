@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader
 from torchmetrics import Accuracy, Precision, Recall
 from tqdm import tqdm
 
-from gigaformer.utils import is_dist_avail_and_initialized, is_main_process
+from xt.utils import is_dist_avail_and_initialized, is_main_process
 
 from .tiling import build_tiling
 

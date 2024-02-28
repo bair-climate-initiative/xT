@@ -22,7 +22,7 @@ def deep_set(dictionary, key, nested_keys, i, value):
 
 
 def parse_args():
-    parser = ArgumentParser("Create sweep files for Gigaformer experiments")
+    parser = ArgumentParser("Create sweep files for xT experiments")
     parser.add_argument(
         "--sweep_options",
         "-s",
@@ -78,6 +78,7 @@ opt_map = {
 def main():
     args = parse_args()
     import os
+
     print(os.getcwd())
     sweep_options = OmegaConf.load(args.sweep_options)
     base_config = OmegaConf.load(args.base_config)
@@ -97,7 +98,7 @@ def main():
             combs.append(list(product([options["name"]], options["options"])))
     all_combs = list(product(*combs))
 
-    # Flatten the grouped options 
+    # Flatten the grouped options
     all_combs_temp = []
     for comb in all_combs:
         temp = []
@@ -123,7 +124,7 @@ def main():
             key_name = opt_key_map.get(key, key.split(".")[-1])
             key_name = key_name.replace("_", "-")
 
-            opt= opt_map.get(opt, opt)
+            opt = opt_map.get(opt, opt)
             if key_name in ["blr", "lr"]:
                 experiment_name += f"_{key_name}-{opt:.0e}"
             else:

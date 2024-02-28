@@ -91,10 +91,8 @@ class PytorchTrainer:
 
                 self.trigger_sync = TriggerWandbSyncHook()
 
-            if config.data.dataset == "xview3":
-                project_name = "xview3 detection unet"
-            else:
-                project_name = "gigaformer inaturalist"
+            if config.data.dataset == "inaturalist":
+                project_name = "xt inaturalist"
             wandb_args = dict(
                 project=project_name,
                 entity="bair-climate-initiative",

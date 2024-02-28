@@ -2,18 +2,17 @@ import logging
 import os
 import warnings
 from pathlib import Path
-from typing import Any
 
 import torch
 import torch.distributed as dist
 from omegaconf import OmegaConf
 from torch.utils.data import DataLoader
 
-from gigaformer.config import XviewConfig, create_config
-from gigaformer.datasets import build_loader
-from gigaformer.evaluator import build_evaluator
-from gigaformer.trainer import PytorchTrainer
-from gigaformer.utils import get_rank, get_world_size, is_main_process
+from xt.config import XviewConfig, create_config
+from xt.datasets import build_loader
+from xt.evaluator import build_evaluator
+from xt.trainer import PytorchTrainer
+from xt.utils import get_rank, get_world_size, is_main_process
 
 os.environ["MKL_NUM_THREADS"] = "1"
 os.environ["NUMEXPR_NUM_THREADS"] = "1"
@@ -26,16 +25,18 @@ torch.utils.data._utils.MP_STATUS_CHECK_INTERVAL = 120
 warnings.filterwarnings("ignore")
 
 
-def main(cfg: XviewConfig = None, args = None) -> None:
-    if os.environ.get("RANK", "0") == "0":  
+def main(cfg: XviewConfig = None, args=None) -> None:
+    if os.environ.get("RANK", "0") == "0":
         _make_output_directory_structure(cfg)
         # print(OmegaConf.to_yaml(cfg))
 
     process_group = _init_distributed(config=cfg)
-    if hasattr(args,'name'):
+    if hasattr(args, "name"):
         cfg.name = args.name
 
-    train_data, val_data, train_loader, val_loader, mixup_fn = build_loader(cfg.data, cfg.test)
+    train_data, val_data, train_loader, val_loader, mixup_fn = build_loader(
+        cfg.data, cfg.test
+    )
     seg_evaluator = build_evaluator(cfg)
     trainer = PytorchTrainer(
         config=cfg,
@@ -43,16 +44,16 @@ def main(cfg: XviewConfig = None, args = None) -> None:
         train_loader=train_loader,
         val_loader=val_loader,
         mixup_fn=mixup_fn,
-        process_group=process_group
+        process_group=process_group,
     )
-    cfg = trainer.config # updates lazy entries
+    cfg = trainer.config  # updates lazy entries
 
     if is_main_process():
         # os.makedirs(cfg.output_dir, exist_ok=True)
         os.makedirs(os.path.join(cfg.output_dir, cfg.name), exist_ok=True)
         print(OmegaConf.to_yaml(cfg))
-    #trainer.count_parameters()
-    if hasattr(args,'summary') and args.summary:
+    # trainer.count_parameters()
+    if hasattr(args, "summary") and args.summary:
         return
     if cfg.test:
         sampler = torch.utils.data.distributed.DistributedSampler(
@@ -97,6 +98,7 @@ def _init_distributed(config):
 
     return pg
 
+
 def _make_output_directory_structure(cfg):
     print("Making directories...")
     print(f"Making {cfg.output_dir}")
@@ -105,8 +107,9 @@ def _make_output_directory_structure(cfg):
     (output_dir / "checkpoints").mkdir(exist_ok=True)
     (output_dir / "predictions").mkdir(exist_ok=True)
 
+
 if __name__ == "__main__":
     args = OmegaConf.from_cli()  # first grab from cli to determine config
     schema = OmegaConf.structured(XviewConfig)
     config = create_config(schema, args.config)
-    main(config,args)
+    main(config, args)

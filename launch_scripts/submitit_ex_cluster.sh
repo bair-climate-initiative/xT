@@ -29,7 +29,3 @@ python $PROJECT_DIR/launch_scripts/submitit_train_cluster.py \
     --account XYZ \
     --nodes 1 \
     --config $PROJECT_DIR/config/what/you/want.yaml
-
-# use the below for non-slurm launches.
-# OMP_NUM_THREADS=1 CUDA_VISIBLE_DEVICES=6,7 \
-# python -m torch.distributed.launch --nproc_per_node=8 --master_port 47769 train_val_segmentor.py \

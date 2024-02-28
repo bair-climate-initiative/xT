@@ -18,8 +18,8 @@ sys.path.append("/p/home/ritwik/dev/revswin-xl")
 import submitit
 from omegaconf import OmegaConf
 
-import train_val_segmentor as segmentor
-from gigaformer.config import XviewConfig, create_config
+import train as segmentor
+from xt.config import XviewConfig, create_config
 
 
 def parse_args():
@@ -92,7 +92,7 @@ class Trainer(object):
         import sys
 
         sys.path.append("/p/home/ritwik/dev/revswin-xl")
-        import train_val_segmentor as segmentor
+        import train as segmentor
 
         self._setup_gpu_args()
         segmentor.main(self.config)
