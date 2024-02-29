@@ -26,6 +26,7 @@ class ContextEncoderConfig:
     classification_mode: bool = False
     """Ratio of chips have gradient traacked, must be between 0 and 1"""
     grad_ratio: float = 1.0
+    """Ratio of sequence to maintain gradients for better memory usage."""
     attention_method: str = "hyper"
 
 

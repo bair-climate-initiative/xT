@@ -1,3 +1,5 @@
+""" HyperAttention, taken from https://github.com/insuhan/hyper-attn. """
+
 NUM_TOTAL_LAYERS = {
     "chatglm2-6b-32k": 28,
 }

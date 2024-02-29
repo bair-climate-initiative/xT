@@ -1,8 +1,6 @@
 import torch
 from torch import nn
 
-from hyp.attention.hyper_attn import HyperAttention
-
 
 class LLMAttention(nn.Module):
     def __init__(
@@ -17,6 +15,9 @@ class LLMAttention(nn.Module):
         self.proj = nn.Linear(inner_dim, dim)
         assert inner_dim % num_heads == 0, (inner_dim, num_heads)
         self.num_heads = num_heads
+
+        from .hyper_attn.attention.hyper_attn import HyperAttention
+
         self.attn = HyperAttention(
             input_dim=inner_dim // num_heads,
             lsh_num_projs=7,
