@@ -10,7 +10,6 @@ from typing import Dict
 import torch
 import torch.distributed
 import torch.distributed as dist
-import wandb
 from einops import rearrange
 from omegaconf import OmegaConf
 from timm.utils import AverageMeter
@@ -19,6 +18,8 @@ from torch.nn.modules.batchnorm import _BatchNorm
 from torch.nn.parallel.distributed import DistributedDataParallel
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+
+import wandb
 
 from .datasets.sampler import DistributedWeightedRandomSampler
 from .evaluator import Evaluator
@@ -261,9 +262,7 @@ class PytorchTrainer:
                 raw_indices = torch.stack(
                     [
                         raw_indices_h[:, None].repeat(1, PW),
-                        raw_indices_w[
-                            None,
-                        ].repeat(PH, 1),
+                        raw_indices_w[None,].repeat(PH, 1),
                     ]
                 )
                 patch_indices = torch.stack([h_idx, w_idx])  # 2 X B X L
@@ -430,11 +429,7 @@ class PytorchTrainer:
 
     @property
     def snapshot_name(self):
-        return (
-            f"{self.config.model.name}_"
-            f"{self.config.model.backbone_class}_"
-            f"{self.config.data.fold}"
-        )
+        return f"{self.config.model.name}_{self.config.model.backbone_class}"
 
     def _freeze(self):
         if hasattr(self.model.module, "encoder"):
