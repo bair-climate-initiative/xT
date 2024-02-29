@@ -58,7 +58,6 @@ class HyperAttention(torch.nn.Module):
                 else:
                     attn, lse = exact_attention(query, key, value, scale, causal=True)
             else:
-
                 # If n_query is odd we pad inputs by adding all-zero rows
                 if n_query % 2:
                     query = torch.nn.functional.pad(
@@ -123,7 +122,6 @@ class HyperAttention(torch.nn.Module):
             return attn, lse
 
     def forward_no_causal_mask(self, query, key, value, scale):
-
         batch_size, head_size, n_query, dim = query.shape
         n_key = key.shape[2]
 
@@ -149,7 +147,6 @@ class HyperAttention(torch.nn.Module):
         value_sorted = indexing(value, key_sort_idx, key_block_size)
 
         if key_block_size > 0:
-
             num_blocks = key_sorted.shape[2] // key_block_size
             query_block_size = query_sorted.shape[2] // num_blocks
 

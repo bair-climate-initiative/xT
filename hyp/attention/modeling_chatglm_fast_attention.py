@@ -52,7 +52,6 @@ class FastCoreAttention(torch.nn.Module):
             raise NotImplementedError("Invalid attn_method option")
 
     def forward(self, query_layer, key_layer, value_layer, attention_mask):
-
         query_layer, key_layer, value_layer = [
             k.permute(1, 2, 0, 3) for k in [query_layer, key_layer, value_layer]
         ]

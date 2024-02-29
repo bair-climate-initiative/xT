@@ -1,6 +1,6 @@
-output_dir: /p/path/to/logs/%j
+output_dir: /p/app/projects/nga-frontier/gigaformer-runs/logs/%j
 data:
-  dir: /p/path/to/data/inaturalist2018
-  category_label_path: /p/min-xT/meta/category_label_reptilia_map.json
+  dir: /p/app/projects/nga-frontier/inaturalist2018
+  category_label_path: /p/app/projects/nga-frontier/inaturalist2018/category-maps/category_label_reptilia_map.json
 model:
-  resume: /p/path/to/logs/%j/resume/
+  resume: /p/app/projects/nga-frontier/gigaformer-runs/logs/%j/resume/

@@ -1,11 +1,8 @@
 from dataclasses import dataclass, field
 
 from .backbones import *
-from .transformer_xl import TransformerXLConfig
-from .unet import EncoderDecoderV2
-
-# from hydra.core.config_store import ConfigStore
-# from hydra.utils import instantiate
+from .context_encoders.transformer_xl import TransformerXLConfig
+from .decoders.unet import EncoderDecoder
 
 
 @dataclass
@@ -28,21 +25,17 @@ class BackboneConfig:
     """If channels are last in data format."""
     img_size: int = 256
     """Expected input size of data."""
-    use_vanilla_backward: bool = False
-    """Use vanilla backward pass for Revswin (debug only)."""
-    upsample: bool = True
-    """Whether to add an upsample on top of feature maps for RevSwin (False for EncDecv2)"""
 
 
 @dataclass
 class ModelConfig:
-    name: str = "EncoderDecoderV2"
+    name: str = "EncoderDecoder"
     """Name of overarching model architecture."""
     resume: str = ""
     """Path to checkpoint to resume training from. Empty for none."""
     tiling: str = "naive"
     """Transformer-XL tiling strategy"""
-    backbone_class: str = "revswinv2_tiny_window16_256_xview"
+    backbone_class: str = "swinv2_tiny_window16_256_timm"
     """Class name for backbone."""
     patch_size: int = 16
     """Patch sized used for transformer XL."""  # TODO: properly derive this
@@ -60,19 +53,17 @@ def build_model(config: ModelConfig, dataset: str = "inaturalist"):
     backbone_class = config.backbone_class
     backbone = eval(backbone_class)(**config.backbone)
 
-    if config.name == "EncoderDecoderV2":
-        model = EncoderDecoderV2(
+    if config.name == "EncoderDecoder":
+        model = EncoderDecoder(
             backbone=backbone,
             xl_config=config.xl_context,
             channels_last=config.backbone.channel_last,
             crop_size=config.backbone.img_size,
-            context_mode=config.xl_context.enabled,
             skip_decoder=False,
             backbone_name=config.backbone_class,
             dataset=dataset,
             num_classes=config.num_classes,
             mlp_ratio=config.mlp_ratio,
-            skip_conntection=config.xl_context.skip_connection,
             cls_head=config.cls_head,
         )
     return model

@@ -13,6 +13,7 @@ dependencies:
   - gdal
   - shapely
   - torchmetrics
+  - pip
   - pip:
     - numpy>=1.21.0,<2.0.0
     - timm==0.9.7
@@ -31,6 +32,8 @@ dependencies:
     - torchgeo
     - classy-vision==0.6.0
     - tensorboard
+    - mamba-ssm
+    - causal-conv1d>=1.1.0,<1.2.0
     - opencv-python
     - einops
     - albumentations

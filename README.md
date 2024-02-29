@@ -23,26 +23,26 @@ We also provide [SubmitIt](https://github.com/facebookincubator/submitit) script
 
 Weights and configs for our experiments are available on [Hugging Face](https://huggingface.co/bair-climate-initiative/swin-xt/tree/main).
 
-|Name                     |Top1-ACC|
-|-------------------------|-------:|
-|[Swin-T](https://huggingface.co/bair-climate-initiative/swin-xt/blob/main/swin-t/weights/swin-t-nonxl-256-top1.ckpt)                   |   53.76|
-|[Swin-T \<xT> XL 256/256](https://huggingface.co/bair-climate-initiative/swin-xt/blob/main/swin-t/weights/swin-t-xl-256-256-top1.ckpt)        |   52.93|
-|[Swin-T \<xT> XL 512/256](https://huggingface.co/bair-climate-initiative/swin-xt/blob/main/swin-t/weights/swin-t-xl-512-256-top1.ckpt)        |   60.56|
-|[Swin-T \<xT> Mamba 512/256](https://huggingface.co/bair-climate-initiative/swin-xt/blob/main/swin-t/weights/swin-t-mamba-512-256-top1.ckpt)     |   **61.97**|
-|-------------------------|--------|
-|[Swin-S](https://huggingface.co/bair-climate-initiative/swin-xt/blob/main/swin-s/weights/swin-s-nonxl-256-top1.ckpt)                   |   58.45|
-|[Swin-S \<xT> XL 256/256](https://huggingface.co/bair-climate-initiative/swin-xt/blob/main/swin-s/weights/swin-s-xl-256-256-top1.ckpt)        |   57.04|
-|[Swin-S \<xT> XL 512/256](https://huggingface.co/bair-climate-initiative/swin-xt/blob/main/swin-s/weights/swin-s-xl-512-256-top1.ckpt)        |   **63.62**|
-|-------------------------|--------|
-|[Swin-B](https://huggingface.co/bair-climate-initiative/swin-xt/blob/main/swin-b/weights/swin-b-nonxl-256-top1.ckpt)                   |   58.57|
-|[Swin-B \<xT> XL 256/256](https://huggingface.co/bair-climate-initiative/swin-xt/blob/main/swin-b/weights/swin-b-xl-256-256-top1.ckpt)        |   55.52|
-|[Swin-B \<xT> XL 512/256](https://huggingface.co/bair-climate-initiative/swin-xt/blob/main/swin-b/weights/swin-b-xl-512-256-top1.ckpt)        |   **64.08**|
-|[Swin-B \<xT> Mamba 512/256](https://huggingface.co/bair-climate-initiative/swin-xt/blob/main/swin-b/weights/swin-b-mamba-512-256-top1.ckpt)     |   63.73|
-|-------------------------|--------|
-|[Swin-L](https://huggingface.co/bair-climate-initiative/swin-xt/blob/main/swin-l/weights/swin-l-nonxl-256-top1.ckpt)                   |   68.78|
-|[Swin-L \<xT> XL 256/256](https://huggingface.co/bair-climate-initiative/swin-xt/blob/main/swin-l/weights/swin-l-xl-256-256-top1.ckpt)        |   67.84|
-|[Swin-L \<xT> XL 512/256](https://huggingface.co/bair-climate-initiative/swin-xt/blob/main/swin-l/weights/swin-l-xl-512-256-top1.ckpt)        |   72.42|
-|[Swin-L \<xT> Mamba 512/256](https://huggingface.co/bair-climate-initiative/swin-xt/blob/main/swin-l/weights/swin-l-mamba-512-256-top1.ckpt)     |   **73.36**|
+|Name                     | Resolution | Top1-ACC | Params | Mem (GB) | Thrpt (region/s) |
+|-------------------------|----:|-----:| ---:| ---|---:|
+|[Swin-T](https://huggingface.co/bair-climate-initiative/swin-xt/blob/main/swin-t/weights/swin-t-nonxl-256-top1.ckpt) | 256 |  53.76| 31M | 0.30 | 76.43 |
+|[Swin-T \<xT> XL](https://huggingface.co/bair-climate-initiative/swin-xt/blob/main/swin-t/weights/swin-t-xl-256-256-top1.ckpt) |  256/256 | 52.93| 47M | 0.31 | 47.81 |
+|[Swin-T \<xT> XL](https://huggingface.co/bair-climate-initiative/swin-xt/blob/main/swin-t/weights/swin-t-xl-512-256-top1.ckpt) |  512/256 | 60.56| 47M | 0.29 | 88.28 |
+|[Swin-T \<xT> Mamba](https://huggingface.co/bair-climate-initiative/swin-xt/blob/main/swin-t/weights/swin-t-mamba-512-256-top1.ckpt) | 512/256 | **61.97**| 44M | 0.29 | 84.77 |
+| |
+|[Swin-S](https://huggingface.co/bair-climate-initiative/swin-xt/blob/main/swin-s/weights/swin-s-nonxl-256-top1.ckpt)  | 256 | 58.45| 52M | 0.46 | 44.44 |
+|[Swin-S \<xT> XL](https://huggingface.co/bair-climate-initiative/swin-xt/blob/main/swin-s/weights/swin-s-xl-256-256-top1.ckpt) | 256/256 |  57.04| 69M | 0.46 | 39.80 |
+|[Swin-S \<xT> XL](https://huggingface.co/bair-climate-initiative/swin-xt/blob/main/swin-s/weights/swin-s-xl-512-256-top1.ckpt) | 512/256 | **63.62**| 69M | 0.46 | 41.45 |
+| |
+|[Swin-B](https://huggingface.co/bair-climate-initiative/swin-xt/blob/main/swin-b/weights/swin-b-nonxl-256-top1.ckpt)  | 256 | 58.57| 92M | 0.50 | 36.14 |
+|[Swin-B \<xT> XL](https://huggingface.co/bair-climate-initiative/swin-xt/blob/main/swin-b/weights/swin-b-xl-256-256-top1.ckpt) |  256/256 | 55.52| 107M | 0.61 | 29.85 |
+|[Swin-B \<xT> XL](https://huggingface.co/bair-climate-initiative/swin-xt/blob/main/swin-b/weights/swin-b-xl-512-256-top1.ckpt) | 512/256 | **64.08**| 107M | 0.74 | 24.00 |
+|[Swin-B \<xT> Mamba](https://huggingface.co/bair-climate-initiative/swin-xt/blob/main/swin-b/weights/swin-b-mamba-512-256-top1.ckpt) | 512/256 |  63.73| 103M | 0.58 | 29.09 |
+| |
+|[Swin-L](https://huggingface.co/bair-climate-initiative/swin-xt/blob/main/swin-l/weights/swin-l-nonxl-256-top1.ckpt) | 256 | 68.78| 206M | 0.84 | 17.02 |
+|[Swin-L \<xT> XL](https://huggingface.co/bair-climate-initiative/swin-xt/blob/main/swin-l/weights/swin-l-xl-256-256-top1.ckpt) | 256/256 | 67.84| 215M | 1.063 | 16.08 |
+|[Swin-L \<xT> XL](https://huggingface.co/bair-climate-initiative/swin-xt/blob/main/swin-l/weights/swin-l-xl-512-256-top1.ckpt) | 512/256 | 72.42| 215M | 1.033 | 16.58 |
+|[Swin-L \<xT> Mamba](https://huggingface.co/bair-climate-initiative/swin-xt/blob/main/swin-l/weights/swin-l-mamba-512-256-top1.ckpt) | 512/256 | **73.36**| 212M | 1.032 | 15.61 |
 
 ## Citation
 
