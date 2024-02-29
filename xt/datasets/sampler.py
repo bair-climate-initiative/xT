@@ -7,7 +7,8 @@ from typing import Optional, Sequence
 import numpy as np
 import torch
 import torch.distributed as dist
-from torch.utils.data import Dataset, DistributedSampler, Sampler, WeightedRandomSampler
+from torch.utils.data import (Dataset, DistributedSampler, Sampler,
+                              WeightedRandomSampler)
 
 
 class DistributedWeightedRandomSampler(DistributedSampler):

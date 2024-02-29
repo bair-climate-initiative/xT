@@ -1,24 +1,25 @@
+import math
+from functools import lru_cache
+from typing import Any
+
+import numpy as np
 import timm
+import torch
 import torch.hub
+import torch.nn.functional as F
+from einops import rearrange
+from torch import nn
 from torch.nn import Dropout2d
 
-from ..context_encoders.transformer_xl import (MemTransformerLM,
-                                               TransformerXLConfig)
+from hyp.attention.hyper_attn import HyperAttention
+
+from ..context_encoders.transformer_xl import MemTransformerLM, TransformerXLConfig
+from .pos_embed import get_2d_sincos_pos_embed as get_2d_sincos_pos_embed_base
 from .vit import MAEDecoder
 from .vit import registry as VIT_CFG
 
 default_decoder_filters = [48, 96, 176, 256]
 default_last = 48
-
-import math
-from functools import lru_cache
-
-import numpy as np
-import torch
-import torch.nn.functional as F
-from torch import nn
-
-from .pos_embed import get_2d_sincos_pos_embed as get_2d_sincos_pos_embed_base
 
 
 @lru_cache(maxsize=32)
@@ -174,137 +175,6 @@ class BasicUpBlock(nn.Module):
         if self.use_act:
             x = self.act(x)
         return x
-
-
-class EncoderDecoder(AbstractModel):
-    def __init__(
-        self,
-        encoder="resnet34",
-        in_chans=2,
-        pretrained=True,
-        channels_last=False,
-        crop_size=256,
-        context_mode="None",
-        out_indices=-2,
-        decoder_embed_dim=512,
-        decoder_depth=8,
-        decoder_num_heads=16,
-        decoder_mlp_ratio=4.0,
-        **kwargs,
-    ):
-        backbone_arch = encoder
-        self.channels_last = channels_last
-        if "swin" in backbone_arch:
-            backbone = SWIN_CFG[backbone_arch](
-                img_size=crop_size, pretrained=pretrained, input_dim=in_chans, **kwargs
-            )
-        elif "vit" in backbone_arch:
-            backbone = VIT_CFG[backbone_arch](
-                img_size=crop_size, pretrained=pretrained, input_dim=in_chans, **kwargs
-            )
-        else:
-            backbone = timm.create_model(
-                backbone_arch,
-                features_only=True,
-                in_chans=in_chans,
-                pretrained=pretrained,
-                **kwargs,
-            )
-        self.crop_size = crop_size
-        self.filters = [f["num_chs"] for f in backbone.feature_info]
-        self.strides = [f["reduction"] for f in backbone.feature_info]
-        self.decoder_filters = default_decoder_filters
-        self.last_upsample_filters = default_last
-
-        if kwargs.get("expected_stride"):
-            assert kwargs.get("expected_stride") == self.strides[out_indices]
-
-        super().__init__()
-        self.decoder_layers = MAEDecoder(
-            embed_dim=self.filters[out_indices],
-            decoder_embed_dim=decoder_embed_dim,
-            decoder_num_heads=decoder_num_heads,
-            mlp_ratio=decoder_mlp_ratio,
-            num_patches=int((crop_size // self.strides[out_indices]) ** 2),
-            decoder_depth=8,
-        )
-        self.out_indices = out_indices
-        self.context_mode = context_mode
-        self.extra_context = False
-        predictor_cls = MAEPredictor
-        self.vessel_mask = predictor_cls(
-            decoder_embed_dim,
-            self.last_upsample_filters,
-            self.strides[out_indices],
-            1,
-        )
-        self.fishing_mask = predictor_cls(
-            decoder_embed_dim,
-            self.last_upsample_filters,
-            self.strides[out_indices],
-            1,
-        )
-        self.center_mask = predictor_cls(
-            decoder_embed_dim,
-            self.last_upsample_filters,
-            self.strides[out_indices],
-            1,
-        )
-        self.length_mask = predictor_cls(
-            decoder_embed_dim,
-            self.last_upsample_filters,
-            self.strides[out_indices],
-            1,
-        )
-
-        self.name = "u-{}".format(encoder)
-
-        self._initialize_weights()
-        self.dropout = Dropout2d(p=0.0)
-        self.encoder = backbone
-        if context_mode == "transformer_xl":
-            self.extra_context = True
-
-    def forward(self, x, context=None, **kwargs):
-        # Encoder
-        if self.channels_last:
-            x = x.contiguous(memory_format=torch.channels_last)
-        enc_results = self.encoder(x, context)
-        x = enc_results[self.out_indices]
-        x = self.decoder_layers(x)
-        fishing_mask = self.fishing_mask(x).contiguous(
-            memory_format=torch.contiguous_format
-        )
-        vessel_mask = self.vessel_mask(x).contiguous(
-            memory_format=torch.contiguous_format
-        )
-        center_mask = self.center_mask(x).contiguous(
-            memory_format=torch.contiguous_format
-        )
-        length_mask = self.length_mask(x).contiguous(
-            memory_format=torch.contiguous_format
-        )
-        output = {
-            "fishing_mask": fishing_mask,
-            "vessel_mask": vessel_mask,
-            "center_mask": center_mask,
-            "length_mask": length_mask,
-        }
-        if context:
-            return output, None
-        return output
-
-    def get_decoder(self, layer):
-        in_channels = (
-            self.filters[layer + 1]
-            if layer + 1 == len(self.decoder_filters)
-            else self.decoder_filters[layer + 1]
-        )
-        return self.decoder_block(
-            in_channels,
-            self.decoder_filters[layer],
-            self.decoder_filters[max(layer, 0)],
-        )
 
 
 class UNetDecoder(nn.Module):
@@ -673,9 +543,6 @@ class ClassificationDecoder(nn.Module):
         return {"label": logits}
 
 
-from hyp.attention.hyper_attn import HyperAttention
-
-
 class LLMAttention(nn.Module):
     def __init__(
         self,
@@ -825,7 +692,6 @@ class LLMLayer(nn.Module):
         return hidden_states
 
 
-
 import torch.utils.checkpoint as checkpoint
 
 
@@ -934,12 +800,7 @@ class LLMClassificationDecoder(nn.Module):
         return {"label": x}
 
 
-from typing import Any
-
-from einops import rearrange
-
-
-class EncoderDecoderV2(AbstractModel):
+class EncoderDecoder(AbstractModel):
     def __init__(
         self,
         backbone: nn.Module,
@@ -947,16 +808,13 @@ class EncoderDecoderV2(AbstractModel):
         channels_last: bool = False,
         crop_size: int = 256,
         skip_decoder: bool = False,
-        backbone_name: str = "revswinv2_tiny",
+        backbone_name: str = "swinv2_tiny_window16_256_timm",
         dataset: str = "inaturalist",
         num_classes: int = 9999,
         mlp_ratio: int = 4,
-        skip_conntection: bool = False,
         cls_head: str = None,
         **kwargs,
     ):
-        # if not hasattr(self, "first_layer_stride_two"):
-        # if not hasattr(self, "decoder_block"):
         self.channels_last = channels_last
         self.crop_size = crop_size
         self.filters = [f["num_chs"] for f in backbone.feature_info]
@@ -965,16 +823,11 @@ class EncoderDecoderV2(AbstractModel):
         self.dataset = dataset
         self.num_classes = num_classes
         self.mlp_ratio = mlp_ratio
-        self.skip_conntection = skip_conntection
         self.cls_head = cls_head
         self.grad_ratio = xl_config.grad_ratio
         self.xl_config = xl_config
 
         super().__init__()
-
-        self.context_mode = xl_config.enabled
-        if self.context_mode:
-            self.init_context_model(xl_config, backbone)
 
         self.init_decoder()
 
@@ -983,14 +836,6 @@ class EncoderDecoderV2(AbstractModel):
         self._initialize_weights()
         self.dropout = Dropout2d(p=0.0)
         self.encoder = backbone
-
-    def init_context_model(self, xl_config, backbone):
-        self.context_model = LLMTransformerXLContextModel(
-            xl_config,
-            self.crop_size,
-            backbone.feature_info[-1]["reduction"],
-            d_model=self.filters[-1],
-        )
 
     def forward(self, x, mem=tuple(), cord=(0, 0), **kwargs):
         # Encoder
@@ -1039,15 +884,9 @@ class EncoderDecoderV2(AbstractModel):
             )
         else:
             enc_results = self.encoder(x)
-        if self.context_mode:
-            enc_results, mem = self.context_model(
-                enc_results, mem, cord=cord, skip=self.skip_conntection
-            )
+
         output = self.decoder(enc_results, x_skip)
-        if self.context_mode:
-            return output, mem
-        else:
-            return output
+        return output
 
     def init_decoder(self):
         if self.dataset == "inaturalist":
@@ -1066,7 +905,7 @@ class EncoderDecoderV2(AbstractModel):
                     attention_method=self.xl_config.attention_method,
                 )
             self.decoder = clasifier(
-                in_dim=self.filters[-1] * (2 if self.skip_conntection else 1),
+                in_dim=self.filters[-1],
                 num_classes=self.num_classes,
                 mlp_ratio=self.mlp_ratio,
                 **extra_kwargs,
@@ -1164,4 +1003,3 @@ class MAEPredictor(nn.Module):
 
     def forward(self, x):
         return self.layer(x)
-

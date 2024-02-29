@@ -1,5 +1,6 @@
-import xt.models.backbones.hiera as hiera
 from torch import nn
+
+import xt.models.backbones.hiera as hiera
 
 
 class HieraWrapper(nn.Module):

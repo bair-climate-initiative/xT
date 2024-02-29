@@ -19,7 +19,7 @@ from timm.utils import AverageMeter
 from torch.nn import DataParallel, SyncBatchNorm
 from torch.nn.modules.batchnorm import _BatchNorm
 from torch.nn.parallel.distributed import DistributedDataParallel
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from .datasets.sampler import DistributedEvalSampler, DistributedWeightedRandomSampler
@@ -93,6 +93,7 @@ class PytorchTrainer:
 
             if config.data.dataset == "inaturalist":
                 project_name = "xt inaturalist"
+
             wandb_args = dict(
                 project=project_name,
                 entity="bair-climate-initiative",
@@ -117,8 +118,6 @@ class PytorchTrainer:
                 wandb.config.update({"SLURM_JOBID": os.environ["SLURM_JOBID"]})
 
             print(self.model)
-
-        # self._profile_model((1, 2, self.conf["crop_size"], self.conf["crop_size"]))
 
     def count_parameters(self, model=None):
         if model is None:
@@ -321,27 +320,8 @@ class PytorchTrainer:
 
         if self.config.optimizer.mode == "epoch":
             self.scheduler.step(self.current_epoch)
-        extra_context = self.model.module.context_mode
-        if extra_context:
-            train_loader = self.build_iterator(train_loader)
-            iter_scale = (self.config.data.crop_size // self.input_size) ** 2
-            if "two_stream" in self.config.model.xl_context.tiling:
-                iter_scale *= 2
-        else:
-            iter_scale = 1
-        #         total_n = iter_scale * len(loader)
-        #         if self.config.local_rank == 0:
-        #             t = tqdm(total=total_n)
-        #         loader = iter(loader)
+        iter_scale = 1
 
-        #         for i in range(total_n):
-        #             end = time.time()
-        #             sample = next(loader)
-        #             data_time.update(time.time() - end)
-        #             if self.config.local_rank == 0:
-        #                 t.update()
-        # Sliced Images with context_id
-        # todo: make configurable
         if is_main_process():
             train_loader_tqdm = tqdm(train_loader, total=iter_scale * len_train_loader)
         train_loader = iter(train_loader)
@@ -356,49 +336,10 @@ class PytorchTrainer:
             if self.mixup_fn is not None:
                 imgs, sample["label"] = self.mixup_fn(imgs, labels)
 
-            if extra_context:
-                if sample["context_id"] == 0:
-                    mem = tuple()
-                else:
-                    pass
-                cord = sample.pop("cord")
-                context = dict(
-                    context_patches=sample["context_patches"].cuda(),
-                    patch_indices=sample["patch_indices"],
-                    raw_indices=sample["raw_indices"],
-                )
             self.optimizer.zero_grad()
             with torch.cuda.amp.autocast(enabled=self.config.fp16):
                 with torch.autograd.detect_anomaly():
-                    if extra_context and sample["mem_only"]:
-                        with torch.no_grad():
-                            output, mem = self.model(
-                                imgs, context=context, mem=mem, cord=cord
-                            )
-                        continue
-                    elif extra_context:
-                        output, mem = self.model(
-                            imgs, context=context, mem=mem, cord=cord
-                        )
-                    else:
-                        output = self.model(imgs)
-                    # if i % 400 == 0:
-                    # visualize
-                    # if self.config.local_rank == 0:
-                    #     all_keys = []
-                    #     all_imgs = [imgs[0][0].detach().cpu()]
-                    #     all_keys.append('input')
-                    #     for k,v in output.items():
-                    #         all_imgs.append(v[0][0].detach().cpu())
-                    #         all_imgs.append(sample[k][0][0].detach().cpu())
-                    #         short_k = k.replace('_mask','')
-                    #         all_keys.append(k)
-                    #         all_keys.append(k+'_GT')
-
-                    #     wandb_dump_images(all_imgs,keys=all_keys)
-                    # if is_main_process():
-                    #     print(sample["label"].shape, output["label"].shape)
-                    #     print(sample["label"], output["label"])
+                    output = self.model(imgs)
                     total_loss = 0
                     for loss_def in self.losses:
                         loss = loss_def.loss.calculate_loss(output, sample)
@@ -424,23 +365,11 @@ class PytorchTrainer:
                     self.trigger_sync()
 
             # Run backward pass
-            # end = time.time()
-            # print(total_loss.dtype,'hh')
-            if (
-                self.config.fp16 and False
-            ):  # sth happened here, really need to check whats wrong
-                print(total_loss.device, "hh")
-                # self.gscaler.scale(total_loss).backward()
-                # self.gscaler.unscale_(self.optimizer)
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), 5)
-                # self.gscaler.step(self.optimizer)
-                # self.gscaler.update()
-            else:
-                total_loss.backward()
-                torch.nn.utils.clip_grad_norm_(
-                    self.model.parameters(), self.config.train.clip_grad
-                )
-                self.optimizer.step()
+            total_loss.backward()
+            torch.nn.utils.clip_grad_norm_(
+                self.model.parameters(), self.config.train.clip_grad
+            )
+            self.optimizer.step()
             # backward_time.update(time.time() - end)
 
             torch.cuda.synchronize()
@@ -562,10 +491,7 @@ class PytorchTrainer:
                 FullyShardedDataParallel,
                 MixedPrecision,
             )
-            from torch.distributed.fsdp.wrap import (
-                ModuleWrapPolicy,
-                size_based_auto_wrap_policy,
-            )
+            from torch.distributed.fsdp.wrap import ModuleWrapPolicy
 
             fpSixteen = MixedPrecision(
                 param_dtype=torch.float32,
@@ -577,25 +503,17 @@ class PytorchTrainer:
 
             self.model = FullyShardedDataParallel(
                 self.model,
-                # auto_wrap_policy=size_based_auto_wrap_policy,
                 auto_wrap_policy=ModuleWrapPolicy(
                     module_classes=[SwinTransformerV2Block]
                 ),
-                # sharding_strategy=size_based_auto_wrap_policy,
-                # fsdp_auto_wrap_policy=default_auto_wrap_policy,
                 cpu_offload=CPUOffload(offload_params=True),
                 mixed_precision=fpSixteen,
-                # mixed_precision=MixedPrecision(param_dtype=torch.float16)
-                # device_id=self.config.local_rank,
-                # output_device=self.config.local_rank,
-                # find_unused_parameters=False,
             )
         elif self.config.distributed:
             self.model = DistributedDataParallel(
                 self.model,
                 device_ids=[get_rank()],
                 output_device=get_rank(),
-                # find_unused_parameters=True,
             )
         else:
             self.model = DataParallel(self.model).cuda()
