@@ -41,8 +41,6 @@ class ClsEvaluator(Evaluator):
         self.crop_size = config.data.val_crop_size
         self.tiling = config.model.tiling
         self.input_size = config.model.backbone.img_size
-        # self.patch_size = config.model.backbone.patch_size
-        # self.context_patch_len = config.context_patch_len
         self.num_classes = config.model.num_classes
 
         self.top1_acc = Accuracy(
@@ -94,7 +92,6 @@ class ClsEvaluator(Evaluator):
         *args,
         **kwargs,
     ) -> Dict:
-        extra_context = model.module.context_mode
         # Torchmetrics reset
         for metric in [self.top1_acc, self.top5_acc, self.precision, self.recall]:
             metric.reset()
@@ -129,10 +126,7 @@ class ClsEvaluator(Evaluator):
         for _ in range(len(dataloader)):
             sample = next(dataloader)
             img = sample["image"].float()
-            if extra_context:
-                output = model_foward(img, model)
-            else:
-                output = model(img)
+            output = model(img)
             pred = output["label"]
             gt = sample["label"]
 
