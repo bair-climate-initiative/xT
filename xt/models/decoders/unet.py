@@ -13,7 +13,8 @@ from torch.nn import Dropout2d
 
 from hyp.attention.hyper_attn import HyperAttention
 
-from ..context_encoders.transformer_xl import ContextEncoderConfig, MemTransformerLM
+from ..context_encoders.transformer_xl import (ContextEncoderConfig,
+                                               MemTransformerLM)
 from .pos_embed import get_2d_sincos_pos_embed as get_2d_sincos_pos_embed_base
 from .vit import MAEDecoder
 from .vit import registry as VIT_CFG
