@@ -12,9 +12,7 @@ import torch.distributed
 import torch.distributed as dist
 import wandb
 from einops import rearrange
-from fvcore.nn import FlopCountAnalysis
 from omegaconf import OmegaConf
-from prettytable import PrettyTable
 from timm.utils import AverageMeter
 from torch.nn import DataParallel, SyncBatchNorm
 from torch.nn.modules.batchnorm import _BatchNorm
@@ -30,6 +28,7 @@ from .optimizer import create_optimizer
 from .tiling import build_tiling
 from .utils import (
     SmoothedValue,
+    count_parameters,
     get_rank,
     get_world_size,
     is_dist_avail_and_initialized,
@@ -84,8 +83,11 @@ class PytorchTrainer:
         )
         self._load_optimizer_from_ckpt()
 
-        self.parms = self.count_parameters()
+        self.params = count_parameters(model=self.model)
+
         if is_main_process():
+            # Set up wandb offline sync hook for training on
+            # clusters without internet access
             if WANDB_OFFLINE:
                 from wandb_osh.hooks import TriggerWandbSyncHook
 
@@ -113,27 +115,11 @@ class PytorchTrainer:
             wandb.init(**wandb_args)
             wandb.log_artifact(artifact)
             self.wandb_id = wandb.run.id
-            wandb.run.summary["total_parms"] = self.count_parameters()
+            wandb.run.summary["total_params"] = self.params
             if os.environ.get("SLURM_JOBID", None):
                 wandb.config.update({"SLURM_JOBID": os.environ["SLURM_JOBID"]})
 
             print(self.model)
-
-    def count_parameters(self, model=None):
-        if model is None:
-            model = self.model
-        table = PrettyTable(["Modules", "Parameters"])
-        total_params = 0
-        for name, parameter in model.named_parameters():
-            if not parameter.requires_grad:
-                continue
-            params = parameter.numel()
-            table.add_row([name, params])
-            total_params += params
-        self.total_parms = total_params
-        print(table)
-        print(f"Total Trainable Params: {total_params}")
-        return total_params
 
     def validate(self, test_loader=None):
         if is_dist_avail_and_initialized():
@@ -207,14 +193,6 @@ class PytorchTrainer:
                 f"lr: {self.config.optimizer.base_lr} --> {lr}"
             )
         self.config.optimizer.lr = lr
-
-    def _profile_model(self, shape):
-        input = torch.randn(shape).cuda()
-        flops = FlopCountAnalysis(self.model, input)
-        r = flops.by_operator()
-        if is_main_process():
-            print(r)
-            print(dict(total_flops=sum(r.values())))
 
     def _get_current_payload(self):
         payload = {
@@ -323,20 +301,23 @@ class PytorchTrainer:
         iter_scale = 1
 
         if is_main_process():
+            # Only show the progress bar on main process
             train_loader_tqdm = tqdm(train_loader, total=iter_scale * len_train_loader)
         train_loader = iter(train_loader)
-        # Broken, temporaily disable time logging
+
         for i in range(iter_scale * len_train_loader):
             start_time = time.time()
             sample = next(train_loader)
             data_time.update(time.time() - start_time)
+
             imgs = sample["image"].cuda()
             labels = sample["label"].cuda() if "label" in sample else None
-            cord = (0, 0)
+
             if self.mixup_fn is not None:
                 imgs, sample["label"] = self.mixup_fn(imgs, labels)
 
             self.optimizer.zero_grad()
+
             with torch.cuda.amp.autocast(enabled=self.config.fp16):
                 with torch.autograd.detect_anomaly():
                     output = self.model(imgs)
@@ -352,11 +333,15 @@ class PytorchTrainer:
                                 imgs.size(0),
                             )
                         total_loss += loss_def.weight * loss
+
             loss_meter.update(total_loss.item(), imgs.size(0))
+
             if math.isnan(total_loss.item()) or math.isinf(total_loss.item()):
                 raise ValueError("NaN loss !!")
+
             avg_metrics = {k: f"{v.avg:.4f}" for k, v in avg_meters.items()}
             if is_main_process() and wandb.run is not None and i % 50 == 0:
+                # Log metrics to wandb
                 payload = {k: float(f"{v.avg:.4f}") for k, v in avg_meters.items()}
                 payload.update(dict(lr=float(self.scheduler.get_lr()[-1])))
                 payload.update({"epoch": self.current_epoch})
@@ -370,15 +355,16 @@ class PytorchTrainer:
                 self.model.parameters(), self.config.train.clip_grad
             )
             self.optimizer.step()
-            # backward_time.update(time.time() - end)
 
             torch.cuda.synchronize()
             if is_dist_avail_and_initialized():
                 dist.barrier()
+
             if self.config.optimizer.mode in ("step", "poly"):
                 self.scheduler.step(
                     int(i / iter_scale) + self.current_epoch * len_train_loader
                 )
+
             if is_main_process():
                 train_loader_tqdm.set_postfix(
                     {
@@ -418,8 +404,6 @@ class PytorchTrainer:
             pin_memory=False,
             drop_last=True,
         )
-        # self.train_sampler = train_sampler
-        # self.train_data_loader = train_data_loader
         return train_data_loader
 
     def get_val_loader(self) -> DataLoader:
@@ -562,9 +546,6 @@ class PytorchTrainer:
         else:
             if is_main_process():
                 print("=> no checkpoint found at '{}'".format(checkpoint_path))
-        # if self.config.from_zero:
-        #     self.current_metrics = self.evaluator.init_metrics()
-        #     self.current_epoch = 0
 
     def _load_optimizer_from_ckpt(self):
         checkpoint_path = self.config.model.resume

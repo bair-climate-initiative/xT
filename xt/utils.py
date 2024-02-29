@@ -8,7 +8,9 @@ import numpy as np
 import torch
 import torch.distributed as dist
 import wandb
+from fvcore.nn import FlopCountAnalysis
 from matplotlib import pyplot as plt
+from prettytable import PrettyTable
 from torch.utils.data import Subset
 
 cv2.ocl.setUseOpenCL(False)
@@ -271,3 +273,26 @@ def all_gather(data, group=None):
     output = [None for _ in range(world_size)]
     dist.all_gather_object(output, data, group=group)
     return output
+
+
+def count_parameters(model=None):
+    table = PrettyTable(["Modules", "Parameters"])
+    total_params = 0
+    for name, parameter in model.named_parameters():
+        if not parameter.requires_grad:
+            continue
+        params = parameter.numel()
+        table.add_row([name, params])
+        total_params += params
+    print(table)
+    print(f"Total Trainable Params: {total_params}")
+    return total_params
+
+
+def _profile_model(model=None, shape=None):
+    input = torch.randn(shape).cuda()
+    flops = FlopCountAnalysis(model, input)
+    r = flops.by_operator()
+    if is_main_process():
+        print(r)
+        print(dict(total_flops=sum(r.values())))
