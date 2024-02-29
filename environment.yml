@@ -32,8 +32,8 @@ dependencies:
     - torchgeo
     - classy-vision==0.6.0
     - tensorboard
-    - mamba-ssm
     - causal-conv1d>=1.1.0,<1.2.0
+    - mamba-ssm
     - opencv-python
     - einops
     - albumentations
