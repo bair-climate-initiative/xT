@@ -25,8 +25,8 @@ do
     python $PROJECT_DIR/launch_scripts/cluster/submitit_train_cluster.py \
         --job_dir /p/path/to/jobs/$EXP_NAME \
         --constraint $CONSTRAINT \
-        --qos frontier \
-        --account ODEFN5169CYFZ \
+        --qos queue_name \
+        --account account \
         --nodes 1 \
         --config $CONFIG_FILE_PATH
 

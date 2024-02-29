@@ -39,9 +39,9 @@ def parse_args():
 
     parser.add_argument(
         "--qos",
-        default="frontier",
+        default="qos",
         type=str,
-        choices=("frontier", "debug", "HIE", "standard"),
+        choices=("queue1", "queue2"),
         help="Queue to use",
     )
     parser.add_argument(

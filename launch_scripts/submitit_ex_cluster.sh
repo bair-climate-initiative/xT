@@ -25,7 +25,7 @@ PYTHONUNBUFFERED=1 \
 python $PROJECT_DIR/launch_scripts/submitit_train_cluster.py \
     --job_dir /p/path/to/jobs/$EXP_NAME \
     --constraint $CONSTRAINT \
-    --qos frontier \
+    --qos queue_name \
     --account XYZ \
     --nodes 1 \
     --config $PROJECT_DIR/config/what/you/want.yaml
