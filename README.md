@@ -23,7 +23,7 @@ We also provide [SubmitIt](https://github.com/facebookincubator/submitit) script
 
 Weights and configs for our experiments are available on [Hugging Face](https://huggingface.co/bair-climate-initiative/swin-xt/tree/main).
 
-|Name                     | Resolution | Top1-ACC | Params | Mem (GB) | Thrpt (region/s) |
+|Name                     | Resolution | Top1-ACC | Params | Mem (GB) | Throughput (region/s) |
 |-------------------------|----:|-----:| ---:| ---|---:|
 |[Swin-T](https://huggingface.co/bair-climate-initiative/swin-xt/blob/main/swin-t/weights/swin-t-nonxl-256-top1.ckpt) | 256 |  53.76| 31M | 0.30 | 76.43 |
 |[Swin-T \<xT> XL](https://huggingface.co/bair-climate-initiative/swin-xt/blob/main/swin-t/weights/swin-t-xl-256-256-top1.ckpt) |  256/256 | 52.93| 47M | 0.31 | 47.81 |
