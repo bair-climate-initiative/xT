@@ -13,7 +13,7 @@ import sys
 import uuid
 from pathlib import Path
 
-sys.path.append("/p/home/ritwik/dev/revswin-xl")
+sys.path.append("/p/path/to/min-xT")
 
 import submitit
 from omegaconf import OmegaConf
@@ -39,9 +39,9 @@ def parse_args():
 
     parser.add_argument(
         "--qos",
-        default="frontier",
+        default="qos",
         type=str,
-        choices=("frontier", "debug", "HIE", "standard"),
+        choices=("queue1", "queue2"),
         help="Queue to use",
     )
     parser.add_argument(
@@ -91,8 +91,8 @@ class Trainer(object):
     def __call__(self):
         import sys
 
-        sys.path.append("/p/home/ritwik/dev/xT")
-        import main as runner
+        sys.path.append("/p/path/to/min-xT")
+        import train as segmentor
 
         self._setup_gpu_args()
         runner.main(self.config)

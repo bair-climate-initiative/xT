@@ -9,10 +9,6 @@ from .decoders.decoder import EncoderDecoder
 class BackboneConfig:
     """Configuration for feature extracting backbone."""
 
-    # _target_: str = "models.backbones.revswinv2_tiny_window16_256_xview"
-    # """Fully qualified class name for the backbone to instantiate."""
-    # name: str = "revswinv2_tiny"
-    # """Shorthand for backbone name."""
     in_chans: int = 3
     """Number of channels in input data."""
     input_dim: int = 2
