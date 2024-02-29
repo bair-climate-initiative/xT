@@ -7,8 +7,44 @@
 # Position embedding utils
 # --------------------------------------------------------
 
+import math
+from functools import lru_cache
+
 import numpy as np
 import torch
+import torch.nn.functional as F
+
+
+@lru_cache(maxsize=32)
+def get_2d_sincos_pos_embed(
+    embed_dim,
+    grid_size,
+    cls_token=False,
+    i=0,
+    j=0,
+):
+    return get_2d_sincos_pos_embed_base(embed_dim, grid_size, cls_token, i, j)
+
+
+def get_abs_pos(abs_pos, has_cls_token, hw):
+    h, w = hw
+    if has_cls_token:
+        abs_pos = abs_pos[:, 1:]
+    xy_num = abs_pos.shape[1]
+    size = int(math.sqrt(xy_num))
+    assert size * size == xy_num
+
+    if size != h or size != w:
+        new_abs_pos = F.interpolate(
+            abs_pos.reshape(1, size, size, -1).permute(0, 3, 1, 2),
+            size=(h, w),
+            mode="bicubic",
+            align_corners=False,
+        )
+
+        return new_abs_pos.permute(0, 2, 3, 1)
+    else:
+        return abs_pos.reshape(1, h, w, -1)
 
 
 # --------------------------------------------------------
@@ -17,7 +53,7 @@ import torch
 # Transformer: https://github.com/tensorflow/models/blob/master/official/nlp/transformer/model_utils.py
 # MoCo v3: https://github.com/facebookresearch/moco-v3
 # --------------------------------------------------------
-def get_2d_sincos_pos_embed(
+def get_2d_sincos_pos_embed_base(
     embed_dim,
     grid_size,
     cls_token=False,

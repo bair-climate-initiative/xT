@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 
 from .backbones import *
 from .context_encoders.transformer_xl import ContextEncoderConfig
-from .decoders.unet import EncoderDecoder
+from .decoders.decoder import EncoderDecoder
 
 
 @dataclass

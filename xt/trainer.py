@@ -20,15 +20,20 @@ from torch.nn.parallel.distributed import DistributedDataParallel
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from .datasets.sampler import (DistributedEvalSampler,
-                               DistributedWeightedRandomSampler)
+from .datasets.sampler import DistributedEvalSampler, DistributedWeightedRandomSampler
 from .evaluator import Evaluator
 from .losses import build_losses
 from .models import build_model
 from .optimizer import create_optimizer
 from .tiling import build_tiling
-from .utils import (SmoothedValue, count_parameters, get_rank, get_world_size,
-                    is_dist_avail_and_initialized, is_main_process)
+from .utils import (
+    SmoothedValue,
+    count_parameters,
+    get_rank,
+    get_world_size,
+    is_dist_avail_and_initialized,
+    is_main_process,
+)
 
 logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO").upper())
 os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
@@ -61,7 +66,7 @@ class PytorchTrainer:
         self.mixup_fn = mixup_fn
         self.wandb_id = None
         self.patch_size = config.model.patch_size
-        self.context_patch_len = config.model.xl_context.context_patch_len
+        self.context_patch_len = config.model.context.context_patch_len
 
         self.model = self._init_model()
 
@@ -234,7 +239,7 @@ class PytorchTrainer:
             )
             N, C, H, W, PH, PW, PPH, PPW = rearranged_image.shape
             rearranged_image = rearranged_image.flatten(2, 5)
-            for i, j, k in build_tiling(n, self.config.model.xl_context.tiling):
+            for i, j, k in build_tiling(n, self.config.model.context.tiling):
                 indices = torch.rand(N, H, W, PH, PW)
                 indices[:, i, j] = 999
                 indices = indices.flatten(1).argsort(-1)
@@ -467,9 +472,11 @@ class PytorchTrainer:
 
         if self.config.distributed and self.config.fsdp:
             from timm.models.swin_transformer_v2 import SwinTransformerV2Block
-            from torch.distributed.fsdp import (CPUOffload,
-                                                FullyShardedDataParallel,
-                                                MixedPrecision)
+            from torch.distributed.fsdp import (
+                CPUOffload,
+                FullyShardedDataParallel,
+                MixedPrecision,
+            )
             from torch.distributed.fsdp.wrap import ModuleWrapPolicy
 
             fpSixteen = MixedPrecision(

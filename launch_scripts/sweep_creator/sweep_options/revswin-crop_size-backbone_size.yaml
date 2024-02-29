@@ -5,7 +5,7 @@ key_names:
   - name: model.backbone.img_size
     options:
       - 256
-  - name: model.xl_context.enabled
+  - name: model.context.enabled
     options:
       - true
       - false

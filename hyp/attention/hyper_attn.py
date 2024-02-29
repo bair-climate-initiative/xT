@@ -4,8 +4,7 @@ import torch
 from einops import rearrange
 
 from .angular_lsh import AngularLSH
-from .utils import (add_self_attentions, exact_attention, exact_attention_cuda,
-                    indexing)
+from .utils import add_self_attentions, exact_attention, exact_attention_cuda, indexing
 
 
 class HyperAttention(torch.nn.Module):

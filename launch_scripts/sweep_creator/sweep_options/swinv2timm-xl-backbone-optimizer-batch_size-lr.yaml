@@ -20,7 +20,7 @@ key_names:
         model.backbone.img_size: 1024
         # train.batch_size: 1
         train.batch_size: 2 # for cluster
-  - name: model.xl_context.n_layer
+  - name: model.context.n_layer
     options:
       - 2
       - 4

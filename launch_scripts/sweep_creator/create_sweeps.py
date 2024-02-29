@@ -63,7 +63,7 @@ opt_key_map = {
     "optimizer.warmup_epochs": "warmup",
     "data.crop_size": "crop_size",
     "model.backbone.img_size": "img_size",
-    "model.xl_context.enabled": "xl",
+    "model.context.enabled": "xl",
     "model.backbone_class": "backbone",
 }
 
