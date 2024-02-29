@@ -92,7 +92,7 @@ class Trainer(object):
         import sys
 
         sys.path.append("/p/path/to/min-xT")
-        import train as segmentor
+        import main as runner
 
         self._setup_gpu_args()
         runner.main(self.config)

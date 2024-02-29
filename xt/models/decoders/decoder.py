@@ -6,11 +6,10 @@ import torch.utils.checkpoint as checkpoint
 from einops import rearrange
 from torch import nn
 from torch.nn import Dropout2d
-from transformers.models.llama.modeling_llama import LlamaRMSNorm
 
-from ..context_encoders.transformer_xl import ContextEncoderConfig
+from ..context_encoders import ContextEncoderConfig
 from ..context_encoders.attention import LLMAttention, ViTAttention
-from .pos_embed import get_2d_sincos_pos_embed
+from .utils import get_2d_sincos_pos_embed, LlamaRMSNorm
 
 default_decoder_filters = [48, 96, 176, 256]
 default_last = 48

@@ -7,12 +7,11 @@
 # Position embedding utils
 # --------------------------------------------------------
 
-import math
 from functools import lru_cache
 
 import numpy as np
 import torch
-import torch.nn.functional as F
+import torch.nn as nn
 
 
 @lru_cache(maxsize=32)
@@ -25,26 +24,6 @@ def get_2d_sincos_pos_embed(
 ):
     return get_2d_sincos_pos_embed_base(embed_dim, grid_size, cls_token, i, j)
 
-
-def get_abs_pos(abs_pos, has_cls_token, hw):
-    h, w = hw
-    if has_cls_token:
-        abs_pos = abs_pos[:, 1:]
-    xy_num = abs_pos.shape[1]
-    size = int(math.sqrt(xy_num))
-    assert size * size == xy_num
-
-    if size != h or size != w:
-        new_abs_pos = F.interpolate(
-            abs_pos.reshape(1, size, size, -1).permute(0, 3, 1, 2),
-            size=(h, w),
-            mode="bicubic",
-            align_corners=False,
-        )
-
-        return new_abs_pos.permute(0, 2, 3, 1)
-    else:
-        return abs_pos.reshape(1, h, w, -1)
 
 
 # --------------------------------------------------------
@@ -158,3 +137,41 @@ def interpolate_pos_embed(model, checkpoint_model):
             pos_tokens = pos_tokens.permute(0, 2, 3, 1).flatten(1, 2)
             new_pos_embed = torch.cat((extra_tokens, pos_tokens), dim=1)
             checkpoint_model["pos_embed"] = new_pos_embed
+
+
+## From huggingface transformers.models.llama.modeling_llama import LlamaRMSNorm
+# coding=utf-8
+# Copyright 2022 EleutherAI and the HuggingFace Inc. team. All rights reserved.
+#
+# This code is based on EleutherAI's GPT-NeoX library and the GPT-NeoX
+# and OPT implementations in this library. It has been modified from its
+# original forms to accommodate minor architectural differences compared
+# to GPT-NeoX and OPT used by the Meta AI team that trained the model.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+class LlamaRMSNorm(nn.Module):
+    def __init__(self, hidden_size, eps=1e-6):
+        """
+        LlamaRMSNorm is equivalent to T5LayerNorm
+        """
+        super().__init__()
+        self.weight = nn.Parameter(torch.ones(hidden_size))
+        self.variance_epsilon = eps
+
+    def forward(self, hidden_states):
+        input_dtype = hidden_states.dtype
+        hidden_states = hidden_states.to(torch.float32)
+        variance = hidden_states.pow(2).mean(-1, keepdim=True)
+        hidden_states = hidden_states * torch.rsqrt(variance + self.variance_epsilon)
+        return self.weight * hidden_states.to(input_dtype)
