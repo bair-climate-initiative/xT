@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 
-from .backbones import *
-from .context_encoders.transformer_xl import ContextEncoderConfig
+from . import backbones
+from .context_encoders import ContextEncoderConfig
 from .decoders.decoder import EncoderDecoder
 
 
@@ -38,7 +38,7 @@ class ModelConfig:
     backbone_class: str = "swinv2_tiny_window16_256_timm"
     """Class name for backbone."""
     patch_size: int = 16
-    """Patch sized used for transformer XL."""  # TODO: properly derive this
+    """Patch size used for transformer XL."""  # TODO: properly derive this
     num_classes: int = 9999
     cls_head: str = "naive"
     """Number of classes for head on dataset."""
@@ -51,7 +51,7 @@ class ModelConfig:
 
 def build_model(config: ModelConfig, dataset: str = "inaturalist"):
     backbone_class = config.backbone_class
-    backbone = eval(backbone_class)(**config.backbone)
+    backbone = backbones.__dict__[backbone_class](**config.backbone)
 
     if config.name == "EncoderDecoder":
         model = EncoderDecoder(

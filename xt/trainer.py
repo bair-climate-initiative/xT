@@ -20,7 +20,7 @@ from torch.nn.parallel.distributed import DistributedDataParallel
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from .datasets.sampler import DistributedEvalSampler, DistributedWeightedRandomSampler
+from .datasets.sampler import DistributedWeightedRandomSampler
 from .evaluator import Evaluator
 from .losses import build_losses
 from .models import build_model
@@ -410,20 +410,12 @@ class PytorchTrainer:
 
     def get_val_loader(self) -> DataLoader:
         if is_dist_avail_and_initialized():
-            if self.config.eval_sampler:
-                val_sampler = DistributedEvalSampler(
-                    self.val_data,
-                    shuffle=False,
-                    num_replicas=get_world_size(),
-                    rank=get_rank(),
-                )
-            else:
-                val_sampler = torch.utils.data.distributed.DistributedSampler(
-                    self.val_data,
-                    shuffle=False,
-                    num_replicas=get_world_size(),
-                    rank=get_rank(),
-                )
+            val_sampler = torch.utils.data.distributed.DistributedSampler(
+                self.val_data,
+                shuffle=False,
+                num_replicas=get_world_size(),
+                rank=get_rank(),
+            )
         val_data_loader = DataLoader(
             self.val_data,
             sampler=val_sampler,

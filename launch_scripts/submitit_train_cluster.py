@@ -18,7 +18,7 @@ sys.path.append("/p/home/ritwik/dev/revswin-xl")
 import submitit
 from omegaconf import OmegaConf
 
-import train as segmentor
+import main as runner
 from xt.config import MainConfig, create_config
 
 
@@ -91,11 +91,11 @@ class Trainer(object):
     def __call__(self):
         import sys
 
-        sys.path.append("/p/home/ritwik/dev/revswin-xl")
-        import train as segmentor
+        sys.path.append("/p/home/ritwik/dev/xT")
+        import main as runner
 
         self._setup_gpu_args()
-        segmentor.main(self.config)
+        runner.main(self.config)
 
     def checkpoint(self):
         import os

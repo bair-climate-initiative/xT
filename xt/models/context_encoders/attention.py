@@ -16,6 +16,7 @@ class LLMAttention(nn.Module):
         assert inner_dim % num_heads == 0, (inner_dim, num_heads)
         self.num_heads = num_heads
 
+        # Delayed import only if needed (but relative so shouldn't be a problem)
         from .hyper_attn.attention.hyper_attn import HyperAttention
 
         self.attn = HyperAttention(
@@ -26,12 +27,7 @@ class LLMAttention(nn.Module):
             min_seq_len=4096,
         )
         self.causal = causal
-        # self.query_key_value = torch.nn.Linear(
-        #     hidden_size,
-        #     3 * self.inner_hidden_size,
-        #     bias=bias,
-        #     dtype=params_dtype,
-        # )
+
 
     def forward(self, x):
         """

@@ -12,7 +12,7 @@ from timm.data import Mixup, create_transform
 from torch.utils.data import Dataset
 from torchvision import transforms
 
-from ..utils import get_rank, get_world_size
+from xt.utils import get_rank, get_world_size
 from .inaturalist import INatDataset
 
 cv2.ocl.setUseOpenCL(False)

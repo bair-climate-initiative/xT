@@ -44,43 +44,6 @@ class OptimizerConfig:
     """Adam betas"""
 
 
-# @dataclass
-# class SGDConfig(OptimizerConfig):
-#     """SGD Configuration: momentum, nesterov."""
-
-#     momentum: float = 0.9
-#     """SGD Momentum"""
-#     nesterov: bool = True
-#     """SGD Nesterov momentum"""
-
-
-# @dataclass
-# class AdamConfig(OptimizerConfig):
-#     """Adam Configuration: eps, beta."""
-
-#     eps: float = 1e-8
-#     """Adam epsilon."""
-#     betas: Tuple[float, float] = (0.9, 0.999)
-#     """Adam betas"""
-
-
-# @dataclass
-# class AdamWConfig(OptimizerConfig):
-#     """AdamW Configuration: eps, beta."""
-
-#     eps: float = 1e-8
-#     """AdamW epsilon."""
-#     betas: Tuple[float, float] = (0.9, 0.999)
-#     """AdamW betas"""
-
-
-# cs = ConfigStore.instance()
-# cs.store(group="optimizer", name="optimizer", node=OptimizerConfig)
-# cs.store(group="optimizer", name="sgd", node=SGDConfig)
-# cs.store(group="optimizer", name="adam", node=AdamConfig)
-# cs.store(group="optimizer", name="adamw", node=AdamWConfig)
-
-
 def create_optimizer(
     config: OptimizerConfig,
     model: nn.Module,

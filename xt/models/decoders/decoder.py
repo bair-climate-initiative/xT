@@ -9,7 +9,7 @@ from torch.nn import Dropout2d
 from transformers.models.llama.modeling_llama import LlamaRMSNorm
 
 from ..context_encoders.transformer_xl import ContextEncoderConfig
-from .attention import LLMAttention, ViTAttention
+from ..context_encoders.attention import LLMAttention, ViTAttention
 from .pos_embed import get_2d_sincos_pos_embed
 
 default_decoder_filters = [48, 96, 176, 256]
@@ -26,10 +26,6 @@ class AbstractModel(nn.Module):
             elif isinstance(m, nn.BatchNorm2d):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
-
-    @property
-    def first_layer_params_names(self):
-        return ["conv1.conv"]
 
 
 class ClassificationDecoder(nn.Module):
