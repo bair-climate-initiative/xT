@@ -13,7 +13,7 @@ from torch.nn import Dropout2d
 
 from hyp.attention.hyper_attn import HyperAttention
 
-from ..context_encoders.transformer_xl import MemTransformerLM, TransformerXLConfig
+from ..context_encoders.transformer_xl import ContextEncoderConfig, MemTransformerLM
 from .pos_embed import get_2d_sincos_pos_embed as get_2d_sincos_pos_embed_base
 from .vit import MAEDecoder
 from .vit import registry as VIT_CFG
@@ -804,7 +804,7 @@ class EncoderDecoder(AbstractModel):
     def __init__(
         self,
         backbone: nn.Module,
-        xl_config: TransformerXLConfig,
+        xl_config: ContextEncoderConfig,
         channels_last: bool = False,
         crop_size: int = 256,
         skip_decoder: bool = False,

@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 
 from .backbones import *
-from .context_encoders.transformer_xl import TransformerXLConfig
+from .context_encoders.transformer_xl import ContextEncoderConfig
 from .decoders.unet import EncoderDecoder
 
 
@@ -46,7 +46,7 @@ class ModelConfig:
     """MLP ratio for Enc/Dec."""
 
     backbone: BackboneConfig = field(default_factory=BackboneConfig)
-    xl_context: TransformerXLConfig = field(default_factory=TransformerXLConfig)
+    context: ContextEncoderConfig = field(default_factory=ContextEncoderConfig)
 
 
 def build_model(config: ModelConfig, dataset: str = "inaturalist"):
@@ -56,7 +56,7 @@ def build_model(config: ModelConfig, dataset: str = "inaturalist"):
     if config.name == "EncoderDecoder":
         model = EncoderDecoder(
             backbone=backbone,
-            xl_config=config.xl_context,
+            xl_config=config.context,
             channels_last=config.backbone.channel_last,
             crop_size=config.backbone.img_size,
             skip_decoder=False,

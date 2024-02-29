@@ -37,7 +37,7 @@ model:
     input_dim: 3
     pretrained: ${oc.env:PRETRAINED_CKPT_PATH, "./ckpts"}/swinv2_base_patch4_window16_256.pth
   cls_head: xl
-  xl_context:
+  context:
     classification_mode: on
     tiling: naive_two_stream
     n_layer: 2

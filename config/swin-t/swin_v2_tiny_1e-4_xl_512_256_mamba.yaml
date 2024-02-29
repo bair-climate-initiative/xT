@@ -38,7 +38,7 @@ model:
     input_dim: 3
     pretrained: ${oc.env:PRETRAINED_CKPT_PATH, "./ckpts"}/swinv2_tiny_patch4_window16_256.pth
   cls_head: xl
-  xl_context:
+  context:
     hidden_size: 768
     classification_mode: off
     attention_method: mamba
