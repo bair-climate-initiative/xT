@@ -1,4 +1,4 @@
-import dataclass
+from dataclasses import dataclass
 
 
 @dataclass
@@ -24,4 +24,3 @@ class ContextEncoderConfig:
     grad_ratio: float = 1.0
     """Ratio of sequence to maintain gradients for better memory usage."""
     attention_method: str = "hyper"
-
