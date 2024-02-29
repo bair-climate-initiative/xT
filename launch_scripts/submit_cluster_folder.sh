@@ -1,6 +1,6 @@
 #!/bin/bash
 HOME=/p/home/ritwik
-PROJECT_DIR=/p/home/ritwik/dev/revswin-xl
+PROJECT_DIR=/p/path/to/min-xT
 PRETRAINED_CKPT_PATH=/p/home/ritwik/pretrained_weights
 CONSTRAINT=$2
 
