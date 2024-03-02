@@ -94,7 +94,8 @@ class PytorchTrainer:
                 self.trigger_sync = TriggerWandbSyncHook()
 
             if config.data.dataset == "inaturalist":
-                project_name = "xt inaturalist"
+                # TODO
+                project_name = "gigaformer inaturalist"
 
             wandb_args = dict(
                 project=project_name,
