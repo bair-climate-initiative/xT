@@ -41,7 +41,7 @@ model:
     n_layer: 2
 optimizer:
   name: adamw
-  lr
+  lr: 1e-4
   classifier_ratio: 1.0
   warmup_epochs: 0
 train:

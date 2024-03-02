@@ -44,7 +44,7 @@ model:
   resume: ""
 optimizer:
   name: adamw
-  lr4
+  lr: 1e-4
   classifier_ratio: 1.0
   warmup_epochs: 0
 train:
