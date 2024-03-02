@@ -47,7 +47,7 @@ model:
   resume: ""
 optimizer:
   name: adamw
-  base_lr: 1e-5
+  lr: 1e-5
   lr: 1e-5
   classifier_ratio: 1.0
   warmup_epochs: 0
