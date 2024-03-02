@@ -39,7 +39,7 @@ model:
     skip_connection: false
 optimizer:
   name: adamw
-  base_lr: 1e-4
+  lr: 1e-4
   min_lr_ratio: 0.01
   classifier_ratio: 1.0
   warmup_epochs: 0

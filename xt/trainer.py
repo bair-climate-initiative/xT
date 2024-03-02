@@ -72,7 +72,6 @@ class PytorchTrainer:
         self.model = self._init_model()
 
         self.losses = build_losses(self.config)
-        self.scale_learning_rate()
 
         self._init_amp()
 
@@ -177,23 +176,6 @@ class PytorchTrainer:
                     self.current_metrics.update(improved_metrics)
                 self._save_best(improved_metrics)
 
-    def scale_learning_rate(self):
-        # linear scale the learning rate according to total batch size, may not be optimal
-        if self.config.optimizer.lr > 0:  # means default was overridden
-            if is_main_process():
-                print("Keeping lr as is, absolute passed")
-            return
-
-        eff_batch_size = self.config.train.batch_size * dist.get_world_size()
-        # eff_batch_size = 8.0
-        # base batch size is 8 * 1 = 32
-        lr = self.config.optimizer.base_lr * eff_batch_size / 8.0
-        if is_main_process():
-            print(
-                f"Effective batch size of {eff_batch_size} "
-                f"lr: {self.config.optimizer.base_lr} --> {lr}"
-            )
-        self.config.optimizer.lr = lr
 
     def _get_current_payload(self):
         payload = {

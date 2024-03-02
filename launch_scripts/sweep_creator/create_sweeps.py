@@ -57,7 +57,6 @@ def parse_args():
 
 opt_key_map = {
     "optimizer.name": "optimizer",
-    "optimizer.base_lr": "blr",
     "optimizer.lr": "lr",
     "train.batch_size": "bs",
     "optimizer.warmup_epochs": "warmup",

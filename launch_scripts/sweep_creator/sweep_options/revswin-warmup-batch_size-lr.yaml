@@ -8,7 +8,7 @@ key_names:
     options:
       - sgd
       - adamw
-  - name: optimizer.base_lr
+  - name: optimizer.lr
     options:
       - 1e-3
       - 1e-4

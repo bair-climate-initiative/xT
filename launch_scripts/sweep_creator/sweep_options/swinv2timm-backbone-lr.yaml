@@ -16,7 +16,7 @@ key_names:
       model.backbone.img_size: 1024
       # train.batch_size: 1
       train.batch_size: 3 # for cluster, guessing
-  - name: optimizer.base_lr
+  - name: optimizer.lr
     options:
       - 3e-3
       # - 1e-3

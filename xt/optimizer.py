@@ -18,12 +18,10 @@ class OptimizerConfig:
 
     name: str = "sgd"
     """Optimizer shortname: options are [sgd, adam, adamw]"""
-    lr: float = -1.0
-    """Absolute learning rate, NOT SET DIRECTLY (unless you want to)! Overridden below."""
-    base_lr: float = -1.0
-    """Base learning rate (adjusted by effective batch size)."""
+    lr: float = 1e-4
+    """Absolute learning rate."""
     min_lr_ratio: float = 0.01
-    """Minimum learning rate to anneal to as a factor of base_lr."""
+    """Minimum learning rate to anneal to as a factor of lr."""
     classifier_ratio: float = 1.0
     """Multiplier for classifier learning rate."""
     warmup_epochs: int = 0
