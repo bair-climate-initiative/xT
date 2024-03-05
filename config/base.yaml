@@ -1,0 +1,66 @@
+distributed: True
+fsdp: False
+fp16: True
+name: temp_name
+output_dir: ${oc.env:OUTPUT_DIR, "/path/to/output"}
+test: False
+val: False
+data:
+  dataset: inaturalist
+  dir: ${oc.env:DATA_ROOT, "/path/to/inaturalist"}
+  num_workers: 8
+  test: False
+  crop_size: 512
+  val_crop_size: 512
+  supercategories:
+  category_label_path: ""
+  batch_size: ${train.batch_size}
+  val_batch_size: ${train.val_batch_size}
+model:
+  name: EncoderDecoder
+  patch_size: 16
+  backbone_class: swinv2_tiny_window16_256_timm
+  backbone:
+    in_chans: 3
+    input_dim: 3
+    drop_path_rate: 0.2
+    # pretrained does not matter anymore -- we load from Huggingface Hub
+    channel_last: True
+    img_size: 512
+  resume: ""
+  tiling: "naive"
+  cls_head: "naive" # If this is 'xl', then we use the extra XL heads
+  context:
+    enabled: False
+    context_patch_len: 100
+    no_memory: false
+    tiling: ${model.tiling}
+    skip_connection: false
+optimizer:
+  name: adamw
+  lr: 1e-4
+  min_lr_ratio: 0.01
+  classifier_ratio: 1.0
+  warmup_epochs: 0
+  weight_decay: 1e-4
+  momentum: 0.9
+  nesterov: True
+  scheduler: cosine
+  mode: step
+train:
+  epochs: 120
+  batch_size: 8
+  val_batch_size: 1
+  freeze_epochs: 0
+  freeze_bn: false
+  test_every: 20
+  test_reset: True
+losses:
+  losses:
+    - name: cls
+      type: CrossEntropy
+      params:
+        field: label
+      weight: 1.0
+      display: on
+eval_sampler: False

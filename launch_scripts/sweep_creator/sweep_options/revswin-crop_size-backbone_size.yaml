@@ -1,0 +1,15 @@
+key_names:
+  - name: data.crop_size
+    options:
+      - 512
+  - name: model.backbone.img_size
+    options:
+      - 256
+  - name: model.context.enabled
+    options:
+      - true
+      - false
+  - name: model.backbone_class
+    options:
+      - swinv2_tiny_window16_256_timm
+      - swinv2_small_window16_256_timm

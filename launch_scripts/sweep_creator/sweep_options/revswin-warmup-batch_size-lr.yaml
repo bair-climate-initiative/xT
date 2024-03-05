@@ -1,0 +1,21 @@
+key_names:
+  - name: optimizer.warmup_epochs
+    options:
+      - 0
+      - 1
+      - 2
+  - name: optimizer.name
+    options:
+      - sgd
+      - adamw
+  - name: optimizer.lr
+    options:
+      - 1e-3
+      - 1e-4
+      - 1e-5
+      - 5e-5
+  - name: train.batch_size
+    options:
+      - 24
+      - 32
+      - 54
