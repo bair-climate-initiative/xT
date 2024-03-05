@@ -1,0 +1,63 @@
+base_configs:
+  - config/base.yaml
+  - config/cluster_paths_inat.yaml
+name: hiera_base_1e-4_hyper_448_224
+data:
+  dataset: inaturalist
+  crop_size: 448
+  val_crop_size: 448
+  batch_size: ${train.batch_size}
+  val_batch_size: ${train.val_batch_size}
+  num_workers: 1
+  num_classes: 284
+  interpolation: bilinear
+  test_crop: false
+  aug:
+    auto_augment: rand-m9-mstd0.5-inc1
+    color_jitter: 0.4
+    reprob: 0.0
+    remode: pixel
+    recount: 1
+    mixup: 0.0
+    cutmix: 0.0
+    label_smoothing: 0.3
+    random_resized_crop: False
+    mean: [0.485, 0.456, 0.406]
+    std: [0.229, 0.224, 0.225]
+  supercategories:
+  - Reptilia
+model:
+  name: EncoderDecoder
+  num_classes: ${data.num_classes}
+  mlp_ratio: 4
+  backbone_class: get_hiera_model
+  backbone:
+    img_size: 224
+    input_dim: 3
+  cls_head: xl
+  context:
+    classification_mode: on
+    tiling: naive_two_stream
+    n_layer: 2
+optimizer:
+  name: adamw
+  lr: 1e-4
+  classifier_ratio: 1.0
+  warmup_epochs: 0
+train:
+  epochs: 100
+  batch_size: 16
+  val_batch_size: 1
+  freeze_epochs: 0
+  freeze_bn: false
+  test_every: 1
+  test_reset: true
+  clip_grad: 5.0
+losses:
+  losses:
+    - name: cls
+      type: CrossEntropy
+      params:
+        field: label
+      weight: 1.0
+      display: on

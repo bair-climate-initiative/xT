@@ -1,0 +1,26 @@
+key_names:
+  - group:
+    - model.backbone_class: swinv2_tiny_window16_256_timm_xview
+      model.backbone.img_size: 512
+      # train.batch_size: 7
+      train.batch_size: 32 # for cluster
+    - model.backbone_class: swinv2_tiny_window16_256_timm_xview
+      model.backbone.img_size: 1024
+      # train.batch_size: 2
+      train.batch_size: 7 # for cluster
+    - model.backbone_class: swinv2_base_window16_256_timm_xview
+      model.backbone.img_size: 512
+      # train.batch_size: 4
+      train.batch_size: 15 # for cluster 
+    - model.backbone_class: swinv2_base_window16_256_timm_xview
+      model.backbone.img_size: 1024
+      # train.batch_size: 1
+      train.batch_size: 3 # for cluster, guessing
+  - name: optimizer.lr
+    options:
+      - 3e-3
+      # - 1e-3
+      - 3e-4
+      - 1e-4
+      # - 3e-5
+      # - 1e-5

@@ -1,0 +1,6 @@
+output_dir: /p/app/projects/nga-frontier/gigaformer-runs/logs/%j
+data:
+  dir: /p/app/projects/nga-frontier/inaturalist2018
+  category_label_path: /p/app/projects/nga-frontier/inaturalist2018/category-maps/category_label_reptilia_map.json
+model:
+  resume: /p/app/projects/nga-frontier/gigaformer-runs/logs/%j/resume/
