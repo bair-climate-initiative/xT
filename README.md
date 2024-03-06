@@ -24,7 +24,7 @@ We also provide [SubmitIt](https://github.com/facebookincubator/submitit) script
 
 ## Pretrained Models
 
-Weights and configs for our experiments are available on [Hugging Face](https://huggingface.co/bair-climate-initiative/swin-xt/tree/main).
+Weights and configs for our experiments are available on [Hugging Face](https://huggingface.co/bair-climate-initiative/xt/tree/main).
 
 |Name                     | Resolution | Top1-ACC | Params | Mem (GB) | Thrpt (region/s) |
 |-------------------------|----:|-----:| ---:| ---:|---:|
