@@ -38,37 +38,51 @@ class SwinXviewWrapper(nn.Module):
 
 
 def swinv2_tiny_window16_256_timm(*args, **kwargs):
+    input_size = (kwargs["input_size"], kwargs["input_size"])
     model = timm.create_model(
-        "swinv2_tiny_window16_256.ms_in1k", features_only=True, pretrained=True
+        "swinv2_tiny_window16_256.ms_in1k",
+        features_only=True,
+        pretrained=True,
+        input_size=input_size,
     )
     return SwinWrapper(model)
 
 
 def swinv2_small_window16_256_timm(*args, **kwargs):
+    input_size = (kwargs["input_size"], kwargs["input_size"])
     model = timm.create_model(
-        "swinv2_small_window16_256.ms_in1k", features_only=True, pretrained=True
+        "swinv2_small_window16_256.ms_in1k",
+        features_only=True,
+        pretrained=True,
+        input_size=input_size,
     )
     return SwinWrapper(model)
 
 
 def swinv2_base_window16_256_timm(*args, **kwargs):
+    input_size = (kwargs["input_size"], kwargs["input_size"])
     model = timm.create_model(
-        "swinv2_base_window16_256.ms_in1k", features_only=True, pretrained=True
+        "swinv2_base_window16_256.ms_in1k",
+        features_only=True,
+        pretrained=True,
+        input_size=input_size,
     )
     return SwinWrapper(model)
 
 
 def swinv2_large_window16_256_timm(*args, **kwargs):
+    input_size = (kwargs["input_size"], kwargs["input_size"])
     model = timm.create_model(
         "swinv2_large_window12to16_192to256.ms_in22k_ft_in1k",
         features_only=True,
         pretrained=True,
+        input_size=input_size,
     )
     return SwinWrapper(model)
 
 
-def swinv2_tiny_window16_256_timm_xview(img_size, *args, **kwargs):
-    opts = {"input_size": (2, img_size, img_size)}
+def swinv2_tiny_window16_256_timm_xview(input_size, *args, **kwargs):
+    opts = {"input_size": (2, input_size, input_size)}
     model = timm.create_model(
         "swinv2_tiny_window16_256.ms_in1k",
         features_only=True,
@@ -79,8 +93,8 @@ def swinv2_tiny_window16_256_timm_xview(img_size, *args, **kwargs):
     return SwinXviewWrapper(model)
 
 
-def swinv2_small_window16_256_timm_xview(img_size, *args, **kwargs):
-    opts = {"input_size": (2, img_size, img_size)}
+def swinv2_small_window16_256_timm_xview(input_size, *args, **kwargs):
+    opts = {"input_size": (2, input_size, input_size)}
     model = timm.create_model(
         "swinv2_small_window16_256.ms_in1k",
         features_only=True,
@@ -91,8 +105,8 @@ def swinv2_small_window16_256_timm_xview(img_size, *args, **kwargs):
     return SwinXviewWrapper(model)
 
 
-def swinv2_base_window16_256_timm_xview(img_size, *args, **kwargs):
-    opts = {"input_size": (2, img_size, img_size)}
+def swinv2_base_window16_256_timm_xview(input_size, *args, **kwargs):
+    opts = {"input_size": (2, input_size, input_size)}
     model = timm.create_model(
         "swinv2_base_window16_256.ms_in1k",
         features_only=True,
@@ -103,8 +117,8 @@ def swinv2_base_window16_256_timm_xview(img_size, *args, **kwargs):
     return SwinXviewWrapper(model)
 
 
-def swinv2_large_window16_256_timm_xview(img_size, *args, **kwargs):
-    opts = {"input_size": (2, img_size, img_size)}
+def swinv2_large_window16_256_timm_xview(input_size, *args, **kwargs):
+    opts = {"input_size": (2, input_size, input_size)}
     model = timm.create_model(
         "swinv2_large_window12to16_192to256.ms_in22k_ft_in1k",
         features_only=True,

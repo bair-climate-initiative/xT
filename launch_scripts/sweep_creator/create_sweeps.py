@@ -61,7 +61,7 @@ opt_key_map = {
     "train.batch_size": "bs",
     "optimizer.warmup_epochs": "warmup",
     "data.crop_size": "crop_size",
-    "model.backbone.img_size": "img_size",
+    "model.backbone.input_size": "input_size",
     "model.context.enabled": "xl",
     "model.backbone_class": "backbone",
 }
@@ -133,7 +133,7 @@ def main():
 
         if (
             deep_get(modified_config, "data.crop_size")
-            % deep_get(modified_config, "model.backbone.img_size")
+            % deep_get(modified_config, "model.backbone.input_size")
             != 0
         ):
             continue

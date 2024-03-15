@@ -1,6 +1,6 @@
 base_configs:
   - config/base.yaml
-  - config/cluster_paths_inat.yaml
+  - config/paths.yaml
 name: hiera_base_1e-4_hyper_448_224
 data:
   dataset: inaturalist
@@ -30,9 +30,9 @@ model:
   name: EncoderDecoder
   num_classes: ${data.num_classes}
   mlp_ratio: 4
-  backbone_class: get_hiera_model
+  backbone_class: hiera_base
   backbone:
-    img_size: 224
+    input_size: 224
     input_dim: 3
   cls_head: xl
   context:

@@ -19,7 +19,7 @@ class BackboneConfig:
     """Path to pretrained weights, empty for none."""
     channel_last: bool = True
     """If channels are last in data format."""
-    img_size: int = 256
+    input_size: int = 256
     """Expected input size of data."""
 
 
@@ -54,7 +54,7 @@ def build_model(config: ModelConfig, dataset: str = "inaturalist"):
             backbone=backbone,
             xl_config=config.context,
             channels_last=config.backbone.channel_last,
-            crop_size=config.backbone.img_size,
+            crop_size=config.backbone.input_size,
             skip_decoder=False,
             backbone_name=config.backbone_class,
             dataset=dataset,

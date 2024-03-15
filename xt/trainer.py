@@ -538,7 +538,7 @@ class PytorchTrainer:
                     )
 
     def _init_model(self):
-        self.input_size = self.config.model.backbone.img_size
+        self.input_size = self.config.model.backbone.input_size
         model = build_model(self.config.model, self.config.data.dataset)
 
         model = model.cuda()

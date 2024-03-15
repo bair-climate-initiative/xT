@@ -2,7 +2,7 @@ key_names:
   - name: data.crop_size
     options:
       - 512
-  - name: model.backbone.img_size
+  - name: model.backbone.input_size
     options:
       - 256
   - name: model.context.enabled

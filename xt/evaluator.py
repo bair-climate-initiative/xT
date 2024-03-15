@@ -40,7 +40,7 @@ class ClsEvaluator(Evaluator):
 
         self.crop_size = config.data.val_crop_size
         self.tiling = config.model.tiling
-        self.input_size = config.model.backbone.img_size
+        self.input_size = config.model.backbone.input_size
         self.num_classes = config.model.num_classes
 
         self.top1_acc = Accuracy(

@@ -32,7 +32,7 @@ model:
   mlp_ratio: 4
   backbone_class: swinv2_small_window16_256_timm
   backbone:
-    img_size: 256
+    input_size: 256
     input_dim: 3
   cls_head: naive
   context:

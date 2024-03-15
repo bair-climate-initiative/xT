@@ -1,9 +1,8 @@
 from .hiera import (
-    hiera_base_224,
-    hiera_base_plus_224,
-    hiera_base_plus_448,
-    hiera_small_224,
-    hiera_tiny_224,
+    hiera_base,
+    hiera_base_plus,
+    hiera_small,
+    hiera_tiny,
 )
 from .swin import (
     swinv2_base_window16_256_timm,

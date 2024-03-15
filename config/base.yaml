@@ -26,7 +26,7 @@ model:
     drop_path_rate: 0.2
     # pretrained does not matter anymore -- we load from Huggingface Hub
     channel_last: True
-    img_size: 512
+    input_size: 512
   resume: ""
   tiling: "naive"
   cls_head: "naive" # If this is 'xl', then we use the extra XL heads

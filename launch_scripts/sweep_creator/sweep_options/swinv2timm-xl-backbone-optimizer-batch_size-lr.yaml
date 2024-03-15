@@ -2,22 +2,22 @@ key_names:
   - group:
       - model.backbone_class: swinv2_tiny_window16_256_timm_xview
         data.crop_size: 4096
-        model.backbone.img_size: 512
+        model.backbone.input_size: 512
         # train.batch_size: 4
         train.batch_size: 16 # for cluster, or 18
       - model.backbone_class: swinv2_tiny_window16_256_timm_xview
         data.crop_size: 4096
-        model.backbone.img_size: 1024
+        model.backbone.input_size: 1024
         # train.batch_size: 1
         train.batch_size: 4 # for cluster, estimated
       - model.backbone_class: swinv2_base_window16_256_timm_xview
         data.crop_size: 4096
-        model.backbone.img_size: 512
+        model.backbone.input_size: 512
         # train.batch_size: 2
         train.batch_size: 10 # for cluster
       - model.backbone_class: swinv2_base_window16_256_timm_xview
         data.crop_size: 4096
-        model.backbone.img_size: 1024
+        model.backbone.input_size: 1024
         # train.batch_size: 1
         train.batch_size: 2 # for cluster
   - name: model.context.n_layer

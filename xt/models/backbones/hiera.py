@@ -16,28 +16,41 @@ class HieraWrapper(nn.Module):
         return [intermediates[-1].permute(0, 3, 1, 2)]  # n  768 7 7
 
 
-def hiera_tiny_224(*args, **kwargs):
-    model = hiera.hiera_tiny_224(pretrained=True, checkpoint="mae_in1k_ft_in1k")
+def hiera_tiny(*args, **kwargs):
+    input_size = (kwargs["input_size"], kwargs["input_size"])
+    model = hiera.hiera_tiny(
+        pretrained=True, checkpoint="mae_in1k_ft_in1k", input_size=input_size
+    )
     return HieraWrapper(model)
 
 
-def hiera_small_224(*args, **kwargs):
-    model = hiera.hiera_small_224(pretrained=True, checkpoint="mae_in1k_ft_in1k")
+def hiera_small(*args, **kwargs):
+    input_size = (kwargs["input_size"], kwargs["input_size"])
+    model = hiera.hiera_small(
+        pretrained=True, checkpoint="mae_in1k_ft_in1k", input_size=input_size
+    )
     return HieraWrapper(model)
 
 
-def hiera_base_224(*args, **kwargs):
-    model = hiera.hiera_base_224(pretrained=True, checkpoint="mae_in1k_ft_in1k")
+def hiera_base(*args, **kwargs):
+    input_size = (kwargs["input_size"], kwargs["input_size"])
+    model = hiera.hiera_base(
+        pretrained=True, checkpoint="mae_in1k_ft_in1k", input_size=input_size
+    )
     return HieraWrapper(model)
 
 
-def hiera_base_plus_224(*args, **kwargs):
-    model = hiera.hiera_base_plus_224(pretrained=True, checkpoint="mae_in1k_ft_in1k")
-    return HieraWrapper(model, hidden_size=896)
+def hiera_large(*args, **kwargs):
+    input_size = (kwargs["input_size"], kwargs["input_size"])
+    model = hiera.hiera_large(
+        pretrained=True, checkpoint="mae_in1k_ft_in1k", input_size=input_size
+    )
+    return HieraWrapper(model)
 
 
-def hiera_base_plus_448(*args, **kwargs):
-    model = hiera.hiera_base_plus_224(
-        pretrained=True, input_size=(448, 448), checkpoint="mae_in1k_ft_in1k"
+def hiera_base_plus(*args, **kwargs):
+    input_size = (kwargs["input_size"], kwargs["input_size"])
+    model = hiera.hiera_base_plus(
+        pretrained=True, checkpoint="mae_in1k_ft_in1k", input_size=input_size
     )
     return HieraWrapper(model, hidden_size=896)
