@@ -1,0 +1,6 @@
+output_dir: /p/path/to/logs/%j
+data:
+  dir: /p/path/to/inaturalist2018
+  category_label_path: /p/path/to/xT/meta/category_label_reptilia_map.json
+model:
+  resume: /p/path/to/logs/%j/resume/

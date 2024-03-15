@@ -27,7 +27,7 @@ data:
   supercategories:
     - Reptilia
 model:
-  name: EncoderDecoder
+  name: xT
   num_classes: ${data.num_classes}
   mlp_ratio: 4
   backbone_class: swinv2_small_window16_256_timm

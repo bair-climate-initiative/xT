@@ -96,25 +96,6 @@ class ClsEvaluator(Evaluator):
         for metric in [self.top1_acc, self.top5_acc, self.precision, self.recall]:
             metric.reset()
 
-        def model_foward(x, model):
-            mem = set()
-            output = []
-            iterator = self.build_iterator(x)
-            for batch_new, k, (x0, x1, y0, y1, hh, ww), context, cord in iterator:
-                mem_only = k.get("mem_only", False)
-                local_output, mem = model(
-                    batch_new, context=context, cord=cord, mem=mem
-                )
-                if mem_only:
-                    continue
-                # context_id = k["context_id"]
-                output.append(local_output)
-            final_out = {}
-            for k, v in output[0].items():
-                final_out[k] = torch.stack([z[k] for z in output])
-            final_out["label"] = final_out["label"][-1]
-            return final_out
-
         metrics = {}
 
         if is_dist_avail_and_initialized():

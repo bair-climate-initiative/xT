@@ -87,7 +87,6 @@ def create_block(
     norm_epsilon=1e-5,
     rms_norm=False,
     residual_in_fp32=False,
-    fused_add_norm=False,
     layer_idx=None,
     device=None,
     dtype=None,
@@ -113,7 +112,6 @@ def create_block(
         d_model,
         mixer_cls,
         norm_cls=norm_cls,
-        fused_add_norm=fused_add_norm,
         residual_in_fp32=residual_in_fp32,
         reverse=reverse,
         transpose=transpose,
@@ -132,7 +130,6 @@ if __name__ == "__main__":
     blk = create_block(
         d_model=768,
         ssm_cfg=ssm_cfg,
-        fused_add_norm=False,
         residual_in_fp32=True,
         drop_rate=0.1,
         drop_path_rate=0.1,

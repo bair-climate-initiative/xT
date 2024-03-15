@@ -17,7 +17,7 @@ data:
   batch_size: ${train.batch_size}
   val_batch_size: ${train.val_batch_size}
 model:
-  name: EncoderDecoder
+  name: xT
   patch_size: 16
   backbone_class: swinv2_tiny_window16_256_timm
   backbone:

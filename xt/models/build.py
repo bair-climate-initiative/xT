@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 
 from . import backbones
 from .context_encoders import ContextEncoderConfig
-from .decoders.decoder import EncoderDecoder
+from .decoders.decoder import xT
 
 
 @dataclass
@@ -25,7 +25,7 @@ class BackboneConfig:
 
 @dataclass
 class ModelConfig:
-    name: str = "EncoderDecoder"
+    name: str = "xT"
     """Name of overarching model architecture."""
     resume: str = ""
     """Path to checkpoint to resume training from. Empty for none."""
@@ -49,8 +49,8 @@ def build_model(config: ModelConfig, dataset: str = "inaturalist"):
     backbone_class = config.backbone_class
     backbone = backbones.__dict__[backbone_class](**config.backbone)
 
-    if config.name == "EncoderDecoder":
-        model = EncoderDecoder(
+    if config.name == "xT":
+        model = xT(
             backbone=backbone,
             xl_config=config.context,
             channels_last=config.backbone.channel_last,
